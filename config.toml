@@ -1,0 +1,33 @@
+# newscollect configuration. Re-read on every collection cycle:
+# add, delete or edit [[sources]] / [llm] and it applies without a restart.
+
+[server]
+host = "0.0.0.0"
+port = 8000
+site_title = "최신 보안사고 목록"
+
+[llm]
+enabled = true
+# OLLAMA_HOST env var (e.g. 10.0.2.2:11434) overrides this endpoint.
+endpoint = "127.0.0.1:11434"
+model = "solar:10.7b"
+timeout_seconds = 180
+# Context window sent to Ollama. Its default (4096) is too small for long Korean articles
+# (~1.1 tokens per character) and silently truncates the prompt.
+num_ctx = 8192
+
+[collector]
+interval_minutes = 30
+max_articles_per_run = 30   # per source, newest first
+max_age_days = 30           # ignore older feed items
+database = "data/news.db"
+
+[[sources]]
+name = "보안뉴스"
+url = "https://www.boannews.com/rss/S1N2.xml"
+enabled = true
+
+[[sources]]
+name = "데일리시큐"
+url = "https://www.dailysecu.com/rss/S1N2.xml"
+enabled = true

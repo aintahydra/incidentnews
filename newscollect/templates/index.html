@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+{% if q %}<p class="found">‘{{ q }}’ 검색 결과 {{ total }}건 · <a href="/">전체 보기</a></p>{% endif %}
+{% for day in days %}
+<section class="day">
+  <h2>{{ day.date }} <small>({{ day.weekday }})</small></h2>
+  {% for i in day['items'] %}{% include "_card.html" %}{% endfor %}
+</section>
+{% else %}
+<p class="empty">{% if q %}검색 결과가 없습니다.{% else %}아직 수집된 사고가 없습니다. 잠시 후 다시 확인하세요.{% endif %}</p>
+{% endfor %}
+{% endblock %}

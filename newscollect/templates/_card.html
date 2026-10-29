@@ -1,0 +1,12 @@
+<article class="incident" id="inc-{{ i.id }}">
+  <h3><a href="/incidents/{{ i.id }}">{{ i.title }}</a>{% if i.category %} <span class="tag">{{ i.category }}</span>{% endif %}</h3>
+  <dl>
+    {% if i.attacker %}<dt>공격자</dt><dd>{{ i.attacker }}</dd>{% endif %}
+    {% if i.victim %}<dt>피해</dt><dd>{{ i.victim }}</dd>{% endif %}
+    {% if i.damage %}<dt>규모</dt><dd>{{ i.damage }}</dd>{% endif %}
+  </dl>
+  <p>{{ i.summary }}</p>
+  <p class="src">{% for s in i.sources %}<a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.source }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
+    <button type="button" class="regen" data-id="{{ i.id }}" title="원문을 다시 읽고 AI 요약을 새로 생성합니다">요약 다시 생성</button>
+    <span class="regen-msg" role="alert"></span></p>
+</article>

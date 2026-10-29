@@ -1,0 +1,10 @@
+# secrets
+.env
+
+# runtime data
+data/
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/

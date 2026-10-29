@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }}</title>
+<script>try{var t=localStorage.getItem("theme");if(t!=="light"&&t!=="dark")t=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";document.documentElement.dataset.theme=t}catch(e){}</script>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="{{ static_url('style.css') }}">
+</head>
+<body data-page="{% block page %}list{% endblock %}">
+<header>
+  <a class="brand" href="/">{{ title }}</a>
+  <form class="search" action="/" method="get" role="search">
+    <input type="search" name="q" value="{{ q or '' }}" placeholder="사고 검색 (기업, 공격자, 키워드)" maxlength="100" aria-label="사고 검색">
+    <button type="submit">검색</button>
+  </form>
+  <div class="themes" role="group" aria-label="테마 선택">
+    <button type="button" data-theme-choice="light" aria-pressed="false">☀ 라이트</button>
+    <button type="button" data-theme-choice="dark" aria-pressed="false">🌙 다크</button>
+  </div>
+</header>
+<main>{% block content %}{% endblock %}</main>
+<footer>보안뉴스·데일리시큐 등 RSS 기사를 AI가 요약했습니다. 정확한 내용은 원문을 확인하세요.</footer>
+<script src="{{ static_url('app.js') }}"></script>
+</body>
+</html>
