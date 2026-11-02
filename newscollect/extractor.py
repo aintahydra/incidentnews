@@ -2,7 +2,9 @@
 import json
 import re
 import time
+from collections import Counter
 from dataclasses import dataclass
+from datetime import date, timedelta
 
 import httpx
 
@@ -12,14 +14,16 @@ INCIDENT_WORDS = ["해킹", "랜섬웨어", "유출", "침해", "공격", "탈�
 SYSTEM = """너는 사이버 보안 뉴스에서 '사고'를 추출하는 분석가다. 반드시 JSON 객체 하나만 출력한다.
 사고란 해킹, 랜섬웨어, 개인정보/데이터 유출, 침해, 디도스, 악성코드 감염 등으로 실제 피해(유출, 서비스 마비, 금전 요구 등)가 발생한 보안 사건이다.
 다음은 사고가 아니므로 is_incident=false: 취약점 발견·권고·패치, 잠재적 위험 경고, 연구 결과, 정책·제도, 제품·행사 소개, 통계·설문, 의견 기사.
-모든 문자열 값은 반드시 한국어(한글)로 작성한다. 영어로 번역하지 말고, 기업·그룹명은 원문 표기를 유지한다. (Write all values in Korean.)
+기사는 한국어이거나 영어일 수 있다. 영어 기사여도 title·damage·summary 등 모든 문자열 값은 반드시 한국어(한글)로 작성한다. (Write all values in Korean.)
+단, 기업·기관·공격 그룹·제품·악성코드 이름은 번역하거나 음차하지 말고 기사에 나온 원문 표기 그대로 쓴다(예: Microsoft, LockBit, Binance, 보안뉴스).
+금액·건수는 기사의 숫자와 단위를 정확히 옮긴다(예: $6.3 billion → 63억 달러). 확실하지 않으면 원문 표기 그대로 쓴다.
 필드:
 - is_incident: boolean
 - title: 사고를 한 줄로 요약한 제목(40자 이내, 한국어)
 - occurred_at: 사고 발생일 YYYY-MM-DD (알 수 없으면 기사 게시일 사용)
-- attacker: 공격자/공격 그룹 (모르면 "")
-- victim: 피해 기업/기관 (모르면 "")
-- damage: 피해 규모(건수, 금액, 영향 등) (모르면 "")
+- attacker: 공격자/공격 그룹. 기사 본문에 쓰인 표기를 그대로 옮긴다(한국어 기사는 한글 표기, 영어 기사는 영어 표기. 번역·음차 금지). 모르면 ""
+- victim: 피해 기업/기관. 기사 본문에 쓰인 표기를 그대로 옮긴다(한국어 기사는 한글 표기, 영어 기사는 영어 표기. 번역·음차 금지). 모르면 ""
+- damage: 피해 규모(건수, 금액, 영향 등)를 한국어로 (모르면 "")
 - category: 랜섬웨어|데이터 유출|해킹|악성코드|DDoS|피싱|기타 중 하나
 - summary: 한국어 2~4문장. 언제, 누가 누구를 공격했는지, 피해 규모가 어느 정도인지 반드시 포함. 기사에 없는 내용은 지어내지 않는다."""
 
@@ -53,12 +57,23 @@ def clip(text: str, limit: int = 450) -> str:
     return cut[:end + 1] if end > limit // 2 else cut.rstrip() + "…"
 
 
+MAX_BACKDATE_DAYS = 180
+
+
+def plausible_date(occurred: str, published_at: str) -> str:
+    """The model sometimes invents dates (2021 for a 2026 article): keep only dates up to ~6 months before publishing."""
+    try:
+        d, p = date.fromisoformat(occurred), date.fromisoformat(published_at)
+    except ValueError:
+        return published_at
+    return occurred if p - timedelta(days=MAX_BACKDATE_DAYS) <= d <= p else published_at
+
+
 def parse_llm_json(text: str, published_at: str) -> Extraction:
     m = re.search(r"\{.*\}", text, re.S)
     data = json.loads(m.group(0) if m else text)
     occurred = _s(data.get("occurred_at"))
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", occurred):
-        occurred = published_at
+    occurred = plausible_date(occurred, published_at) if re.fullmatch(r"\d{4}-\d{2}-\d{2}", occurred) else published_at
     return Extraction(bool(data.get("is_incident")), _s(data.get("title")), occurred,
                       _s(data.get("attacker")), _s(data.get("victim")), _s(data.get("damage")),
                       _s(data.get("category")), clip(_s(data.get("summary"))))
@@ -83,16 +98,40 @@ def ungrounded_names(ex: Extraction, source_text: str) -> list[str]:
     return bad
 
 
-def _problems(ex: Extraction, source_text: str) -> list[str]:
+def _english_text(text: str) -> bool:
+    """A phrase written in English instead of Korean (names alone don't count: needs 3+ English words)."""
+    return not re.search(r"[가-힣]", text) and len(re.findall(r"[A-Za-z]{3,}", text)) >= 3
+
+
+def _problems(ex: Extraction, source_text: str, check_names: bool = True) -> list[str]:
     if not ex.is_incident:
         return []
     problems = []
+    if not ex.title or _english_text(ex.title) or not HANGUL.search(ex.title):
+        problems.append("title이 한국어가 아님")
+    if _english_text(ex.damage):
+        problems.append("damage가 한국어가 아님")
     if not (ex.summary and HANGUL.search(ex.summary)):
         problems.append("summary가 비었거나 한국어가 아님")
-    bad = ungrounded_names(ex, source_text)
+    bad = ungrounded_names(ex, source_text) if check_names else []
     if bad:
         problems.append("기사 본문에 없는 이름: " + ", ".join(bad))
     return problems
+
+
+def repair_extraction(ex: Extraction, source_text: str) -> Extraction:
+    """Names that are not in the article (a descriptive "정부 기관", a garbled company) are blanked in the
+    victim/attacker fields. For a Korean article, a bad name that also leaked into the title/summary/damage makes the
+    result unusable; for other languages Korean words in the prose can't be matched against the source, so they pass."""
+    bad = ungrounded_names(ex, source_text)
+    if not bad:
+        return ex
+    for f in ("victim", "attacker"):
+        if any(t in getattr(ex, f) for t in bad):
+            setattr(ex, f, "")
+    if is_korean(source_text[:700]) and any(t in getattr(ex, f) for t in bad for f in ("title", "summary", "damage")):
+        raise ValueError("LLM 결과 검증 실패: 기사 본문에 없는 이름이 제목/요약에 쓰임: " + ", ".join(bad))
+    return ex
 
 
 def extract_llm(client: httpx.Client, base_url: str, model: str, article: dict,
@@ -101,13 +140,15 @@ def extract_llm(client: httpx.Client, base_url: str, model: str, article: dict,
     user = (f"게시일: {article['published_at']}\n제목: {article['title']}\n본문: {body}"
             "\n\nJSON만 출력하고, title과 summary는 반드시 한국어로 작성하라.")
     source_text = article["title"] + " " + body
+    user += names_hint(source_text)
     problems: list[str] = []
     seen: list[str] = []  # distinct problems across all attempts, for the final error
+    last: Extraction | None = None
     for temp in (temperature, *RETRY_TEMPERATURES):
         if deadline is not None and time.monotonic() > deadline:
             seen.append("시간 초과")
             break
-        hint = f"\n\n이전 답변의 문제: {'; '.join(problems)}. 기사에 나온 이름을 한 글자도 바꾸지 말고 그대로 사용하라." if problems else ""
+        hint = f"\n\n이전 답변의 문제: {'; '.join(problems)}. 기사에 나온 이름을 한 글자도 바꾸지 말고 원문 표기 그대로(영어 기사라면 영어 그대로) 사용하라." if problems else ""
         try:
             r = client.post(f"{base_url}/api/chat", json={
                 "model": model, "stream": False, "format": "json",
@@ -120,10 +161,16 @@ def extract_llm(client: httpx.Client, base_url: str, model: str, article: dict,
             problems = [f"LLM 응답 오류: {type(e).__name__}"]
             seen += [p for p in problems if p not in seen]
             continue
+        if ex.is_incident and not is_korean(source_text[:700]):
+            names = proper_nouns(source_text, limit=30)
+            ex.title, ex.summary, ex.damage = (strip_transliterations(x, names) for x in (ex.title, ex.summary, ex.damage))
         problems = _problems(ex, source_text)
         if not problems:
             return ex
+        last = ex
         seen += [p for p in problems if p not in seen]
+    if last is not None and last.is_incident and not _problems(last, source_text, check_names=False):
+        return repair_extraction(last, source_text)  # only the victim/attacker names were wrong
     raise ValueError("LLM 결과 검증 실패(" + str(1 + len(RETRY_TEMPERATURES)) + "회 시도): " + "; ".join(seen))
 
 
@@ -137,7 +184,8 @@ SUMMARY_SYSTEM = """너는 보안 뉴스 편집자다. 주어진 기사로 사�
 - 첫 문장: 언제, 누가(공격자) 누구를(피해 대상) 어떻게 공격했는지. 공격자를 모르면 공격자는 언급하지 않는다.
 - 두 번째 문장: 피해 규모(건수, 금액, 유출 항목, 서비스 영향).
 - 마지막 문장: 회사·당국의 대응이나 후속 조치.
-- 기사에 없는 내용은 쓰지 않는다. 기업·기관·그룹 이름은 기사에 나온 표기를 한 글자도 바꾸지 않는다.
+- 기사에 없는 내용은 쓰지 않는다. 기업·기관·그룹·제품 이름은 기사에 나온 표기를 한 글자도 바꾸지 않는다.
+- 기사가 영어여도 요약은 반드시 한국어로 쓰되, 위 이름들은 번역·음차하지 않고 영어 원문 그대로 쓴다. 금액·건수는 기사의 숫자와 단위를 정확히 옮긴다(예: $6.3 billion → 63억 달러).
 - 같은 내용을 반복하지 않는다. 매체 이름, 기자, 출처 표기는 쓰지 않는다.
 - 요약문 본문만 출력한다. 제목, 머리말, 따옴표, JSON을 붙이지 않는다.
 
@@ -149,7 +197,8 @@ _SENT_END = re.compile(r"다[.!?」”’\"')]*$")
 _HANJA = re.compile(r"[\u4e00-\u9fff]")
 
 
-def summary_problems(text: str, forbidden: list[str] = (), source_text: str | None = None) -> list[str]:
+def summary_problems(text: str, forbidden: list[str] = (), source_text: str | None = None,
+                     allowed_years: set[str] | None = None) -> list[str]:
     """Why a summary reads badly (empty list = fine)."""
     text = text.strip()
     if not HANGUL.search(text):
@@ -175,12 +224,27 @@ def summary_problems(text: str, forbidden: list[str] = (), source_text: str | No
     bad = [t for t in forbidden if t and t in text]
     if bad:
         problems.append("기사에 없는 이름: " + ", ".join(bad))
+    if allowed_years is not None:  # the model invents years ("2023년" in a 2026 article)
+        wrong = sorted({y for y in re.findall(r"(?<!\d)((?:19|20)\d{2})\s*년", text) if y not in allowed_years})
+        if wrong:
+            problems.append("기사에 없는 연도: " + ", ".join(wrong))
     if source_text is not None:  # English words the article never used = the model drifted into English
         src = source_text.lower()
         foreign = sorted({w for w in re.findall(r"[A-Za-z]{4,}", text) if w.lower() not in src})
         if foreign:
             problems.append("기사에 없는 영어 단어: " + ", ".join(foreign[:4]))
     return problems
+
+
+def known_years(source_text: str, published_at: str) -> set[str]:
+    return set(re.findall(r"(?<!\d)(?:19|20)\d{2}(?!\d)", source_text)) | {published_at[:4]}
+
+
+def strip_transliterations(text: str, names: list[str]) -> str:
+    """"클로이데(Claude)" -> "Claude": a (bad) Korean transliteration written before the real English name."""
+    for n in names:
+        text = re.sub(r"[가-힣]{2,}\s*\(\s*" + re.escape(n) + r"\s*\)", n, text)
+    return text
 
 
 def _clean_summary(text: str) -> str:
@@ -197,7 +261,8 @@ def write_summary(client: httpx.Client, base_url: str, model: str, article: dict
              ("공격자", fields.get("attacker")), ("피해 규모", fields.get("damage"))]
     info = "\n".join(f"- {k}: {v}" for k, v in facts if v)
     user = (f"확인된 정보(참고용. 기사와 다르면 기사를 따른다):\n{info}\n\n"
-            f"제목: {article['title']}\n본문: {body}\n\n위 기사의 요약문만 출력하라.")
+            f"제목: {article['title']}\n본문: {body}\n\n위 기사의 요약문만 출력하라.") + names_hint(article["title"] + " " + body)
+    source_text = article["title"] + " " + body
     problems: list[str] = []
     seen: list[str] = []
     for temp in (temperature, *RETRY_TEMPERATURES):
@@ -217,7 +282,9 @@ def write_summary(client: httpx.Client, base_url: str, model: str, article: dict
             problems = [f"LLM 응답 오류: {type(e).__name__}"]
             seen += [p for p in problems if p not in seen]
             continue
-        problems = summary_problems(text, forbidden, article["title"] + " " + body)
+        if not is_korean(source_text):
+            text = strip_transliterations(text, proper_nouns(source_text, limit=30))
+        problems = summary_problems(text, forbidden, source_text, known_years(source_text, article["published_at"]))
         if not problems:
             return text
         seen += [p for p in problems if p not in seen]
@@ -242,6 +309,39 @@ def extractive_summary(body: str, limit: int = 380) -> str:
     return " ".join(out)
 
 
+NAMEFIX_SYSTEM = """너는 교정자다. 아래 요약문에서, 주어진 영어 이름이 한글로 잘못 음차되어 있으면(예: Claude → 클로이디) 영어 원문 그대로 고쳐 쓴다.
+이름이 요약문에 아예 없으면 억지로 넣지 않는다. 그 밖의 내용은 한 글자도 바꾸지 않는다. 고친 요약문만 출력한다."""
+
+
+def headline_names(article: dict) -> list[str]:
+    """Names in the headline that the body confirms as names (title-case headlines make every word look capitalized)."""
+    return [n for n in proper_nouns(article["body"], limit=40) if n in article["title"]]
+
+
+def polish_names(client: httpx.Client, base_url: str, model: str, article: dict, summary: str,
+                 num_ctx: int = 8192) -> str:
+    """English articles: when a headline name (Claude, Gemini...) is missing from the summary the model usually
+    transliterated it. Ask for a minimal edit; keep the original unless the edit is clean."""
+    source_text = article["title"] + " " + article["body"][:4000]
+    missing = [n for n in headline_names(article) if n not in summary]
+    if not missing or is_korean(source_text[:700]):
+        return summary
+    try:
+        r = client.post(f"{base_url}/api/chat", json={
+            "model": model, "stream": False,
+            "options": {"temperature": 0, "num_ctx": num_ctx, "num_predict": 700},
+            "messages": [{"role": "system", "content": NAMEFIX_SYSTEM},
+                         {"role": "user", "content": f"영어 이름: {', '.join(missing)}\n\n요약문:\n{summary}"}]})
+        r.raise_for_status()
+        fixed = _clean_summary(r.json()["message"]["content"])
+    except (httpx.HTTPStatusError, KeyError):
+        return summary
+    years = known_years(source_text, article["published_at"])
+    ok = (not summary_problems(fixed, source_text=source_text, allowed_years=years)
+          and any(n in fixed for n in missing) and len(fixed) >= 0.7 * len(summary))
+    return fixed if ok else summary
+
+
 def repair_fields(fields: dict, source_text: str, headline: str) -> dict:
     """Drop names that appear nowhere in the article (and a title containing them)."""
     probe = Extraction(True, victim=fields.get("victim", ""), attacker=fields.get("attacker", ""))
@@ -259,13 +359,65 @@ def repair_fields(fields: dict, source_text: str, headline: str) -> dict:
 
 STRONG_WORDS = ["유출", "랜섬웨어", "해킹", "침해사고", "탈취", "마비", "피해"]
 
+EN_INCIDENT = re.compile(r"\b(hack(ed|er|ers|ing)?|breach(ed|es)?|ransomware|leak(ed|s|ing)?|stolen|steal(s|ing)?|theft|"
+                         r"attack(s|ed|er|ers)?|cyber-?attack|compromis\w+|malware|phishing|ddos|extort\w*|infostealer|"
+                         r"botnet|backdoor|exfiltrat\w+|heist|data exposure|exposed)\b", re.I)
+EN_VULN_TITLE = re.compile(r"\b(vulnerabilit\w*|CVE-\d+|patch(es|ed)?|flaw|bug|zero-days?|updates?|advisory)\b", re.I)
+EN_STRONG_TITLE = re.compile(r"\b(breach(ed|es)?|ransomware|hack(ed)?|stolen|leak(ed|s)?|attacks?|attacked|"
+                             r"compromis\w+|extort\w*|heist|infostealer|botnet|data (theft|exposure))\b", re.I)
+
+
+def is_korean(text: str) -> bool:
+    hangul = len(re.findall(r"[가-힣]", text))
+    latin = len(re.findall(r"[A-Za-z]", text))
+    return hangul >= 0.2 * (hangul + latin) and hangul > 0
+
+
+_NAME_TOKEN = re.compile(r"\b(?:[A-Z]{2,}[A-Za-z0-9-]*|[A-Z][a-z]+(?:[A-Z][A-Za-z0-9]*)+|[A-Za-z]+\d[A-Za-z0-9-]*)\b")
+_MID_CAP = re.compile(r"(?<=[a-z,] )[A-Z][a-z]{2,}\b")
+_NOT_NAMES = {"January", "February", "March", "April", "June", "July", "August", "September", "October", "November",
+              "December", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday", "However",
+              "According", "Because", "Although", "Meanwhile", "Researchers", "Attackers", "Hackers"}
+
+
+def proper_nouns(text: str, limit: int = 14) -> list[str]:
+    """Company/product/malware names as spelled in an English article (CamelCase, acronyms, Capitalized mid-sentence)."""
+    found = _NAME_TOKEN.findall(text) + _MID_CAP.findall(text)
+    found += [part for tok in found if "-" in tok for part in tok.split("-") if re.fullmatch(r"[A-Z]{2,}[A-Za-z0-9]*", part)]
+    counts = Counter(m for m in found if m not in _NOT_NAMES)
+    return [n for n, _ in counts.most_common(limit)]
+
+
+def names_hint(article_text: str) -> str:
+    """Prompt suffix for non-Korean articles: small models transliterate names ("Claude" -> "클로이데") unless told not to."""
+    if is_korean(article_text[:700]):
+        return ""
+    names = proper_nouns(article_text)
+    return ("\n\n다음 이름은 한글로 음차하지 말고 이 영어 표기 그대로 써라: " + ", ".join(names)) if names else ""
+
+
+def model_for(cfg, korean: bool) -> str:
+    """Korean articles use `model`; other languages use `foreign_model` when one is configured."""
+    return cfg.llm_model if korean else (getattr(cfg, "llm_foreign_model", "") or cfg.llm_model)
+
+
+def looks_like_incident(article: dict) -> bool:
+    """Cheap keyword gate before the LLM (Korean or English). The LLM still makes the final call."""
+    text = article["title"] + " " + article["body"][:1500]
+    if not is_korean(article["title"] + " " + article["body"][:600]):
+        if not EN_INCIDENT.search(text):
+            return False
+        # vulnerability / patch advisories are not incidents unless the headline reports actual attacks
+        return not (EN_VULN_TITLE.search(article["title"]) and not EN_STRONG_TITLE.search(article["title"]))
+    if not any(w in text for w in INCIDENT_WORDS):
+        return False
+    # vulnerability / risk advisories are not incidents unless the title reports actual damage
+    return not (re.search(r"취약|패치|가능성|우려|위험", article["title"]) and not any(w in article["title"] for w in STRONG_WORDS))
+
 
 def extract_heuristic(article: dict) -> Extraction:
-    text = article["title"] + " " + article["body"][:1500]
-    if not any(w in text for w in INCIDENT_WORDS):
-        return Extraction(False, method="heuristic")
-    # vulnerability / risk advisories are not incidents unless the title reports actual damage
-    if re.search(r"취약|패치|가능성|우려|위험", article["title"]) and not any(w in article["title"] for w in STRONG_WORDS):
+    """Korean-only fallback: it quotes the article, so it must never be used for non-Korean text."""
+    if not looks_like_incident(article):
         return Extraction(False, method="heuristic")
     sentences = re.split(r"(?<=[.다])\s+", article["body"])
     summary = " ".join(sentences[:3])[:400] or article["title"]
@@ -275,19 +427,33 @@ def extract_heuristic(article: dict) -> Extraction:
 
 def extract(client, cfg, article: dict) -> Extraction:
     # cheap pre-filter: no incident vocabulary at all -> not worth an LLM call
-    if not extract_heuristic(article).is_incident:
+    if not looks_like_incident(article):
         return Extraction(False, method="prefilter")
+    korean = is_korean(article["title"] + " " + article["body"][:600])
+    if not korean and not cfg.llm_enabled:
+        raise RuntimeError("LLM이 꺼져 있어 영어 기사를 한국어로 요약할 수 없습니다")
     if cfg.llm_enabled:
         try:
-            ex = extract_llm(client, cfg.llm_base_url, cfg.llm_model, article, num_ctx=cfg.llm_num_ctx)
-            if ex.is_incident and summary_problems(ex.summary):  # cramped JSON summary: write it properly
+            model = model_for(cfg, korean)
+            ex = extract_llm(client, cfg.llm_base_url, model, article, num_ctx=cfg.llm_num_ctx)
+            src = article["title"] + " " + article["body"][:4000]
+            if ex.is_incident and summary_problems(ex.summary, source_text=src,
+                                                   allowed_years=known_years(src, article["published_at"])):  # cramped JSON summary: write it properly
                 try:
-                    ex.summary = write_summary(client, cfg.llm_base_url, cfg.llm_model, article,
+                    ex.summary = write_summary(client, cfg.llm_base_url, model, article,
                                                {"victim": ex.victim, "attacker": ex.attacker, "damage": ex.damage},
                                                num_ctx=cfg.llm_num_ctx)
                 except Exception:
-                    pass  # keep the JSON summary (Korean and grounded, just terse)
+                    if not korean:  # nothing to fall back on for English text: fail and retry next cycle
+                        raise
+                    # Korean article: the article's own lead beats a broken summary; else keep the terse JSON one
+                    lead = extractive_summary(article["body"])
+                    if lead and not summary_problems(lead):
+                        ex.summary = lead
+            if ex.is_incident and not korean:
+                ex.summary = polish_names(client, cfg.llm_base_url, model, article, ex.summary, cfg.llm_num_ctx)
             return ex
         except Exception:
-            pass
+            if not korean:  # the heuristic would store English text: fail so the article is retried later
+                raise
     return extract_heuristic(article)

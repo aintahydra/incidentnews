@@ -454,3 +454,404 @@ def test_regenerate_keeps_good_old_summary_when_llm_fails(tmp_path, monkeypatch)
     c = TestClient(create_app(p, run_collector=False))
     assert c.post(f"/incidents/{i}/regenerate").status_code == 502
     assert c.get("/api/incidents").json()[0]["summary"] == good_old
+
+
+# ---- English / non-Korean sources ----
+from newscollect import feeds  # noqa: E402
+
+EN_BODY = ("The FBI has linked a $6.3 billion cryptocurrency heist at Binance to North Korean hackers. "
+           "The TraderTraitor group, also tracked as Lazarus, compromised a DevOps engineer's laptop and submitted "
+           "unauthorized withdrawals. Binance said it has reimbursed most of the stolen funds and is working with "
+           "investigators. The attack happened on October 29, 2026 and is the largest crypto theft on record.")
+EN_ART = {"title": "FBI links $6.3 billion Binance crypto heist to North Korean hackers", "body": EN_BODY,
+          "published_at": "2026-10-29"}
+EN_JSON = {"is_incident": True, "title": "북한 해킹 그룹, 바이낸스에서 63억 달러 암호화폐 도난", "occurred_at": "2026-10-29",
+           "attacker": "TraderTraitor", "victim": "Binance", "damage": "63억 달러 상당의 암호화폐",
+           "category": "해킹", "summary": "짧은 요약."}
+EN_SUMMARY = ("2026년 10월 29일 북한 해킹 그룹 TraderTraitor가 Binance를 공격해 63억 달러 상당의 암호화폐를 탈취했다. "
+              "공격자는 개발 담당자의 노트북을 장악해 승인되지 않은 출금을 요청했다. "
+              "Binance는 대부분의 자산을 보상했으며 수사기관과 협력하고 있다.")
+
+
+class EnCfg:
+    llm_enabled = True; llm_base_url = "http://x"; llm_model = "solar"; llm_foreign_model = "exaone"; llm_num_ctx = 8192
+
+
+def en_llm(json_answer=EN_JSON, summary=EN_SUMMARY):
+    seen = []
+    def handler(req):
+        body = json.loads(req.content)
+        seen.append(body)
+        text = json.dumps(json_answer) if "format" in body else summary
+        return httpx.Response(200, json={"message": {"content": text}})
+    return httpx.Client(transport=httpx.MockTransport(handler)), seen
+
+
+def test_is_korean_and_english_incident_gate():
+    assert extractor.is_korean("랜섬웨어 공격으로 서버가 마비됐다 (LockBit)") and not extractor.is_korean(EN_BODY)
+    yes = lambda t, b="": extractor.looks_like_incident({"title": t, "body": b, "published_at": "2026-10-29"})
+    assert yes("Hackers breach Acme and steal customer data")
+    assert yes("Ivanti patches two more Connect Secure zero-days chained in attacks")   # patch word, but attacks reported
+    assert not yes("Ivanti releases security updates for Connect Secure flaw", "A vulnerability was fixed.")
+    assert not yes("Microsoft announces new Surface laptops", "Pricing and availability.")
+    assert not yes("How to harden your router", "Tips and tricks for a safer network.")
+
+
+def test_english_article_summarized_in_korean_with_foreign_model():
+    client, seen = en_llm()
+    ex_ = extractor.extract(client, EnCfg, EN_ART)
+    assert ex_.victim == "Binance" and ex_.attacker == "TraderTraitor"          # names stay in the article's spelling
+    assert ex_.summary == EN_SUMMARY and extractor.summary_problems(ex_.summary, source_text=EN_ART["title"] + EN_BODY) == []
+    assert {b["model"] for b in seen} == {"exaone"}                              # not the Korean model
+    assert extractor.is_korean(ex_.title)
+
+
+def test_korean_article_uses_main_model():
+    client, seen = en_llm({**GOOD, "summary": GOOD_SUMMARY})
+    extractor.extract(client, EnCfg, {**ART, "title": "빗썸 해킹 사고 개인정보 유출", "body": "빗썸에서 개인정보가 유출됐다. " * 5})
+    assert {b["model"] for b in seen} == {"solar"}
+
+
+def test_english_article_never_falls_back_to_english_heuristic():
+    class Off(EnCfg): llm_enabled = False
+    with pytest.raises(RuntimeError):
+        extractor.extract(None, Off, EN_ART)
+    client, _ = en_llm({"is_incident": True, "title": "x", "summary": "English only text here."})
+    with pytest.raises(ValueError):
+        extractor.extract(client, EnCfg, EN_ART)
+
+
+def test_english_article_with_transliterated_victim_is_blanked_and_english_fields_are_rejected():
+    translit = {**EN_JSON, "victim": "바이낸스"}
+    client, calls = en_llm(translit)
+    ex_ = extractor.extract_llm(client, "http://x", "m", EN_ART)         # retried 3x, then the field is blanked
+    assert ex_.victim == "" and ex_.attacker == "TraderTraitor" and len(calls) == 3
+    english_title = {**EN_JSON, "title": "North Korean hackers steal crypto from Binance"}
+    client, _ = en_llm(english_title)
+    with pytest.raises(ValueError, match="title이 한국어가 아님"):
+        extractor.extract_llm(client, "http://x", "m", EN_ART)
+    english_damage = {**EN_JSON, "damage": "limited exploitation in the wild"}
+    client, _ = en_llm(english_damage)
+    with pytest.raises(ValueError, match="damage가 한국어가 아님"):
+        extractor.extract_llm(client, "http://x", "m", EN_ART)
+
+
+def test_english_weak_summary_is_not_stored_but_korean_one_is_kept():
+    cramped = {**EN_JSON, "summary": "바이낸스 해킹. 63억 달러 도난."}
+    client, _ = en_llm(cramped, summary="English only.")
+    with pytest.raises(ValueError):
+        extractor.extract(client, EnCfg, EN_ART)
+    ko_art = {"title": "빗썸 해킹 사고 개인정보 유출", "body": "빗썸에서 고객 개인정보가 대량 유출됐다. " * 5, "published_at": "2026-10-29"}
+    client, _ = en_llm({**GOOD, "summary": "빗썸 해킹. 유출 추정."}, summary="English only.")
+    assert extractor.extract(client, EnCfg, ko_art).summary == "빗썸 해킹. 유출 추정."   # Korean keeps its terse summary
+
+
+def test_foreign_model_config(tmp_path):
+    p = tmp_path / "c.toml"
+    p.write_text('[llm]\nmodel = "a"\nforeign_model = "b"\n')
+    assert load_config(p).llm_foreign_model == "b"
+    assert load_config(write_cfg(tmp_path)).llm_foreign_model == ""
+    assert extractor.model_for(load_config(write_cfg(tmp_path)), korean=False) == "solar:10.7b"
+
+
+THN_HTML = b"""<html><body><article><h1>Short wrapper</h1></article>
+<div id="articlebody" class="articlebody"><p>Attackers posed as IT support on <a href="/t">Microsoft Teams</a>, and abused <b>AD CS</b>.</p>
+<p>The group convinced employees to grant remote access, then used weak certificate templates to get privileged logins for the company's domain. This is a long enough paragraph to pass the minimum.</p>
+<p>It also copied data to an external server before it was detected by the response team at the victim organization.</p>
+<ul><li>Related Articles:</li></ul></div></body></html>"""
+BC_HTML = b"""<html><body><article><header>By Reporter November 2, 2026 06:28 AM 0</header>
+<div class="articleBody"><p>Synology warned customers about ransomware attacks. The company's advisory says <a href="x">C3RB3R</a>'s operators target NAS devices.</p>
+<p>It urged users to enable automatic updates and upgrade DiskStation Manager as soon as possible to avoid compromise by the gang.</p>
+<p>Related Articles:</p><ul><li>Other story one</li><li>Other story two</li></ul></div></article></body></html>"""
+
+
+def test_article_text_extraction_for_english_layouts():
+    t = feeds.extract_article_text(THN_HTML)           # <article> is only a tiny shell here
+    assert t.startswith("Attackers posed as IT support on Microsoft Teams, and abused AD CS.")   # no stray spaces
+    assert "weak certificate templates" in t and "Short wrapper" not in t
+    b = feeds.extract_article_text(BC_HTML)
+    assert "C3RB3R's operators" in b and "By Reporter" not in b                 # inline tags joined, header dropped
+    assert "Other story" not in b and "Related Articles" not in b               # related-articles block cut
+    dense = b"<html><body><div class='x'>" + b"<p>" + b"Some long unlabeled paragraph of text. " * 10 + b"</p></div></body></html>"
+    assert feeds.extract_article_text(dense).startswith("Some long unlabeled paragraph")
+
+
+def test_feed_prefers_content_encoded_when_longer():
+    rss = """<?xml version="1.0"?><rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>x</title>
+<item><title>Hackers breach Acme</title><link>http://x/1</link><description>short</description>
+<content:encoded><![CDATA[<p>The full text of the story is much longer than the short description.</p>]]></content:encoded>
+<pubDate>Tue, 27 Oct 2026 10:00:00 +0000</pubDate></item></channel></rss>"""
+    client = httpx.Client(transport=httpx.MockTransport(lambda req: httpx.Response(200, content=rss.encode())))
+    items = feeds.fetch_feed(client, "http://x/feed", 10, 100000)
+    assert items[0]["snippet"].startswith("The full text of the story")
+
+
+def _row(conn, title, victim, d="2026-10-29"):
+    a = seed_article(conn, "u-" + title)
+    return dedupe.upsert_incident(conn, extractor.Extraction(True, title, d, "", victim, "", "해킹", "요약 " + title), a)
+
+
+def test_dedupe_cross_language_uses_judge_only_when_scripts_differ_and_dates_close():
+    conn = db.connect(":memory:")
+    ko = _row(conn, "바이낸스 암호화폐 63억 달러 도난", "바이낸스")
+    asked = []
+    def yes(row, ex_): asked.append(ex_.victim); return True
+    new = extractor.Extraction(True, "북한 해킹 그룹의 Binance 공격", "2026-10-30", "", "Binance", "", "해킹", "요약")
+    assert dedupe.find_match(conn, new) is None                                   # no judge: names can't match
+    assert dedupe.find_match(conn, new, judge=lambda r, e: False) is None         # judge says different
+    assert dedupe.find_match(conn, new, judge=yes) == ko and asked == ["Binance"]
+    far = extractor.Extraction(True, "Binance attack", "2026-11-10", "", "Binance", "", "해킹", "요약")
+    n = len(asked); assert dedupe.find_match(conn, far, judge=yes) is None and len(asked) == n   # > 7 days: not asked
+    same_script = extractor.Extraction(True, "전혀 다른 회사 해킹", "2026-10-30", "", "롯데카드", "", "해킹", "요약")
+    assert dedupe.find_match(conn, same_script, judge=yes) is None and len(asked) == n          # Korean vs Korean: not asked
+
+
+def test_llm_judge_parses_answer_and_defaults_to_not_same():
+    row = {"title": "t", "victim": "v", "attacker": "", "occurred_at": "2026-10-29", "summary": "s"}
+    ex_ = extractor.Extraction(True, "t", "2026-10-29", "", "V", "", "", "s")
+    mk = lambda h: dedupe.llm_judge(httpx.Client(transport=httpx.MockTransport(h)), "http://x", "m")
+    ok = lambda req: httpx.Response(200, json={"message": {"content": '{"same": true}'}})
+    assert mk(ok)(row, ex_) is True
+    assert mk(lambda req: httpx.Response(200, json={"message": {"content": '{"same": "maybe"}'}}))(row, ex_) is False
+    assert mk(lambda req: httpx.Response(500))(row, ex_) is False
+    assert mk(lambda req: httpx.Response(200, json={"message": {"content": "not json"}}))(row, ex_) is False
+
+
+EN_RSS = """<?xml version="1.0"?><rss version="2.0"><channel><title>x</title>
+<item><title>FBI links $6.3 billion Binance crypto heist to North Korean hackers</title><link>http://en/1</link>
+<description>The FBI has linked a heist.</description><pubDate>Thu, 29 Oct 2026 10:00:00 +0000</pubDate></item>
+</channel></rss>"""
+
+
+def english_cfg(tmp_path):
+    p = tmp_path / "en.toml"
+    p.write_text(f'[llm]\nmodel = "solar"\nforeign_model = "exaone"\n[collector]\ndatabase = "{tmp_path / "en.db"}"\n'
+                 '[[sources]]\nname = "BC"\nurl = "http://en/feed.xml"\n')
+    cfg = load_config(p); cfg.max_age_days = 100000
+    return cfg
+
+
+def test_collect_english_source_end_to_end(tmp_path, monkeypatch):
+    cfg = english_cfg(tmp_path)
+    models = set()
+    page = ("<html><body><div class='articleBody'><p>" + EN_BODY + "</p></div></body></html>").encode()
+    def handler(req):
+        if req.url.path == "/api/chat":
+            body = json.loads(req.content); models.add(body["model"])
+            return httpx.Response(200, json={"message": {"content": json.dumps(EN_JSON) if "format" in body else EN_SUMMARY}})
+        if req.url.path.endswith("feed.xml"):
+            return httpx.Response(200, content=EN_RSS.encode())
+        return httpx.Response(200, content=page)
+    real = httpx.Client
+    monkeypatch.setattr(collector.httpx, "Client", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    conn = db.connect(cfg.database)
+    stats = collector.collect_once(conn, cfg)
+    assert stats["new"] == 1 and stats["incidents"] == 1 and stats["failed"] == 0
+    row = conn.execute("SELECT * FROM incidents").fetchone()
+    assert row["summary"] == EN_SUMMARY and row["victim"] == "Binance" and extractor.is_korean(row["title"])
+    assert "63억" in row["damage"] and models == {"exaone"}
+    art = conn.execute("SELECT * FROM articles").fetchone()
+    assert art["status"] == "done" and "DevOps engineer" in art["body"]            # full page body, not the RSS snippet
+    assert collector.collect_once(conn, cfg)["new"] == 0                            # rerun: nothing duplicated
+    assert conn.execute("SELECT COUNT(*) FROM incidents").fetchone()[0] == 1
+
+
+def test_llm_unreachable_leaves_articles_for_next_cycle(tmp_path, monkeypatch):
+    cfg = english_cfg(tmp_path)
+    def handler(req):
+        if req.url.path == "/api/chat":
+            raise httpx.ConnectError("connection refused")
+        if req.url.path.endswith("feed.xml"):
+            return httpx.Response(200, content=EN_RSS.encode())
+        return httpx.Response(404)
+    real = httpx.Client
+    monkeypatch.setattr(collector.httpx, "Client", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    conn = db.connect(cfg.database)
+    stats = collector.collect_once(conn, cfg)
+    row = conn.execute("SELECT status, attempts FROM articles").fetchone()
+    assert (row["status"], row["attempts"]) == ("new", 0) and stats["failed"] == 0   # no retry attempt burned
+
+
+def test_regenerate_english_incident_uses_foreign_model(tmp_path, monkeypatch):
+    p = tmp_path / "c.toml"
+    p.write_text(f'[llm]\nmodel = "solar"\nforeign_model = "exaone"\n[collector]\ndatabase = "{tmp_path / "t.db"}"\n')
+    conn = db.connect(load_config(p).database)
+    a = conn.execute("INSERT INTO articles(source,url,title,body) VALUES('BC','http://u/e',?,?)", (EN_ART["title"], EN_BODY)).lastrowid
+    i = dedupe.upsert_incident(conn, extractor.Extraction(True, "옛 제목", "2026-10-29", "", "Binance", "", "해킹", "오래된 요약"), a)
+    conn.commit()
+    models = set()
+    def handler(req):
+        if req.url.path == "/api/chat":
+            body = json.loads(req.content); models.add(body["model"])
+            return httpx.Response(200, json={"message": {"content": json.dumps(EN_JSON) if "format" in body else EN_SUMMARY}})
+        return httpx.Response(404)
+    real = httpx.Client
+    monkeypatch.setattr(regen.httpx, "Client", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    r = TestClient(create_app(p, run_collector=False)).post(f"/incidents/{i}/regenerate")
+    assert r.status_code == 200 and r.json()["summary"] == EN_SUMMARY and models == {"exaone"}
+
+
+def test_plausible_date_rejects_invented_dates():
+    pd = extractor.plausible_date
+    assert pd("2026-10-20", "2026-11-02") == "2026-10-20"
+    assert pd("2021-12-31", "2026-11-02") == "2026-11-02"          # invented year
+    assert pd("2026-12-25", "2026-11-02") == "2026-11-02"          # future
+    assert pd("2026-05-10", "2026-11-02") == "2026-05-10"          # ~6 months back is allowed
+    assert pd("garbage", "2026-11-02") == "2026-11-02"
+    ex_ = extractor.parse_llm_json(json.dumps({"is_incident": True, "title": "t", "occurred_at": "2021-12-31", "summary": "s"}), "2026-11-02")
+    assert ex_.occurred_at == "2026-11-02"
+
+
+VOLTA = ("A new Windows infostealer called VOLTA-AUTODOXER uses LLMs such as Claude, Gemini and Kimi to rank victims. "
+         "Researchers at Acme said the malware, written in Go, steals browser data. The campaign abuses SysGoRAT. "
+         "In October the operators moved to MicroCloud servers. VOLTA-AUTODOXER ranks victims by financial value.")
+
+
+def test_proper_nouns_and_prompt_hint_for_english_only():
+    names = extractor.proper_nouns(VOLTA)
+    for n in ("VOLTA-AUTODOXER", "Claude", "Gemini", "Kimi", "SysGoRAT", "MicroCloud"):
+        assert n in names, names
+    assert "October" not in names and "Researchers" not in names
+    assert "음차하지 말고" in extractor.names_hint(VOLTA)
+    assert extractor.names_hint("빗썸에서 고객 개인정보가 대량 유출됐다. " * 10) == ""      # Korean text: no hint
+
+
+def test_name_hint_reaches_both_llm_prompts():
+    client, seen = en_llm({**EN_JSON, "summary": "짧음."})
+    art = {**EN_ART, "title": "VOLTA infostealer uses Claude and Gemini", "body": VOLTA + " " + EN_BODY}
+    extractor.extract(client, EnCfg, art)
+    prompts = [b["messages"][1]["content"] for b in seen if not b["messages"][0]["content"].startswith("너는 교정자다")]
+    assert len(prompts) >= 2 and all("음차하지 말고" in p and "Claude" in p for p in prompts)   # JSON call and summary call
+
+
+def test_korean_article_uses_article_lead_when_both_summaries_are_broken():
+    lead = "2026년 11월 2일 더존비즈온에서 고객사 임직원 개인정보가 유출됐다. 회사는 즉시 접근을 차단하고 당국에 신고했다."
+    art = {"title": "더존비즈온 해킹 사고 개인정보 유출", "body": lead + " 추가 내용도 있다.", "published_at": "2026-11-02"}
+    junk = {**GOOD, "title": "더존비즈온 해킹", "victim": "더존비즈온", "summary": "△성명 △이메일 △주소 △유출 △조사"}
+    client, _ = en_llm(junk, summary="△또 △목록")
+    out = extractor.extract(client, EnCfg, art)
+    assert out.summary.startswith("2026년 11월 2일 더존비즈온에서") and extractor.summary_problems(out.summary) == []
+
+
+def test_english_vulnerability_headline_with_attackers_is_not_an_incident():
+    gate = lambda t: extractor.looks_like_incident({"title": t, "body": "Attackers could exploit it.", "published_at": "2026-11-01"})
+    assert not gate("CVSS 10.0 LXD, MicroCloud Flaw Lets Attackers Impersonate Trusted Clients Without a Private Key")
+    assert gate("Ivanti patches two more Connect Secure zero-days chained in attacks")
+    assert gate("Hackers exploit flaw to breach Acme and steal data")
+
+
+def test_summary_year_must_come_from_article_or_publish_date():
+    src = "Hackers stole funds on October 29. The incident was reported in 2026."
+    yrs = extractor.known_years(src, "2026-11-01")
+    bad = "2023년 10월 29일 해커가 자금을 탈취했다. 회사는 조사 중이다. 피해 고객에게 안내하고 있다."
+    assert any("연도" in p for p in extractor.summary_problems(bad, allowed_years=yrs))
+    assert not any("연도" in p for p in extractor.summary_problems(bad.replace("2023", "2026"), allowed_years=yrs))
+    assert not any("연도" in p for p in extractor.summary_problems(bad))          # no year info supplied: not checked
+
+
+def test_transliteration_with_english_in_parentheses_is_reduced_to_the_english_name():
+    s = "이 악성코드는 클로이데(Claude), 지미니 (Gemini) 등을 활용한다. 바이낸스(Binance)가 피해를 입었다."
+    out = extractor.strip_transliterations(s, ["Claude", "Gemini"])
+    assert out.startswith("이 악성코드는 Claude, Gemini 등을 활용한다.") and "바이낸스(Binance)" in out   # only listed names
+    summary = ("2026년 11월 2일 VOLTA 악성코드가 클로이데(Claude)와 Gemini를 이용해 피해자 데이터를 평가했다. "
+               "공격자는 훔친 계정 정보를 순위로 매겼다. 연구진은 키트가 판매될 가능성을 지적했다.")
+    client, _ = en_llm(summary=summary)
+    art = {"title": "VOLTA infostealer uses Claude and Gemini", "body": VOLTA, "published_at": "2026-11-02"}
+    got = extractor.write_summary(client, "http://x", "m", art, {})
+    assert "클로이데" not in got and "Claude와 Gemini를" in got
+
+
+def test_name_only_failure_blanks_the_field_for_english_and_leaks_are_fatal_only_for_korean():
+    descriptive = {**EN_JSON, "victim": "정부 기관"}
+    client, calls = en_llm(descriptive)
+    ex_ = extractor.extract_llm(client, "http://x", "m", EN_ART)            # used to fail after 3 attempts; now repaired
+    assert ex_.victim == "" and ex_.attacker == "TraderTraitor" and len(calls) == 3
+    # English article: the Korean word may legitimately appear in the Korean prose, so it is not an error
+    leaked = {**EN_JSON, "victim": "정부 기관", "summary": "정부 기관이 공격을 받아 데이터가 유출됐다. 피해는 크다. 조사 중이다."}
+    client, _ = en_llm(leaked)
+    assert extractor.extract_llm(client, "http://x", "m", EN_ART).victim == ""
+    # Korean article: a garbled company name that also appears in the prose cannot be trusted
+    ko_art = {"title": "빗썸 해킹 사고 개인정보 유출", "body": "빗썸에서 개인정보가 유출됐다. " * 5, "published_at": "2026-10-29"}
+    garbled = {**GOOD, "title": "비티코 해킹", "victim": "비티코", "summary": "비티코가 해킹당했다. 피해가 크다. 조사 중이다."}
+    client, _ = en_llm(garbled)
+    with pytest.raises(ValueError, match="제목/요약"):
+        extractor.extract_llm(client, "http://x", "m", ko_art)
+    english_title = {**EN_JSON, "title": "North Korean hackers steal crypto from Binance", "victim": "정부 기관"}   # other problems stay fatal
+    client, _ = en_llm(english_title)
+    with pytest.raises(ValueError, match="title이 한국어가 아님"):
+        extractor.extract_llm(client, "http://x", "m", EN_ART)
+
+
+def test_cross_language_judge_runs_on_the_main_model(tmp_path, monkeypatch):
+    cfg = english_cfg(tmp_path)
+    judge_models = set()
+    page = ("<html><body><div class='articleBody'><p>" + EN_BODY + "</p></div></body></html>").encode()
+    def handler(req):
+        if req.url.path == "/api/chat":
+            body = json.loads(req.content)
+            if body["messages"][0]["content"].startswith("두 보안 사고 기록"):
+                judge_models.add(body["model"])
+                return httpx.Response(200, json={"message": {"content": '{"same": true}'}})
+            return httpx.Response(200, json={"message": {"content": json.dumps(EN_JSON) if "format" in body else EN_SUMMARY}})
+        if req.url.path.endswith("feed.xml"):
+            return httpx.Response(200, content=EN_RSS.encode())
+        return httpx.Response(200, content=page)
+    real = httpx.Client
+    monkeypatch.setattr(collector.httpx, "Client", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    conn = db.connect(cfg.database)
+    ko_art = conn.execute("INSERT INTO articles(source,url,title,status) VALUES('보안뉴스','http://ko/1','바이낸스 해킹 분석','done')").lastrowid
+    ko = dedupe.upsert_incident(conn, extractor.Extraction(True, "‘한방에 8조원’ 바이낸스 해킹", "2026-11-02", "", "바이낸스", "8조원", "해킹",
+                                                           "바이낸스에서 8조원이 넘는 피해가 발생했다."), ko_art)
+    conn.commit()
+    collector.collect_once(conn, cfg)
+    assert conn.execute("SELECT COUNT(*) FROM incidents").fetchone()[0] == 1                    # merged, not duplicated
+    assert conn.execute("SELECT COUNT(*) FROM incident_articles WHERE incident_id=?", (ko,)).fetchone()[0] == 2
+    assert judge_models == {"solar"}                                                            # main model, not exaone
+
+
+VOLTA_ART = {"title": "New VOLTA Infostealer Uses Claude, Gemini, and Kimi AI to Rank Victims by Financial Value",
+             "body": VOLTA, "published_at": "2026-11-02"}
+TRANSLIT_SUMMARY = ("2026년 11월 2일 새로운 VOLTA 악성코드가 발견됐다. 이 악성코드는 클로이디, 젬니, 킴리 등 대형 언어 모델을 활용해 "
+                    "피해자의 훔친 데이터를 금전적 가치에 따라 평가한다. 연구진은 이 도구가 판매용 키트일 가능성을 지적했다.")
+
+
+def test_headline_names_only_keep_words_the_body_confirms_as_names():
+    names = extractor.headline_names(VOLTA_ART)
+    assert {"VOLTA", "Claude", "Gemini", "Kimi"} <= set(names)
+    assert "Rank" not in names and "Victims" not in names and "Financial" not in names     # title-case words
+
+
+def test_polish_names_restores_transliterated_names_when_edit_is_clean():
+    fixed = TRANSLIT_SUMMARY.replace("클로이디, 젬니, 킴리", "Claude, Gemini, Kimi")
+    client, seen = en_llm(summary=fixed)
+    out = extractor.polish_names(client, "http://x", "m", VOLTA_ART, TRANSLIT_SUMMARY)
+    assert out == fixed and "Claude, Gemini, Kimi" in seen[0]["messages"][1]["content"]
+    assert seen[0]["options"]["temperature"] == 0 and "format" not in seen[0]
+
+
+def test_polish_names_keeps_original_when_edit_is_bad_or_not_needed():
+    # nothing missing -> no LLM call at all
+    ok = TRANSLIT_SUMMARY.replace("클로이디, 젬니, 킴리", "Claude, Gemini, Kimi")
+    client, seen = en_llm(summary="아무거나")
+    assert extractor.polish_names(client, "http://x", "m", VOLTA_ART, ok) == ok and seen == []
+    # edit that drops most of the text, doesn't restore a name, or is English -> original kept
+    for bad in ("짧다.", TRANSLIT_SUMMARY, "Claude Gemini Kimi were mentioned in the report by researchers."):
+        client, _ = en_llm(summary=bad)
+        assert extractor.polish_names(client, "http://x", "m", VOLTA_ART, TRANSLIT_SUMMARY) == TRANSLIT_SUMMARY
+    # Korean articles are never touched
+    ko = {"title": "빗썸 해킹 사고", "body": "빗썸에서 개인정보가 유출됐다. " * 8, "published_at": "2026-11-02"}
+    client, seen = en_llm(summary="x")
+    assert extractor.polish_names(client, "http://x", "m", ko, "빗썸 요약이다.") == "빗썸 요약이다." and seen == []
+
+
+def test_extract_runs_name_polish_for_english_article_only():
+    fixed = TRANSLIT_SUMMARY.replace("클로이디, 젬니, 킴리", "Claude, Gemini, Kimi")
+    answers = {"json": {**EN_JSON, "title": "VOLTA 인포스테일러, AI로 피해자 가치 평가", "victim": "", "attacker": "VOLTA",
+                        "damage": "피해 규모 미상", "summary": TRANSLIT_SUMMARY}}
+    def handler(req):
+        body = json.loads(req.content)
+        if body["messages"][0]["content"].startswith("너는 교정자다"):
+            return httpx.Response(200, json={"message": {"content": fixed}})
+        return httpx.Response(200, json={"message": {"content": json.dumps(answers["json"])}})
+    out = extractor.extract(httpx.Client(transport=httpx.MockTransport(handler)), EnCfg, VOLTA_ART)
+    assert "Claude, Gemini, Kimi" in out.summary and "클로이디" not in out.summary

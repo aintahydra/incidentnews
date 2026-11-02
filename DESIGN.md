@@ -95,3 +95,26 @@ On a match: link the article, fill empty fields, keep the longer summary.
 - LLM validation (`extractor.extract_llm`): Korean summary + victim/attacker names must occur in the
   article text; up to 3 attempts at temperatures (t, 0.3, 0.6) with a hint naming the bad tokens;
   transient Ollama 5xx counts as a failed attempt. `num_ctx` is sent explicitly.
+
+## 9. Non-Korean (English) sources
+
+- Language is auto-detected per article (`is_korean`: Hangul share of title + body start).
+- Body: selector list incl. `.articleBody`, `#articlebody`, `.post-body`, ...; falls back to the element
+  holding the most `<p>` text. Text is joined per block (inline tags don't add spaces); "Related Articles"
+  and similar blocks are cut. `content:encoded` is used when longer than `description`.
+- Incident gate: English keyword/vulnerability-title regexes mirror the Korean ones.
+- LLM: all values in Korean, but victim/attacker keep the article's spelling (so the grounding check works);
+  title and damage must contain Hangul. `[llm].foreign_model` selects the model for non-Korean articles.
+- No heuristic fallback for non-Korean text (it would store English): failures are retried (max 3), and an
+  unreachable LLM (transport error) neither burns attempts nor blocks the run beyond the first failure.
+- Pending articles are processed Korean first so the LLM server swaps models once per cycle.
+- Cross-language de-duplication: only when victim names differ in script (ko vs en) and dates are within
+  7 days, an LLM judge (`dedupe.llm_judge`, run on the main `model`: exaone answered "different" for a true duplicate)
+  decides; any doubt or error keeps the incidents separate.
+- Name handling for non-Korean text: proper nouns are listed in the prompts (small models transliterate
+  Claude -> 클로이디), `클로이디(Claude)` is reduced to `Claude`, headline names missing from the summary trigger one
+  `polish_names` edit pass (kept only if the edit is clean). victim/attacker not found in the article are blanked
+  rather than failing the article (a Korean word cannot be matched against English source text); for Korean
+  articles a bad name that also appears in the title/summary still rejects the result.
+- Date sanity: `occurred_at` must lie within 180 days before the publish date; years written in a summary must occur
+  in the article or equal the publish year (`known_years`).

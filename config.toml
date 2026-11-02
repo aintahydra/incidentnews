@@ -11,6 +11,9 @@ enabled = true
 # OLLAMA_HOST env var (e.g. 10.0.2.2:11434) overrides this endpoint.
 endpoint = "127.0.0.1:11434"
 model = "solar:10.7b"
+# Model for non-Korean (e.g. English) articles. solar writes garbled Korean from English text;
+# exaone3.5 gives clean Korean. Remove this line to use `model` for everything.
+foreign_model = "exaone3.5:7.8b"
 timeout_seconds = 180
 # Context window sent to Ollama. Its default (4096) is too small for long Korean articles
 # (~1.1 tokens per character) and silently truncates the prompt.
@@ -30,4 +33,14 @@ enabled = true
 [[sources]]
 name = "데일리시큐"
 url = "https://www.dailysecu.com/rss/S1N2.xml"
+enabled = true
+
+[[sources]]
+name = "Bleeping Computer"
+url = "https://www.bleepingcomputer.com/feed/"
+enabled = true
+
+[[sources]]
+name = "The Hacker News"
+url = "https://feeds.feedburner.com/TheHackersNews"
 enabled = true

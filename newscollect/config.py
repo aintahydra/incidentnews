@@ -23,6 +23,7 @@ class Config:
     llm_enabled: bool = True
     llm_endpoint: str = "127.0.0.1:11434"
     llm_model: str = "solar:10.7b"
+    llm_foreign_model: str = ""  # model for non-Korean articles; empty = same as llm_model
     llm_timeout: float = 180
     llm_num_ctx: int = 8192
     interval_minutes: int = 30
@@ -53,6 +54,7 @@ def load_config(path: Path | str | None = None) -> Config:
         llm_enabled=bool(llm.get("enabled", True)),
         llm_endpoint=llm.get("endpoint", "127.0.0.1:11434"),
         llm_model=llm.get("model", "solar:10.7b"),
+        llm_foreign_model=llm.get("foreign_model", ""),
         llm_timeout=float(llm.get("timeout_seconds", 180)),
         llm_num_ctx=int(llm.get("num_ctx", 8192)),
         interval_minutes=int(col.get("interval_minutes", 30)),

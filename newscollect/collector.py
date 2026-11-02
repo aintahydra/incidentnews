@@ -26,22 +26,30 @@ def collect_once(conn, cfg) -> dict:
                 if cur.rowcount:
                     stats["new"] += 1
             conn.commit()
+        # the judge compares Korean summaries: the main model does this well, the foreign model was too conservative
+        judge = dedupe.llm_judge(llm, cfg.llm_base_url, cfg.llm_model, cfg.llm_num_ctx) if cfg.llm_enabled else None
         pending = conn.execute(
             "SELECT * FROM articles WHERE status IN ('new','failed') AND attempts < ? ORDER BY published_at",
             (MAX_ATTEMPTS,)).fetchall()
+        # Korean first, then the rest: with a separate foreign_model the LLM server swaps models once per run
+        pending = sorted(pending, key=lambda a: not extractor.is_korean(a["title"] + " " + a["body"][:600]))
         for a in pending:
             art = dict(a)
             try:
                 art["body"] = feeds.fetch_body(web, art["url"], art["body"])
                 ex = extractor.extract(llm, cfg, art)
                 if ex.is_incident:
-                    inc = dedupe.upsert_incident(conn, ex, art["id"])
+                    inc = dedupe.upsert_incident(conn, ex, art["id"], judge)
                     stats["incidents"] += 1
                     log.info("incident %s <- %s (%s)", inc, art["title"], ex.method)
                 else:
                     stats["skipped"] += 1
                 conn.execute("UPDATE articles SET body=?, status=?, attempts=attempts+1, error=NULL WHERE id=?",
                              (art["body"], "done" if ex.is_incident else "skipped", art["id"]))
+            except httpx.TransportError as e:
+                # LLM unreachable: don't burn this article's retry attempts, and don't wait on every other one
+                log.warning("LLM unreachable (%s); remaining articles wait for the next cycle", e)
+                break
             except Exception as e:
                 stats["failed"] += 1
                 conn.execute("UPDATE articles SET status='failed', attempts=attempts+1, error=? WHERE id=?",

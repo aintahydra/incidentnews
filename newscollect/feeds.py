@@ -7,7 +7,13 @@ import httpx
 from bs4 import BeautifulSoup
 
 UA = {"User-Agent": "Mozilla/5.0 (compatible; newscollect/1.0)"}
-BODY_SELECTORS = ["#news_body_area", "#article-view-content-div", "article", ".article_txt", "#articleBody"]
+# most specific first; "article" last because on some sites it is only a small wrapper
+BODY_SELECTORS = ["#news_body_area", "#article-view-content-div", ".articleBody", "#articlebody", "[itemprop=articleBody]",
+                  ".post-body", ".entry-content", ".article_txt", "#articleBody", "article"]
+NOISE_TAGS = ["script", "style", "noscript", "nav", "aside", "form", "iframe", "button", "svg", "figure", "header", "footer"]
+BLOCKS = ["p", "li", "h2", "h3", "h4", "blockquote", "pre"]
+MIN_BODY_CHARS = 200
+RELATED = re.compile(r"(related\s+(articles?|stories|posts?|reading)|read\s+more|also\s+read|you\s+may\s+also\s+like|recommended)\b", re.I)
 
 
 def _clean(html: str) -> str:
@@ -37,9 +43,45 @@ def fetch_feed(client: httpx.Client, url: str, limit: int, max_age_days: int) ->
         pub = _entry_date(e) or date.today().isoformat()
         if pub < cutoff:
             continue
-        items.append({"url": link, "title": _clean(e.get("title", "")),
-                      "published_at": pub, "snippet": _clean(e.get("description", ""))})
+        snippet = _clean(e.get("description", ""))
+        full = _clean(e["content"][0].get("value", "")) if e.get("content") else ""
+        items.append({"url": link, "title": _clean(e.get("title", "")), "published_at": pub,
+                      "snippet": full if len(full) > len(snippet) else snippet})
     return items
+
+
+def _node_text(node) -> str:
+    """Article text with paragraph breaks. Inline tags are joined without a space (so "<a>Acme</a>'s" stays
+    "Acme's"); falls back to plain text when the page has no <p>-style blocks."""
+    for t in node.find_all(NOISE_TAGS):
+        t.decompose()
+    blocks = [b for b in node.find_all(BLOCKS) if not b.find_parent(BLOCKS)]
+    parts = [p for p in (re.sub(r"\s+", " ", b.get_text("")).strip() for b in blocks) if p]
+    for i, part in enumerate(parts):  # "Related Articles:" lists other stories: not part of this one
+        if i >= 2 and RELATED.match(part):
+            parts = parts[:i]
+            break
+    text = "\n".join(parts)
+    if len(text) < MIN_BODY_CHARS:
+        text = re.sub(r"\s+", " ", node.get_text(" ")).strip()
+    return text
+
+
+def extract_article_text(html: bytes) -> str:
+    soup = BeautifulSoup(html, "lxml")
+    for sel in BODY_SELECTORS:
+        node = soup.select_one(sel)
+        if node:
+            text = _node_text(node)
+            if len(text) >= MIN_BODY_CHARS:
+                return text
+    # unknown layout: the element that directly holds the most paragraph text
+    best, best_len = None, 0
+    for tag in soup.find_all(True):
+        n = sum(len(p.get_text(" ", strip=True)) for p in tag.find_all("p", recursive=False))
+        if n > best_len:
+            best, best_len = tag, n
+    return _node_text(best) if best is not None and best_len >= MIN_BODY_CHARS else ""
 
 
 def fetch_body(client: httpx.Client, url: str, fallback: str = "") -> str:
@@ -47,13 +89,9 @@ def fetch_body(client: httpx.Client, url: str, fallback: str = "") -> str:
     try:
         r = client.get(url, headers=UA, follow_redirects=True)
         r.raise_for_status()
-        soup = BeautifulSoup(r.content, "lxml")
-        for sel in BODY_SELECTORS:
-            node = soup.select_one(sel)
-            if node:
-                text = re.sub(r"\s+", " ", node.get_text(" ")).strip()
-                if len(text) > 200:
-                    return text[:6000]
+        text = extract_article_text(r.content)
+        if len(text) > MIN_BODY_CHARS:
+            return text[:6000]
     except Exception:
         pass
     return fallback[:6000]

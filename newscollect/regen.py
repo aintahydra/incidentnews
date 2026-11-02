@@ -39,11 +39,12 @@ def regenerate(conn, lock, cfg, inc_id: int) -> dict:
         }
         source_text = combined["title"] + " " + combined["body"][:MAX_BODY_CHARS]
         fields = {k: inc[k] for k in FIELDS}
+        model = extractor.model_for(cfg, extractor.is_korean(combined["title"] + " " + combined["body"][:600]))
         kw = dict(num_ctx=cfg.llm_num_ctx, deadline=deadline)
 
         # 1) fresh structured fields, name-checked against the article
         try:
-            ex = extractor.extract_llm(llm, cfg.llm_base_url, cfg.llm_model, combined, temperature=TEMPERATURE, **kw)
+            ex = extractor.extract_llm(llm, cfg.llm_base_url, model, combined, temperature=TEMPERATURE, **kw)
         except ValueError:
             ex = None  # validation failed (e.g. garbled company name): repair the stored fields below
         if ex is not None:
@@ -57,7 +58,7 @@ def regenerate(conn, lock, cfg, inc_id: int) -> dict:
         # 2) the summary itself, written as prose
         method = "llm"
         try:
-            summary = extractor.write_summary(llm, cfg.llm_base_url, cfg.llm_model, combined, fields,
+            summary = extractor.write_summary(llm, cfg.llm_base_url, model, combined, fields,
                                               temperature=TEMPERATURE, forbidden=bad, **kw)
         except ValueError:
             # The model could not write an acceptable summary. Keep the stored one unless it is itself
@@ -67,6 +68,9 @@ def regenerate(conn, lock, cfg, inc_id: int) -> dict:
             if not (lead and not extractor.summary_problems(lead) and old_broken):
                 raise
             summary, method = lead, "extract"
+
+        if method == "llm" and not extractor.is_korean(source_text[:700]):
+            summary = extractor.polish_names(llm, cfg.llm_base_url, model, combined, summary, cfg.llm_num_ctx)
 
     # occurred_at is kept (dedupe depends on it)
     upd = {**fields, "summary": summary}
