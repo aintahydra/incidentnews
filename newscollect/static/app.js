@@ -236,9 +236,9 @@
 
     var fill = function (d) {
       var avg = d.series.length ? d.total / d.series.length : 0;
-      tnote.textContent = d.unit === "day" ? "최근 30일 " + fmt(d.total) + "건 · 하루 평균 " + avg.toFixed(1) + "건 (수집 시각 기준)"
-        : d.unit === "month" ? "최근 12개월 " + fmt(d.total) + "건 · 월평균 " + fmt(Math.round(avg)) + "건 (수집 시각 기준)"
-        : "전체 " + fmt(d.total) + "건 (수집 시각 기준)";
+      tnote.textContent = d.unit === "day" ? "최근 30일 " + fmt(d.total) + "건 · 하루 평균 " + avg.toFixed(1) + "건 (기사 발행일 기준)"
+        : d.unit === "month" ? "최근 12개월 " + fmt(d.total) + "건 · 월평균 " + fmt(Math.round(avg)) + "건 (기사 발행일 기준)"
+        : "전체 " + fmt(d.total) + "건 (기사 발행일 기준)";
       tbody.innerHTML = "";
       d.series.slice().reverse().forEach(function (x) {
         var tr = document.createElement("tr");

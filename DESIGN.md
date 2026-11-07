@@ -106,7 +106,7 @@ On a match: link the article, fill empty fields, keep the longer summary.
   consist solely of trivial keywords.
 
 - Collected-article chart (`stats.py`, `GET /api/article-stats?unit=`): `articles` counted by
-  `datetime(fetched_at,'localtime')` prefix (fetched_at is UTC), zero-filled: last 30 days / last 12 months / every
+  published_at (feed date, YYYY-MM-DD; falls back to the local date of fetched_at, which is UTC), zero-filled: last 30 days / last 12 months / every
   year since the first. Single-series SVG column chart drawn client-side (blue series color, hairline grid, peak
   value labelled, per-column hover/focus tooltip, table view).
 

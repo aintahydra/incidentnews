@@ -918,6 +918,7 @@ def test_article_stats_zero_filled_per_unit(tmp_path):
                             "2026-09-20 12:00:00", "2025-03-01 12:00:00"]):  # noon UTC: same local date in any TZ
         conn.execute("INSERT INTO articles(source,url,title,fetched_at) VALUES('s',?,'t',?)", (f"u{n}", ts))
     today = date(2026, 11, 7)
+    assert stats.article_counts(conn, "day", today)[-1]["count"] == 2  # no published_at: counted by collection date
     day = stats.article_counts(conn, "day", today)
     assert len(day) == 30 and day[-1] == {"period": "2026-11-07", "count": 2}
     assert day[-2]["count"] == 0 and day[-3] == {"period": "2026-11-05", "count": 1} and day[0]["period"] == "2026-10-09"
@@ -1181,3 +1182,17 @@ def test_refresh_seconds_config(tmp_path):
         Path(p).write_text(f"[server]\nrefresh_seconds = {bad}\n" + base)
         with pytest.raises(ValueError):
             load_config(p)
+
+
+def test_article_stats_count_by_published_date(tmp_path):
+    from datetime import date
+    from newscollect import stats
+    conn = db.connect(":memory:")
+    # one collection run on 11-07 picks up a backlog published over several days
+    for n, pub in enumerate(["2026-11-07", "2026-11-05", "2026-11-05", "2026-10-30", ""]):
+        conn.execute("INSERT INTO articles(source,url,title,published_at,fetched_at) VALUES('s',?,'t',?,?)",
+                     (f"u{n}", pub, "2026-11-07 12:00:00"))
+    day = {d["period"]: d["count"] for d in stats.article_counts(conn, "day", date(2026, 11, 7))}
+    assert (day["2026-11-07"], day["2026-11-05"], day["2026-10-30"], day["2026-11-06"]) == (2, 2, 1, 0)
+    month = {d["period"]: d["count"] for d in stats.article_counts(conn, "month", date(2026, 11, 7))}
+    assert (month["2026-11"], month["2026-10"]) == (4, 1)
