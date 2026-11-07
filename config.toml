@@ -25,6 +25,14 @@ max_articles_per_run = 30   # per source, newest first
 max_age_days = 30           # ignore older feed items
 database = "data/news.db"
 
+[wordcloud]
+# Keywords too common to be informative. Each is removed from INSIDE every title word, so a compound keeps
+# its informative part: "금융권해킹" -> "금융권", while "사이버공격" -> "" is dropped. Case-insensitive.
+# Applies on the next page load (no restart). Victim/attacker names are never cut, only dropped when
+# they consist solely of these keywords. Beware short keys that occur inside names ("보안" would turn
+# "금융보안원" into "금융원").
+trivial = ["공격", "해킹", "사이버", "해커", "보안", "유출", "개인정보"]
+
 [[sources]]
 name = "보안뉴스"
 url = "https://www.boannews.com/rss/S1N2.xml"

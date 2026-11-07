@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import collector, db, regen
+from . import collector, db, regen, wordcloud
 from .config import load_config
 
 BASE = Path(__file__).parent
@@ -131,6 +131,19 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
     @app.get("/api/incidents")
     def api_incidents(limit: int = 100, offset: int = 0, q: str = ""):
         return listing(max(1, min(limit, 500)), max(0, offset), q.strip()[:100])
+
+    @app.get("/api/wordcloud")
+    def api_wordcloud(period: str = "week", limit: int = 60):
+        if period not in wordcloud.PERIODS:
+            raise HTTPException(400, "period는 day, week, month, year 중 하나여야 합니다")
+        try:  # re-read so [wordcloud].trivial edits apply on the next page load, like the other live settings
+            trivial = load_config(config_path).wordcloud_trivial
+        except Exception:  # file mid-edit / invalid: keep the list from startup
+            trivial = cfg.wordcloud_trivial
+        start = wordcloud.since(period)
+        rows = q("SELECT title, victim, attacker FROM incidents WHERE occurred_at >= ?", (start,))
+        return {"period": period, "since": start, "incidents": len(rows),
+                "words": wordcloud.cloud(rows, max(1, min(limit, 150)), trivial)}
 
     @app.get("/healthz")
     def healthz():

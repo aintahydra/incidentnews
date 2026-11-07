@@ -855,3 +855,56 @@ def test_extract_runs_name_polish_for_english_article_only():
         return httpx.Response(200, json={"message": {"content": json.dumps(answers["json"])}})
     out = extractor.extract(httpx.Client(transport=httpx.MockTransport(handler)), EnCfg, VOLTA_ART)
     assert "Claude, Gemini, Kimi" in out.summary and "클로이디" not in out.summary
+
+
+def test_wordcloud_words_strip_particles_tags_numbers_and_stopwords():
+    from newscollect import wordcloud
+    w = wordcloud.words("[단독] 카카오페이, 해킹으로 고객 3만건 개인정보 유출 의혹… LockBit의 공격 태업했다 캐나다")
+    assert {"카카오페이", "해킹", "고객", "개인정보", "유출", "LockBit", "공격", "캐나다"} <= w
+    assert not w & {"단독", "의혹", "3만건", "해킹으로", "LockBit의", "태업했다"}
+
+
+def test_wordcloud_api_periods_and_names_as_single_terms(tmp_path):
+    from datetime import date, timedelta
+    today = date.today()
+    ago = lambda n: (today - timedelta(days=n)).isoformat()
+    c, _ = make_client(tmp_path,
+                       ("롯데카드 해킹", "롯데카드", "Scattered Spider", ago(0), "t1"),
+                       ("삼성전자 랜섬웨어 해킹", "삼성전자", "", ago(3), "t2"),
+                       ("넥슨 서버 마비", "넥슨", "", ago(20), "t3"),
+                       ("옛날 해킹", "옛회사", "", ago(400), "t4"))
+    get = lambda p: c.get("/api/wordcloud", params={"period": p}).json()
+    words = lambda p: {x["word"]: x["count"] for x in get(p)["words"]}
+    assert get("day")["incidents"] == 1 and words("day")["Scattered Spider"] == 1
+    assert "Scattered" not in words("day")
+    assert get("week")["incidents"] == 2 and words("week")["해킹"] == 2
+    assert "넥슨" in words("month") and "넥슨" not in words("week")
+    assert get("year")["incidents"] == 3 and "옛회사" not in words("year")
+    assert c.get("/api/wordcloud", params={"period": "decade"}).status_code == 400
+    page = c.get("/").text
+    assert 'data-period="day"' in page and 'data-period="year"' in page
+    assert 'data-period="day"' not in c.get("/", params={"q": "해킹"}).text
+
+
+def test_wordcloud_trivial_keywords_are_cut_out_of_compounds():
+    from newscollect import wordcloud
+    pat = wordcloud.trivial_pattern(["해킹", "공격", "사이버", "ddos"])
+    w = wordcloud.words("금융권해킹으로 사이버공격 해킹 공격을 DDoS공격에 랜섬웨어공격", pat)
+    assert w == {"금융권", "랜섬웨어"}          # compounds keep their informative part; pure trivial words vanish
+    assert wordcloud.trivial_pattern([]) is None and wordcloud.trivial_pattern(["", " "]) is None
+    rows = [{"title": "금융권해킹 피해", "victim": "사이버작전사령부", "attacker": "해커"},
+            {"title": "금융권 해킹", "victim": "", "attacker": ""}]
+    got = {x["word"]: x["count"] for x in wordcloud.cloud(rows, trivial=["해킹", "사이버", "해커"])}
+    assert got == {"금융권": 2, "사이버작전사령부": 1}  # names kept whole; a name made only of trivial words dropped
+
+
+def test_wordcloud_trivial_from_config_applies_without_restart(tmp_path):
+    from datetime import date
+    c, _ = make_client(tmp_path, ("금융권해킹 확산", "", "", date.today().isoformat(), "t"))
+    words = lambda: {x["word"] for x in c.get("/api/wordcloud", params={"period": "day"}).json()["words"]}
+    assert words() == {"금융권해킹", "확산"}             # test config has no [wordcloud] section
+    p = tmp_path / "config.toml"
+    p.write_text(p.read_text() + '\n[wordcloud]\ntrivial = ["해킹"]\n')
+    assert words() == {"금융권", "확산"}
+    p.write_text(p.read_text().replace('trivial = ["해킹"]', 'trivial = "해킹"'))  # invalid: keep startup list
+    assert words() == {"금융권해킹", "확산"}

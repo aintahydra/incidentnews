@@ -30,6 +30,7 @@ class Config:
     max_articles_per_run: int = 30
     max_age_days: int = 30
     database: str = "data/news.db"
+    wordcloud_trivial: list[str] = field(default_factory=list)
     sources: list[Source] = field(default_factory=list)
 
     @property
@@ -47,6 +48,9 @@ def load_config(path: Path | str | None = None) -> Config:
     with open(path, "rb") as f:
         raw = tomllib.load(f)
     server, llm, col = raw.get("server", {}), raw.get("llm", {}), raw.get("collector", {})
+    trivial = raw.get("wordcloud", {}).get("trivial", [])
+    if not isinstance(trivial, list) or not all(isinstance(t, str) for t in trivial):
+        raise ValueError("[wordcloud].trivial must be a list of strings")
     cfg = Config(
         host=server.get("host", "0.0.0.0"),
         port=int(server.get("port", 8000)),
@@ -61,6 +65,7 @@ def load_config(path: Path | str | None = None) -> Config:
         max_articles_per_run=int(col.get("max_articles_per_run", 30)),
         max_age_days=int(col.get("max_age_days", 30)),
         database=col.get("database", "data/news.db"),
+        wordcloud_trivial=trivial,
     )
     for s in raw.get("sources", []):
         if "url" not in s:

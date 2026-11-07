@@ -1,5 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
+{% if not q %}
+<section class="cloud" aria-label="사고 키워드 클라우드">
+  <div class="cloud-head">
+    <h2>주요 키워드</h2>
+    <div class="periods" role="group" aria-label="기간 선택">
+      <button type="button" data-period="day" aria-pressed="false">일간</button>
+      <button type="button" data-period="week" aria-pressed="true">주간</button>
+      <button type="button" data-period="month" aria-pressed="false">월간</button>
+      <button type="button" data-period="year" aria-pressed="false">연간</button>
+    </div>
+  </div>
+  <div class="cloud-box" aria-live="polite"></div>
+  <p class="cloud-note"></p>
+</section>
+{% endif %}
 {% if q %}<p class="found">‘{{ q }}’ 검색 결과 {{ total }}건 · <a href="/">전체 보기</a></p>{% endif %}
 {% for day in days %}
 <section class="day">

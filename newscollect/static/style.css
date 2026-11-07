@@ -34,3 +34,18 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .flash{animation:flash 2.5s ease-out}
 @keyframes flash{from{box-shadow:0 0 0 3px #2e9e5b}to{box-shadow:0 0 0 0 transparent}}
 .found{color:var(--mut);font-size:14px}
+.cloud{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin:6px 0 4px}
+.cloud-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.cloud-head h2{margin:0;font-size:16px}
+.periods{display:flex;gap:6px}
+.periods button{padding:3px 10px}
+.periods button[aria-pressed=true]{border-color:var(--acc);color:var(--acc);font-weight:700}
+.cloud-box{position:relative;height:260px;margin-top:8px;overflow:hidden}
+.cloud-box a{position:absolute;white-space:nowrap;line-height:1.15;text-decoration:none;font-weight:600}
+.cloud-box a:hover{text-decoration:underline}
+.cloud-box .w3{color:var(--acc);font-weight:800}
+.cloud-box .w2{color:var(--fg)}
+.cloud-box .w1{color:var(--mut);font-weight:500}
+.cloud-box.empty-cloud{height:60px}
+.cloud-note{margin:4px 0 0;color:var(--mut);font-size:12px}
+@media(max-width:480px){.cloud-box{height:220px}}

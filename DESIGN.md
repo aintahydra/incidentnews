@@ -96,6 +96,15 @@ On a match: link the article, fill empty fields, keep the longer summary.
   article text; up to 3 attempts at temperatures (t, 0.3, 0.6) with a hint naming the bad tokens;
   transient Ollama 5xx counts as a failed attempt. `num_ctx` is sent explicitly.
 
+- Word cloud (`wordcloud.py`, `GET /api/wordcloud?period=`): incidents with `occurred_at` in the last 1/7/30/365 days
+  (today included). Terms = title words (bracket tags, numbers, trailing particles, predicates and a stopword list removed)
+  plus victim/attacker as whole names; each counted once per incident; top 60. Laid out client-side (spiral placement,
+  log-scaled font size, no external library); words link to `/?q=`.
+- `[wordcloud].trivial` (config, re-read per request): each keyword is removed as a substring from every title word
+  after particle stripping (longest first, case-insensitive), so compounds keep their informative part
+  (금융권해킹 -> 금융권) and words left empty are dropped. Victim/attacker names are never cut, only dropped when they
+  consist solely of trivial keywords.
+
 ## 9. Non-Korean (English) sources
 
 - Language is auto-detected per article (`is_korean`: Hangul share of title + body start).

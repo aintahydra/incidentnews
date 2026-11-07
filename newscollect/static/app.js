@@ -44,4 +44,85 @@
       msg.className = "regen-msg err"; msg.textContent = err.message;
     }
   });
+  // --- keyword cloud (list page only) ---
+  var box = document.querySelector(".cloud-box");
+  if (box) {
+    var note = document.querySelector(".cloud-note"), cache = {}, current = null, seq = 0;
+    var NAMES = { day: "오늘", week: "최근 7일", month: "최근 30일", year: "최근 1년" };
+
+    var layout = function (data) {
+      box.innerHTML = "";
+      var words = data.words;
+      if (!words.length) { box.classList.add("empty-cloud"); return; }
+      box.classList.remove("empty-cloud");
+      var W = box.clientWidth, H = box.clientHeight;
+      var max = words[0].count, min = words[words.length - 1].count;
+      var big = Math.min(46, Math.max(26, W / 14)), small = 13, placed = [];
+      words.forEach(function (w) {
+        var t = max === min ? 0.6 : Math.log(w.count / min) / Math.log(max / min);
+        var a = document.createElement("a");
+        a.href = "/?q=" + encodeURIComponent(w.word);
+        a.textContent = w.word;
+        a.title = w.word + " · 사고 " + w.count + "건";
+        a.style.fontSize = (small + (big - small) * t).toFixed(1) + "px";
+        a.className = "w" + (t > 0.66 ? 3 : t > 0.33 ? 2 : 1);
+        box.appendChild(a);
+        var ww = a.offsetWidth, hh = a.offsetHeight;
+        // Archimedean spiral out from the centre, stretched to the box's aspect ratio
+        for (var step = 0; step < 1500; step++) {
+          var ang = step * 0.35, r = 8.8 * Math.sqrt(step);
+          var x = W / 2 + r * Math.cos(ang) * (W / H) * 0.6 - ww / 2;
+          var y = H / 2 + r * Math.sin(ang) * 0.6 - hh / 2;
+          if (x < 0 || y < 0 || x + ww > W || y + hh > H) continue;
+          var hit = placed.some(function (p) {
+            return x < p.x + p.w + 4 && x + ww + 4 > p.x && y < p.y + p.h && y + hh > p.y;
+          });
+          if (!hit) {
+            a.style.left = x + "px"; a.style.top = y + "px";
+            placed.push({ x: x, y: y, w: ww, h: hh });
+            return;
+          }
+        }
+        a.remove(); // no room left
+      });
+    };
+
+    var show = async function (period) {
+      current = period;
+      document.querySelectorAll("[data-period]").forEach(function (b) {
+        b.setAttribute("aria-pressed", String(b.dataset.period === period));
+      });
+      try { localStorage.setItem("cloudPeriod", period); } catch (err) {}
+      var my = ++seq;
+      try {
+        if (!cache[period]) {
+          note.textContent = "불러오는 중…";
+          var r = await fetch("/api/wordcloud?period=" + period, { cache: "no-store" });
+          if (!r.ok) throw new Error("키워드를 불러오지 못했습니다 (" + r.status + ")");
+          cache[period] = await r.json();
+        }
+        if (my !== seq) return; // a newer click won
+        var d = cache[period];
+        layout(d);
+        note.textContent = d.incidents
+          ? NAMES[period] + " 사고 " + d.incidents + "건 기준 · 단어를 누르면 검색합니다"
+          : NAMES[period] + " 동안 수집된 사고가 없습니다";
+      } catch (err) {
+        if (my === seq) { box.innerHTML = ""; note.textContent = err.message; }
+      }
+    };
+
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-period]");
+      if (b) show(b.dataset.period);
+    });
+    var timer;
+    window.addEventListener("resize", function () {
+      clearTimeout(timer);
+      timer = setTimeout(function () { if (cache[current]) layout(cache[current]); }, 200);
+    });
+    var saved = null;
+    try { saved = localStorage.getItem("cloudPeriod"); } catch (err) {}
+    show(NAMES[saved] ? saved : "week");
+  }
 })();
