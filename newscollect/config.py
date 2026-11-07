@@ -21,6 +21,9 @@ class Config:
     port: int = 8000
     site_title: str = "보안 사고 타임라인"
     llm_enabled: bool = True
+    llm_provider: str = "local"  # "local" (Ollama) | "claude" (Anthropic API, ANTHROPIC_API_KEY)
+    claude_model: str = "claude-sonnet-5-5"
+    claude_effort: str = "low"
     llm_endpoint: str = "127.0.0.1:11434"
     llm_model: str = "solar:10.7b"
     llm_foreign_model: str = ""  # model for non-Korean articles; empty = same as llm_model
@@ -31,6 +34,8 @@ class Config:
     max_age_days: int = 30
     database: str = "data/news.db"
     wordcloud_trivial: list[str] = field(default_factory=list)
+    gov_list: str = ""     # CSV of government bodies (name in column 2) -> "정부기관" tag
+    public_list: str = ""  # CSV of public institutions (name in column 1) -> "공공기관" tag
     sources: list[Source] = field(default_factory=list)
 
     @property
@@ -51,11 +56,20 @@ def load_config(path: Path | str | None = None) -> Config:
     trivial = raw.get("wordcloud", {}).get("trivial", [])
     if not isinstance(trivial, list) or not all(isinstance(t, str) for t in trivial):
         raise ValueError("[wordcloud].trivial must be a list of strings")
+    provider = llm.get("provider", "local")
+    if provider not in ("local", "claude"):
+        raise ValueError(f'[llm].provider must be "local" or "claude", not {provider!r}')
+    effort = llm.get("claude_effort", "low")
+    if effort not in ("low", "medium", "high", "xhigh", "max"):
+        raise ValueError(f"[llm].claude_effort must be low|medium|high|xhigh|max, not {effort!r}")
     cfg = Config(
         host=server.get("host", "0.0.0.0"),
         port=int(server.get("port", 8000)),
         site_title=server.get("site_title", "보안 사고 타임라인"),
         llm_enabled=bool(llm.get("enabled", True)),
+        llm_provider=provider,
+        claude_model=llm.get("claude_model", "claude-sonnet-5-5"),
+        claude_effort=effort,
         llm_endpoint=llm.get("endpoint", "127.0.0.1:11434"),
         llm_model=llm.get("model", "solar:10.7b"),
         llm_foreign_model=llm.get("foreign_model", ""),
@@ -66,6 +80,8 @@ def load_config(path: Path | str | None = None) -> Config:
         max_age_days=int(col.get("max_age_days", 30)),
         database=col.get("database", "data/news.db"),
         wordcloud_trivial=trivial,
+        gov_list=raw.get("orgs", {}).get("government_list", ""),
+        public_list=raw.get("orgs", {}).get("public_list", ""),
     )
     for s in raw.get("sources", []):
         if "url" not in s:

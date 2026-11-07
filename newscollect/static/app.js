@@ -15,6 +15,34 @@
   });
   paint();
 
+  // --- sticky header: the pane sticks just below it, whatever height the header wraps to ---
+  var header = document.querySelector("header");
+  var setHeaderH = function () { root.style.setProperty("--header-h", header.offsetHeight + "px"); };
+  setHeaderH();
+  window.addEventListener("resize", setHeaderH);
+
+  // --- side pane toggle (initial state is set by the inline script in <head>) ---
+  var paneBtn = document.querySelector(".pane-toggle");
+  if (paneBtn) {
+    var setPane = function (open, remember) {
+      root.dataset.pane = open ? "open" : "closed";
+      paneBtn.setAttribute("aria-expanded", String(open));
+      if (remember && window.innerWidth >= 900) { try { localStorage.setItem("pane", root.dataset.pane); } catch (err) {} }
+      // the cloud and the chart measure their box: lay them out again now that it has a size
+      if (open) window.dispatchEvent(new Event("resize"));
+    };
+    setPane(root.dataset.pane !== "closed", false);
+    paneBtn.addEventListener("click", function () { setPane(root.dataset.pane === "closed", true); });
+    var narrowClose = function () { setPane(false, false); paneBtn.focus(); };
+    document.querySelector(".pane-close").addEventListener("click", narrowClose);
+    document.addEventListener("click", function (e) { // narrow screens: a tap outside the drawer closes it
+      if (window.innerWidth < 900 && root.dataset.pane === "open" && !e.target.closest(".side, .pane-toggle")) setPane(false, false);
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && window.innerWidth < 900 && root.dataset.pane === "open") narrowClose();
+    });
+  }
+
   // --- regenerate summary ---
   document.addEventListener("click", async function (e) {
     var b = e.target.closest(".regen");
@@ -56,6 +84,7 @@
       if (!words.length) { box.classList.add("empty-cloud"); return; }
       box.classList.remove("empty-cloud");
       var W = box.clientWidth, H = box.clientHeight;
+      if (!W || !H) return; // pane hidden: laid out again when it opens
       var max = words[0].count, min = words[words.length - 1].count;
       var big = Math.min(46, Math.max(26, W / 14)), small = 13, placed = [];
       words.forEach(function (w) {
@@ -65,7 +94,7 @@
         a.textContent = w.word;
         a.title = w.word + " · 사고 " + w.count + "건";
         a.style.fontSize = (small + (big - small) * t).toFixed(1) + "px";
-        a.className = "w" + (t > 0.66 ? 3 : t > 0.33 ? 2 : 1);
+        a.className = "w" + (t > 0.8 ? 3 : t > 0.4 ? 2 : 1); // red only near the top
         box.appendChild(a);
         var ww = a.offsetWidth, hh = a.offsetHeight;
         // Archimedean spiral out from the centre, stretched to the box's aspect ratio
@@ -124,5 +153,132 @@
     var saved = null;
     try { saved = localStorage.getItem("cloudPeriod"); } catch (err) {}
     show(NAMES[saved] ? saved : "week");
+  }
+  // --- collected-article column chart (list page only) ---
+  var chart = document.querySelector(".trend-chart");
+  if (chart) {
+    var tip = chart.querySelector(".trend-tip"), tnote = document.querySelector(".trend-note");
+    var tbody = document.querySelector(".trend-table tbody"), tcache = {}, tcur = null, tseq = 0;
+    var SVGNS = "http://www.w3.org/2000/svg";
+    var fmt = function (n) { return n.toLocaleString("ko-KR"); };
+    var label = function (unit, p) {
+      if (unit === "day") return +p.slice(5, 7) + "/" + +p.slice(8, 10);
+      if (unit === "month") return p.slice(2, 4) + "." + p.slice(5, 7);
+      return p;
+    };
+    var longLabel = function (unit, p) {
+      if (unit === "day") return p.slice(0, 4) + "년 " + +p.slice(5, 7) + "월 " + +p.slice(8, 10) + "일";
+      if (unit === "month") return p.slice(0, 4) + "년 " + +p.slice(5, 7) + "월";
+      return p + "년";
+    };
+    var niceStep = function (max) { // ~4 gridlines at 1/2/5 x 10^k
+      var raw = Math.max(max, 1) / 4, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+      var step = [1, 2, 5, 10].map(function (m) { return m * mag; }).find(function (s) { return s >= raw; });
+      return Math.max(1, step);
+    };
+    var el = function (name, attrs, parent) {
+      var e = document.createElementNS(SVGNS, name);
+      for (var k in attrs) e.setAttribute(k, attrs[k]);
+      if (parent) parent.appendChild(e);
+      return e;
+    };
+
+    var draw = function (d) {
+      var old = chart.querySelector("svg");
+      if (old) old.remove();
+      tip.hidden = true;
+      var data = d.series, n = data.length;
+      var W = chart.clientWidth, H = chart.clientHeight;
+      if (!W || !H) return; // pane hidden: drawn again when it opens
+      var max = Math.max.apply(null, data.map(function (x) { return x.count; }));
+      var step = niceStep(max), top = Math.ceil(Math.max(max, 1) / step) * step;
+      var M = { l: 8 + String(fmt(top)).length * 7, r: 6, t: 16, b: 22 };
+      var pw = W - M.l - M.r, ph = H - M.t - M.b, base = M.t + ph;
+      var svg = el("svg", { width: W, height: H, viewBox: "0 0 " + W + " " + H, role: "img",
+        "aria-label": "수집 기사 수 막대 그래프, 합계 " + fmt(d.total) + "건" });
+      for (var v = 0; v <= top; v += step) { // hairline grid + clean tick labels
+        var y = base - (v / top) * ph;
+        el("line", { x1: M.l, x2: W - M.r, y1: y, y2: y, class: v ? "grid" : "axis" }, svg);
+        el("text", { x: M.l - 6, y: y + 4, class: "tick", "text-anchor": "end" }, svg).textContent = fmt(v);
+      }
+      var slot = pw / n, bw = Math.max(2, Math.min(24, slot * 0.7, slot - 2));
+      var every = Math.max(1, Math.ceil(n / Math.max(1, Math.floor(pw / 46))));
+      var maxIdx = data.findIndex(function (x) { return x.count === max; });
+      data.forEach(function (x, i) {
+        var cx = M.l + slot * (i + 0.5), h = (x.count / top) * ph, x0 = cx - bw / 2;
+        if (h > 0) { // 4px rounded data-end, square at the baseline
+          var r = Math.min(4, h, bw / 2), y0 = base - h;
+          el("path", { class: "bar", d: "M" + x0 + "," + base + "V" + (y0 + r) + "Q" + x0 + "," + y0 + " " + (x0 + r) + "," + y0 +
+            "H" + (x0 + bw - r) + "Q" + (x0 + bw) + "," + y0 + " " + (x0 + bw) + "," + (y0 + r) + "V" + base + "Z" }, svg);
+        }
+        if (i === maxIdx && max > 0) // one selective direct label: the peak
+          el("text", { x: cx, y: base - h - 4, class: "val", "text-anchor": "middle" }, svg).textContent = fmt(x.count);
+        if ((n - 1 - i) % every === 0) // label from the latest period backwards
+          el("text", { x: cx, y: H - 6, class: "tick", "text-anchor": "middle" }, svg).textContent = label(d.unit, x.period);
+        var hit = el("rect", { x: M.l + slot * i, y: M.t, width: slot, height: ph, class: "hit", tabindex: 0,
+          "aria-label": longLabel(d.unit, x.period) + " " + fmt(x.count) + "건" }, svg);
+        var show = function () {
+          tip.textContent = longLabel(d.unit, x.period) + " · " + fmt(x.count) + "건";
+          tip.hidden = false;
+          var tw = tip.offsetWidth;
+          tip.style.left = Math.min(Math.max(0, cx - tw / 2), W - tw) + "px";
+          tip.style.top = Math.max(0, base - h - 34) + "px";
+          hit.classList.add("on");
+        };
+        var hide = function () { tip.hidden = true; hit.classList.remove("on"); };
+        hit.addEventListener("mouseenter", show); hit.addEventListener("focus", show);
+        hit.addEventListener("mouseleave", hide); hit.addEventListener("blur", hide);
+      });
+      chart.insertBefore(svg, tip);
+    };
+
+    var fill = function (d) {
+      var avg = d.series.length ? d.total / d.series.length : 0;
+      tnote.textContent = d.unit === "day" ? "최근 30일 " + fmt(d.total) + "건 · 하루 평균 " + avg.toFixed(1) + "건 (수집 시각 기준)"
+        : d.unit === "month" ? "최근 12개월 " + fmt(d.total) + "건 · 월평균 " + fmt(Math.round(avg)) + "건 (수집 시각 기준)"
+        : "전체 " + fmt(d.total) + "건 (수집 시각 기준)";
+      tbody.innerHTML = "";
+      d.series.slice().reverse().forEach(function (x) {
+        var tr = document.createElement("tr");
+        tr.innerHTML = "<td></td><td></td>";
+        tr.children[0].textContent = longLabel(d.unit, x.period);
+        tr.children[1].textContent = fmt(x.count);
+        tbody.appendChild(tr);
+      });
+    };
+
+    var showUnit = async function (unit) {
+      tcur = unit;
+      document.querySelectorAll("[data-unit]").forEach(function (b) {
+        b.setAttribute("aria-pressed", String(b.dataset.unit === unit));
+      });
+      try { localStorage.setItem("trendUnit", unit); } catch (err) {}
+      var my = ++tseq;
+      try {
+        if (!tcache[unit]) {
+          tnote.textContent = "불러오는 중…";
+          var r = await fetch("/api/article-stats?unit=" + unit, { cache: "no-store" });
+          if (!r.ok) throw new Error("통계를 불러오지 못했습니다 (" + r.status + ")");
+          tcache[unit] = await r.json();
+        }
+        if (my !== tseq) return;
+        draw(tcache[unit]); fill(tcache[unit]);
+      } catch (err) {
+        if (my === tseq) tnote.textContent = err.message;
+      }
+    };
+
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-unit]");
+      if (b) showUnit(b.dataset.unit);
+    });
+    var ttimer;
+    window.addEventListener("resize", function () {
+      clearTimeout(ttimer);
+      ttimer = setTimeout(function () { if (tcache[tcur]) draw(tcache[tcur]); }, 200);
+    });
+    var su = null;
+    try { su = localStorage.getItem("trendUnit"); } catch (err) {}
+    showUnit(["day", "month", "year"].indexOf(su) >= 0 ? su : "day");
   }
 })();

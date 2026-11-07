@@ -8,6 +8,16 @@ site_title = "최신 보안사고 목록"
 
 [llm]
 enabled = true
+# Which LLM writes the extractions and summaries (applies on the next collection cycle, no restart):
+#   "local"  - Ollama at `endpoint` with `model` / `foreign_model` below
+#   "claude" - Anthropic API; key from ANTHROPIC_API_KEY (.env is loaded at startup); uses `claude_model` for all articles
+provider = "local"
+#provider = "claude"
+claude_model = "claude-sonnet-5-5"
+# How much Claude thinks before answering: low | medium | high | xhigh | max. Higher = better but slower and costlier.
+claude_effort = "low"
+
+# --- local (Ollama) settings ---
 # OLLAMA_HOST env var (e.g. 10.0.2.2:11434) overrides this endpoint.
 endpoint = "127.0.0.1:11434"
 model = "solar:10.7b"
@@ -22,7 +32,7 @@ num_ctx = 8192
 [collector]
 interval_minutes = 30
 max_articles_per_run = 30   # per source, newest first
-max_age_days = 30           # ignore older feed items
+max_age_days = 60           # ignore older feed items
 database = "data/news.db"
 
 [wordcloud]
@@ -32,6 +42,15 @@ database = "data/news.db"
 # they consist solely of these keywords. Beware short keys that occur inside names ("보안" would turn
 # "금융보안원" into "금융원").
 trivial = ["공격", "해킹", "사이버", "해커", "보안", "유출", "개인정보"]
+
+[orgs]
+# Incidents whose victim is on these lists get a tag and show up in the "정부공공" tab.
+# government_list: name in the 2nd column -> "정부기관"; public_list: name in the 1st column -> "공공기관".
+# Names match after dropping "(...)" parts (e.g. "(재)"), 재단법인/주식회사 and spaces; a victim containing a listed name
+# also matches ("국민건강보험공단 일산병원"). Local governments also match their short forms (서울시, 종로구청).
+# Replace a file with a newer list and it applies on the next page load. UTF-8 (EUC-KR also accepted).
+government_list = "refs/국가데이터처_KOSIS 기관목록테이블_20251107.csv"
+public_list = "refs/재정경제부_공공기관 지정현황_20260617.csv"
 
 [[sources]]
 name = "보안뉴스"

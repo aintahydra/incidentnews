@@ -4,8 +4,6 @@ import re
 import sqlite3
 from datetime import date, timedelta
 
-import httpx
-
 WINDOW_DAYS = 7
 CROSS_LANG_DAYS = 7  # LLM judge window for Korean-vs-English victim names (the judge guards against false merges)
 TITLE_THRESHOLD = 0.5
@@ -45,20 +43,17 @@ JUDGE_SYSTEM = """두 보안 사고 기록이 같은 실제 사건에 대한 것
 JSON 객체 {"same": true|false} 만 출력한다."""
 
 
-def llm_judge(client: httpx.Client, base_url: str, model: str, num_ctx: int = 8192):
-    """Returns judge(row, ex) -> bool, asking the LLM whether two records describe one incident."""
+def llm_judge(llm, model: str):
+    """Returns judge(row, ex) -> bool, asking the LLM (an llm.Ollama / llm.Claude backend) whether two records
+    describe one incident."""
     def card(title, victim, attacker, date_, summary):
         return f"제목: {title}\n날짜: {date_}\n피해 대상: {victim}\n공격자: {attacker}\n요약: {summary[:300]}"
     def judge(row, ex) -> bool:
         user = ("[기록 A]\n" + card(row["title"], row["victim"], row["attacker"], row["occurred_at"], row["summary"]) +
                 "\n\n[기록 B]\n" + card(ex.title, ex.victim, ex.attacker, ex.occurred_at, ex.summary))
         try:
-            r = client.post(f"{base_url}/api/chat", json={
-                "model": model, "stream": False, "format": "json",
-                "options": {"temperature": 0, "num_ctx": num_ctx, "num_predict": 60},
-                "messages": [{"role": "system", "content": JUDGE_SYSTEM}, {"role": "user", "content": user}]})
-            r.raise_for_status()
-            return json.loads(r.json()["message"]["content"]).get("same") is True
+            m = re.search(r"\{.*\}", llm.chat(model, JUDGE_SYSTEM, user, json=True, max_tokens=60), re.S)
+            return json.loads(m.group(0) if m else "{}").get("same") is True
         except Exception:
             return False  # when unsure, keep them separate
     return judge
@@ -93,14 +88,17 @@ def upsert_incident(conn: sqlite3.Connection, ex, article_id: int, judge=None) -
     inc_id = find_match(conn, ex, judge)
     if inc_id is None:
         cur = conn.execute(
-            "INSERT INTO incidents(title,occurred_at,attacker,victim,damage,category,summary) VALUES(?,?,?,?,?,?,?)",
-            (ex.title, ex.occurred_at, ex.attacker, ex.victim, ex.damage, ex.category, ex.summary))
+            "INSERT INTO incidents(title,occurred_at,attacker,victim,damage,category,summary,hashtags) VALUES(?,?,?,?,?,?,?,?)",
+            (ex.title, ex.occurred_at, ex.attacker, ex.victim, ex.damage, ex.category, ex.summary,
+             json.dumps(getattr(ex, "hashtags", []), ensure_ascii=False)))
         inc_id = cur.lastrowid
     else:
         cur_row = conn.execute("SELECT * FROM incidents WHERE id=?", (inc_id,)).fetchone()
         upd = {k: getattr(ex, k) for k in ("attacker", "victim", "damage", "category") if not cur_row[k] and getattr(ex, k)}
         if len(ex.summary) > len(cur_row["summary"]):
             upd["summary"] = ex.summary
+        if getattr(ex, "hashtags", None) and cur_row["hashtags"] in ("", "[]"):  # first article with tags wins
+            upd["hashtags"] = json.dumps(ex.hashtags, ensure_ascii=False)
         if upd:
             sets = ",".join(f"{k}=?" for k in upd)
             conn.execute(f"UPDATE incidents SET {sets}, updated_at=CURRENT_TIMESTAMP WHERE id=?", (*upd.values(), inc_id))

@@ -1,5 +1,5 @@
 <article class="incident detail" id="inc-{{ inc.id }}">
-  <p class="date">{{ inc.occurred_at }}{% if inc.category %} <span class="tag">{{ inc.category }}</span>{% endif %}</p>
+  <p class="date">{{ inc.occurred_at }}{% if inc.category %} <span class="tag">{{ inc.category }}</span>{% endif %}{% for t in inc.org_tags %} <span class="tag org">{{ t }}</span>{% endfor %}</p>
   <h1>{{ inc.title }}</h1>
   <dl>
     <dt>공격자</dt><dd>{{ inc.attacker or '미확인' }}</dd>
@@ -7,6 +7,7 @@
     <dt>규모</dt><dd>{{ inc.damage or '미확인' }}</dd>
   </dl>
   <p>{{ inc.summary }}</p>
+  {% if inc.hashtags %}<p class="hashtags">{% for h in inc.hashtags %}<a href="/?q={{ h|urlencode }}">#{{ h }}</a>{% endfor %}</p>{% endif %}
   <p><button type="button" class="regen" data-id="{{ inc.id }}" title="원문을 다시 읽고 AI 요약을 새로 생성합니다">요약 다시 생성</button>
     <span class="regen-msg" role="alert"></span></p>
   <h2>관련 기사</h2>

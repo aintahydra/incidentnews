@@ -1,9 +1,9 @@
-:root,[data-theme=dark]{--bg:#0f1115;--fg:#e6e8ec;--mut:#8b93a1;--card:#181b22;--acc:#ff5d5d;--line:#262a33;color-scheme:dark}
-[data-theme=light]{--bg:#f6f7f9;--fg:#15171c;--mut:#667085;--card:#fff;--acc:#d92d20;--line:#e4e7ec;color-scheme:light}
-@media(prefers-color-scheme:light){:root:not([data-theme]){--bg:#f6f7f9;--fg:#15171c;--mut:#667085;--card:#fff;--acc:#d92d20;--line:#e4e7ec;color-scheme:light}}
+:root,[data-theme=dark]{--series-1:#3987e5;--bg:#0f1115;--fg:#e6e8ec;--mut:#8b93a1;--card:#181b22;--acc:#ff5d5d;--line:#262a33;color-scheme:dark}
+[data-theme=light]{--series-1:#2a78d6;--bg:#f6f7f9;--fg:#15171c;--mut:#667085;--card:#fff;--acc:#d92d20;--line:#e4e7ec;color-scheme:light}
+@media(prefers-color-scheme:light){:root:not([data-theme]){--series-1:#2a78d6;--bg:#f6f7f9;--fg:#15171c;--mut:#667085;--card:#fff;--acc:#d92d20;--line:#e4e7ec;color-scheme:light}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 -apple-system,"Noto Sans KR","Malgun Gothic",sans-serif}
-header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:14px 16px;border-bottom:1px solid var(--line)}
+header{position:sticky;top:0;z-index:10;background:var(--bg);display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:14px 16px;border-bottom:1px solid var(--line)}
 .brand{font-weight:700;font-size:20px;color:var(--fg);text-decoration:none}
 main{max-width:760px;margin:0 auto;padding:16px}
 a{color:var(--acc)}
@@ -34,13 +34,13 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .flash{animation:flash 2.5s ease-out}
 @keyframes flash{from{box-shadow:0 0 0 3px #2e9e5b}to{box-shadow:0 0 0 0 transparent}}
 .found{color:var(--mut);font-size:14px}
-.cloud{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin:6px 0 4px}
+.cloud{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:0 0 12px}
 .cloud-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
 .cloud-head h2{margin:0;font-size:16px}
 .periods{display:flex;gap:6px}
 .periods button{padding:3px 10px}
 .periods button[aria-pressed=true]{border-color:var(--acc);color:var(--acc);font-weight:700}
-.cloud-box{position:relative;height:260px;margin-top:8px;overflow:hidden}
+.cloud-box{position:relative;height:300px;margin-top:8px;overflow:hidden}
 .cloud-box a{position:absolute;white-space:nowrap;line-height:1.15;text-decoration:none;font-weight:600}
 .cloud-box a:hover{text-decoration:underline}
 .cloud-box .w3{color:var(--acc);font-weight:800}
@@ -48,4 +48,50 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .cloud-box .w1{color:var(--mut);font-weight:500}
 .cloud-box.empty-cloud{height:60px}
 .cloud-note{margin:4px 0 0;color:var(--mut);font-size:12px}
-@media(max-width:480px){.cloud-box{height:220px}}
+.trend-chart{position:relative;height:200px;margin-top:8px}
+.trend-chart svg{display:block;overflow:visible}
+.trend-chart .bar{fill:var(--series-1)}
+.trend-chart .grid{stroke:var(--line);stroke-width:1}
+.trend-chart .axis{stroke:var(--mut);stroke-width:1}
+.trend-chart .tick{fill:var(--mut);font-size:11px}
+.trend-chart .val{fill:var(--fg);font-size:11px;font-weight:700}
+.trend-chart .hit{fill:transparent;outline:none}
+.trend-chart .hit.on{fill:var(--fg);fill-opacity:.06}
+.trend-tip{position:absolute;pointer-events:none;white-space:nowrap;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.trend-table{margin-top:4px;font-size:12px;color:var(--mut)}
+.trend-table summary{cursor:pointer}
+.trend-table table{border-collapse:collapse;margin-top:6px}
+.trend-table th,.trend-table td{padding:2px 14px 2px 0;text-align:left;border-bottom:1px solid var(--line)}
+.trend-table td:last-child,.trend-table th:last-child{text-align:right}
+/* left side pane: word cloud + charts */
+/* three columns: pane | list | spacer. The list stays centred while there is room; the pane's cards sit at the
+   right edge of their column, next to the list */
+.layout{display:grid;grid-template-columns:minmax(376px,1fr) minmax(0,760px) minmax(0,1fr);align-items:start}
+[data-pane=closed] .layout{grid-template-columns:1fr minmax(0,760px) 1fr}
+.layout>main{grid-column:2;width:100%;min-width:0}
+.side{grid-column:1;justify-self:end;width:376px;position:sticky;top:var(--header-h,69px);
+  max-height:calc(100vh - var(--header-h,69px));overflow-y:auto;padding:16px 0 16px 16px}
+[data-pane=closed] .side{display:none}
+.pane-toggle{display:inline-flex;align-items:center;justify-content:center;padding:5px 7px;color:var(--mut)}
+.pane-toggle svg{display:block}
+.pane-toggle .panel-fill{fill:currentColor;opacity:0}
+.pane-toggle[aria-expanded=true] .panel-fill{opacity:.35}
+.pane-close{display:none;margin:0 0 10px auto}
+.pane-toggle[aria-expanded=true]{border-color:var(--acc);color:var(--acc)}
+@media(max-width:899px){
+  .layout,[data-pane=closed] .layout{display:block}
+  /* narrow screens: the pane slides over the list instead of squeezing it */
+  .side{position:fixed;z-index:20;left:0;top:0;bottom:0;max-height:none;width:min(360px,92vw);padding:16px;
+    background:var(--bg);border-right:1px solid var(--line);box-shadow:4px 0 24px rgba(0,0,0,.35)}
+  .pane-close{display:block}
+}
+/* incident tabs and org tags */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:4px 0 8px}
+.tabs a{padding:8px 14px;color:var(--mut);text-decoration:none;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs a:hover{color:var(--fg)}
+.tabs a[aria-current=page]{color:var(--fg);border-bottom-color:var(--acc)}
+.tabs .count{font-size:12px;font-weight:500;color:var(--mut)}
+.tag.org{background:var(--series-1);border-color:var(--series-1);color:#fff}
+.hashtags{display:flex;flex-wrap:wrap;gap:4px 10px;margin:4px 0;font-size:13px}
+.hashtags a{color:var(--series-1);text-decoration:none;font-weight:600}
+.hashtags a:hover{text-decoration:underline}

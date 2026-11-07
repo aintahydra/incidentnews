@@ -4,7 +4,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from newscollect import collector, db, dedupe, extractor
+from newscollect import collector, db, dedupe, extractor, llm
 from newscollect.config import load_config
 from newscollect.web import create_app
 
@@ -153,14 +153,14 @@ def test_llm_english_answer_retried_with_higher_temperature_then_fails():
     english = {**GOOD, "summary": "A was hacked."}
     client, calls = llm_client([english])
     with pytest.raises(ValueError):
-        extractor.extract_llm(client, "http://x", "m", ART)
+        extractor.extract_llm(llm.Ollama(client, "http://x"), "m", ART)
     assert [c["options"]["temperature"] for c in calls] == [0, 0.3, 0.6]
 
 
 def test_llm_garbled_name_is_retried_and_recovers():
     garbled = {**GOOD, "title": "비티코 해킹", "victim": "비티코", "summary": "비티코가 해킹당했다."}
     client, calls = llm_client([garbled, GOOD])
-    ex = extractor.extract_llm(client, "http://x", "m", ART)
+    ex = extractor.extract_llm(llm.Ollama(client, "http://x"), "m", ART)
     assert ex.victim == "빗썸" and len(calls) == 2
     assert "비티코" in calls[1]["messages"][1]["content"]       # retry hint names the bad token
 
@@ -169,7 +169,7 @@ def test_llm_garbled_name_always_rejected():
     garbled = {**GOOD, "victim": "비티코", "summary": "비티코가 해킹당했다."}
     client, calls = llm_client([garbled])
     with pytest.raises(ValueError, match="기사 본문에 없는 이름"):
-        extractor.extract_llm(client, "http://x", "m", ART)
+        extractor.extract_llm(llm.Ollama(client, "http://x"), "m", ART)
 
 
 def test_grounding_accepts_partial_and_ascii_names():
@@ -349,7 +349,7 @@ def test_num_ctx_sent_and_transient_500_retried():
             return httpx.Response(500, json={"error": "boom"})
         return httpx.Response(200, json={"message": {"content": json.dumps(GOOD)}})
     client = httpx.Client(transport=httpx.MockTransport(handler))
-    ex = extractor.extract_llm(client, "http://x", "m", ART, num_ctx=6000)
+    ex = extractor.extract_llm(llm.Ollama(client, "http://x", num_ctx=6000), "m", ART)
     assert ex.victim == "빗썸" and len(calls) == 2
     assert all(c["options"]["num_ctx"] == 6000 for c in calls)
 
@@ -396,7 +396,7 @@ def test_collector_path_rewrites_cramped_json_summary():
             return httpx.Response(200, json={"message": {"content": json.dumps(cramped)}})
         return httpx.Response(200, json={"message": {"content": "2026년 10월 1일 빗썸이 해킹을 당해 개인정보가 유출됐다. 피해 규모는 약 3만 명이다. 회사는 원인을 조사하고 있다."}})
     art = {**ART, "title": "빗썸 해킹 사고 개인정보 유출"}
-    ex_ = extractor.extract(httpx.Client(transport=httpx.MockTransport(handler)), Cfg(), art)
+    ex_ = extractor.extract(llm.Ollama(httpx.Client(transport=httpx.MockTransport(handler)), "http://x"), Cfg(), art)
     assert ex_.summary.startswith("2026년 10월 1일 빗썸이") and ex_.victim == "빗썸"
 
 
@@ -499,7 +499,7 @@ def test_is_korean_and_english_incident_gate():
 
 def test_english_article_summarized_in_korean_with_foreign_model():
     client, seen = en_llm()
-    ex_ = extractor.extract(client, EnCfg, EN_ART)
+    ex_ = extractor.extract(llm.Ollama(client, "http://x"), EnCfg, EN_ART)
     assert ex_.victim == "Binance" and ex_.attacker == "TraderTraitor"          # names stay in the article's spelling
     assert ex_.summary == EN_SUMMARY and extractor.summary_problems(ex_.summary, source_text=EN_ART["title"] + EN_BODY) == []
     assert {b["model"] for b in seen} == {"exaone"}                              # not the Korean model
@@ -508,7 +508,7 @@ def test_english_article_summarized_in_korean_with_foreign_model():
 
 def test_korean_article_uses_main_model():
     client, seen = en_llm({**GOOD, "summary": GOOD_SUMMARY})
-    extractor.extract(client, EnCfg, {**ART, "title": "빗썸 해킹 사고 개인정보 유출", "body": "빗썸에서 개인정보가 유출됐다. " * 5})
+    extractor.extract(llm.Ollama(client, "http://x"), EnCfg, {**ART, "title": "빗썸 해킹 사고 개인정보 유출", "body": "빗썸에서 개인정보가 유출됐다. " * 5})
     assert {b["model"] for b in seen} == {"solar"}
 
 
@@ -518,32 +518,32 @@ def test_english_article_never_falls_back_to_english_heuristic():
         extractor.extract(None, Off, EN_ART)
     client, _ = en_llm({"is_incident": True, "title": "x", "summary": "English only text here."})
     with pytest.raises(ValueError):
-        extractor.extract(client, EnCfg, EN_ART)
+        extractor.extract(llm.Ollama(client, "http://x"), EnCfg, EN_ART)
 
 
 def test_english_article_with_transliterated_victim_is_blanked_and_english_fields_are_rejected():
     translit = {**EN_JSON, "victim": "바이낸스"}
     client, calls = en_llm(translit)
-    ex_ = extractor.extract_llm(client, "http://x", "m", EN_ART)         # retried 3x, then the field is blanked
+    ex_ = extractor.extract_llm(llm.Ollama(client, "http://x"), "m", EN_ART)         # retried 3x, then the field is blanked
     assert ex_.victim == "" and ex_.attacker == "TraderTraitor" and len(calls) == 3
     english_title = {**EN_JSON, "title": "North Korean hackers steal crypto from Binance"}
     client, _ = en_llm(english_title)
     with pytest.raises(ValueError, match="title이 한국어가 아님"):
-        extractor.extract_llm(client, "http://x", "m", EN_ART)
+        extractor.extract_llm(llm.Ollama(client, "http://x"), "m", EN_ART)
     english_damage = {**EN_JSON, "damage": "limited exploitation in the wild"}
     client, _ = en_llm(english_damage)
     with pytest.raises(ValueError, match="damage가 한국어가 아님"):
-        extractor.extract_llm(client, "http://x", "m", EN_ART)
+        extractor.extract_llm(llm.Ollama(client, "http://x"), "m", EN_ART)
 
 
 def test_english_weak_summary_is_not_stored_but_korean_one_is_kept():
     cramped = {**EN_JSON, "summary": "바이낸스 해킹. 63억 달러 도난."}
     client, _ = en_llm(cramped, summary="English only.")
     with pytest.raises(ValueError):
-        extractor.extract(client, EnCfg, EN_ART)
+        extractor.extract(llm.Ollama(client, "http://x"), EnCfg, EN_ART)
     ko_art = {"title": "빗썸 해킹 사고 개인정보 유출", "body": "빗썸에서 고객 개인정보가 대량 유출됐다. " * 5, "published_at": "2026-10-29"}
     client, _ = en_llm({**GOOD, "summary": "빗썸 해킹. 유출 추정."}, summary="English only.")
-    assert extractor.extract(client, EnCfg, ko_art).summary == "빗썸 해킹. 유출 추정."   # Korean keeps its terse summary
+    assert extractor.extract(llm.Ollama(client, "http://x"), EnCfg, ko_art).summary == "빗썸 해킹. 유출 추정."   # Korean keeps its terse summary
 
 
 def test_foreign_model_config(tmp_path):
@@ -609,7 +609,7 @@ def test_dedupe_cross_language_uses_judge_only_when_scripts_differ_and_dates_clo
 def test_llm_judge_parses_answer_and_defaults_to_not_same():
     row = {"title": "t", "victim": "v", "attacker": "", "occurred_at": "2026-10-29", "summary": "s"}
     ex_ = extractor.Extraction(True, "t", "2026-10-29", "", "V", "", "", "s")
-    mk = lambda h: dedupe.llm_judge(httpx.Client(transport=httpx.MockTransport(h)), "http://x", "m")
+    mk = lambda h: dedupe.llm_judge(llm.Ollama(httpx.Client(transport=httpx.MockTransport(h)), "http://x"), "m")
     ok = lambda req: httpx.Response(200, json={"message": {"content": '{"same": true}'}})
     assert mk(ok)(row, ex_) is True
     assert mk(lambda req: httpx.Response(200, json={"message": {"content": '{"same": "maybe"}'}}))(row, ex_) is False
@@ -719,7 +719,7 @@ def test_proper_nouns_and_prompt_hint_for_english_only():
 def test_name_hint_reaches_both_llm_prompts():
     client, seen = en_llm({**EN_JSON, "summary": "짧음."})
     art = {**EN_ART, "title": "VOLTA infostealer uses Claude and Gemini", "body": VOLTA + " " + EN_BODY}
-    extractor.extract(client, EnCfg, art)
+    extractor.extract(llm.Ollama(client, "http://x"), EnCfg, art)
     prompts = [b["messages"][1]["content"] for b in seen if not b["messages"][0]["content"].startswith("너는 교정자다")]
     assert len(prompts) >= 2 and all("음차하지 말고" in p and "Claude" in p for p in prompts)   # JSON call and summary call
 
@@ -729,7 +729,7 @@ def test_korean_article_uses_article_lead_when_both_summaries_are_broken():
     art = {"title": "더존비즈온 해킹 사고 개인정보 유출", "body": lead + " 추가 내용도 있다.", "published_at": "2026-11-02"}
     junk = {**GOOD, "title": "더존비즈온 해킹", "victim": "더존비즈온", "summary": "△성명 △이메일 △주소 △유출 △조사"}
     client, _ = en_llm(junk, summary="△또 △목록")
-    out = extractor.extract(client, EnCfg, art)
+    out = extractor.extract(llm.Ollama(client, "http://x"), EnCfg, art)
     assert out.summary.startswith("2026년 11월 2일 더존비즈온에서") and extractor.summary_problems(out.summary) == []
 
 
@@ -757,29 +757,29 @@ def test_transliteration_with_english_in_parentheses_is_reduced_to_the_english_n
                "공격자는 훔친 계정 정보를 순위로 매겼다. 연구진은 키트가 판매될 가능성을 지적했다.")
     client, _ = en_llm(summary=summary)
     art = {"title": "VOLTA infostealer uses Claude and Gemini", "body": VOLTA, "published_at": "2026-11-02"}
-    got = extractor.write_summary(client, "http://x", "m", art, {})
+    got = extractor.write_summary(llm.Ollama(client, "http://x"), "m", art, {})
     assert "클로이데" not in got and "Claude와 Gemini를" in got
 
 
 def test_name_only_failure_blanks_the_field_for_english_and_leaks_are_fatal_only_for_korean():
     descriptive = {**EN_JSON, "victim": "정부 기관"}
     client, calls = en_llm(descriptive)
-    ex_ = extractor.extract_llm(client, "http://x", "m", EN_ART)            # used to fail after 3 attempts; now repaired
+    ex_ = extractor.extract_llm(llm.Ollama(client, "http://x"), "m", EN_ART)            # used to fail after 3 attempts; now repaired
     assert ex_.victim == "" and ex_.attacker == "TraderTraitor" and len(calls) == 3
     # English article: the Korean word may legitimately appear in the Korean prose, so it is not an error
     leaked = {**EN_JSON, "victim": "정부 기관", "summary": "정부 기관이 공격을 받아 데이터가 유출됐다. 피해는 크다. 조사 중이다."}
     client, _ = en_llm(leaked)
-    assert extractor.extract_llm(client, "http://x", "m", EN_ART).victim == ""
+    assert extractor.extract_llm(llm.Ollama(client, "http://x"), "m", EN_ART).victim == ""
     # Korean article: a garbled company name that also appears in the prose cannot be trusted
     ko_art = {"title": "빗썸 해킹 사고 개인정보 유출", "body": "빗썸에서 개인정보가 유출됐다. " * 5, "published_at": "2026-10-29"}
     garbled = {**GOOD, "title": "비티코 해킹", "victim": "비티코", "summary": "비티코가 해킹당했다. 피해가 크다. 조사 중이다."}
     client, _ = en_llm(garbled)
     with pytest.raises(ValueError, match="제목/요약"):
-        extractor.extract_llm(client, "http://x", "m", ko_art)
+        extractor.extract_llm(llm.Ollama(client, "http://x"), "m", ko_art)
     english_title = {**EN_JSON, "title": "North Korean hackers steal crypto from Binance", "victim": "정부 기관"}   # other problems stay fatal
     client, _ = en_llm(english_title)
     with pytest.raises(ValueError, match="title이 한국어가 아님"):
-        extractor.extract_llm(client, "http://x", "m", EN_ART)
+        extractor.extract_llm(llm.Ollama(client, "http://x"), "m", EN_ART)
 
 
 def test_cross_language_judge_runs_on_the_main_model(tmp_path, monkeypatch):
@@ -824,7 +824,7 @@ def test_headline_names_only_keep_words_the_body_confirms_as_names():
 def test_polish_names_restores_transliterated_names_when_edit_is_clean():
     fixed = TRANSLIT_SUMMARY.replace("클로이디, 젬니, 킴리", "Claude, Gemini, Kimi")
     client, seen = en_llm(summary=fixed)
-    out = extractor.polish_names(client, "http://x", "m", VOLTA_ART, TRANSLIT_SUMMARY)
+    out = extractor.polish_names(llm.Ollama(client, "http://x"), "m", VOLTA_ART, TRANSLIT_SUMMARY)
     assert out == fixed and "Claude, Gemini, Kimi" in seen[0]["messages"][1]["content"]
     assert seen[0]["options"]["temperature"] == 0 and "format" not in seen[0]
 
@@ -833,15 +833,15 @@ def test_polish_names_keeps_original_when_edit_is_bad_or_not_needed():
     # nothing missing -> no LLM call at all
     ok = TRANSLIT_SUMMARY.replace("클로이디, 젬니, 킴리", "Claude, Gemini, Kimi")
     client, seen = en_llm(summary="아무거나")
-    assert extractor.polish_names(client, "http://x", "m", VOLTA_ART, ok) == ok and seen == []
+    assert extractor.polish_names(llm.Ollama(client, "http://x"), "m", VOLTA_ART, ok) == ok and seen == []
     # edit that drops most of the text, doesn't restore a name, or is English -> original kept
     for bad in ("짧다.", TRANSLIT_SUMMARY, "Claude Gemini Kimi were mentioned in the report by researchers."):
         client, _ = en_llm(summary=bad)
-        assert extractor.polish_names(client, "http://x", "m", VOLTA_ART, TRANSLIT_SUMMARY) == TRANSLIT_SUMMARY
+        assert extractor.polish_names(llm.Ollama(client, "http://x"), "m", VOLTA_ART, TRANSLIT_SUMMARY) == TRANSLIT_SUMMARY
     # Korean articles are never touched
     ko = {"title": "빗썸 해킹 사고", "body": "빗썸에서 개인정보가 유출됐다. " * 8, "published_at": "2026-11-02"}
     client, seen = en_llm(summary="x")
-    assert extractor.polish_names(client, "http://x", "m", ko, "빗썸 요약이다.") == "빗썸 요약이다." and seen == []
+    assert extractor.polish_names(llm.Ollama(client, "http://x"), "m", ko, "빗썸 요약이다.") == "빗썸 요약이다." and seen == []
 
 
 def test_extract_runs_name_polish_for_english_article_only():
@@ -853,7 +853,7 @@ def test_extract_runs_name_polish_for_english_article_only():
         if body["messages"][0]["content"].startswith("너는 교정자다"):
             return httpx.Response(200, json={"message": {"content": fixed}})
         return httpx.Response(200, json={"message": {"content": json.dumps(answers["json"])}})
-    out = extractor.extract(httpx.Client(transport=httpx.MockTransport(handler)), EnCfg, VOLTA_ART)
+    out = extractor.extract(llm.Ollama(httpx.Client(transport=httpx.MockTransport(handler)), "http://x"), EnCfg, VOLTA_ART)
     assert "Claude, Gemini, Kimi" in out.summary and "클로이디" not in out.summary
 
 
@@ -883,7 +883,7 @@ def test_wordcloud_api_periods_and_names_as_single_terms(tmp_path):
     assert c.get("/api/wordcloud", params={"period": "decade"}).status_code == 400
     page = c.get("/").text
     assert 'data-period="day"' in page and 'data-period="year"' in page
-    assert 'data-period="day"' not in c.get("/", params={"q": "해킹"}).text
+    assert 'data-period="day"' in c.get("/", params={"q": "해킹"}).text   # the side pane stays on search results
 
 
 def test_wordcloud_trivial_keywords_are_cut_out_of_compounds():
@@ -908,3 +908,244 @@ def test_wordcloud_trivial_from_config_applies_without_restart(tmp_path):
     assert words() == {"금융권", "확산"}
     p.write_text(p.read_text().replace('trivial = ["해킹"]', 'trivial = "해킹"'))  # invalid: keep startup list
     assert words() == {"금융권해킹", "확산"}
+
+
+def test_article_stats_zero_filled_per_unit(tmp_path):
+    from datetime import date
+    from newscollect import stats
+    conn = db.connect(":memory:")
+    for n, ts in enumerate(["2026-11-07 12:00:00", "2026-11-07 12:00:00", "2026-11-05 12:00:00",
+                            "2026-09-20 12:00:00", "2025-03-01 12:00:00"]):  # noon UTC: same local date in any TZ
+        conn.execute("INSERT INTO articles(source,url,title,fetched_at) VALUES('s',?,'t',?)", (f"u{n}", ts))
+    today = date(2026, 11, 7)
+    day = stats.article_counts(conn, "day", today)
+    assert len(day) == 30 and day[-1] == {"period": "2026-11-07", "count": 2}
+    assert day[-2]["count"] == 0 and day[-3] == {"period": "2026-11-05", "count": 1} and day[0]["period"] == "2026-10-09"
+    month = stats.article_counts(conn, "month", today)
+    assert [m["period"] for m in month][:2] == ["2025-12", "2026-01"] and month[-1] == {"period": "2026-11", "count": 3}
+    assert {m["period"]: m["count"] for m in month}["2026-09"] == 1    # 2025-03 falls outside the 12 months
+    assert stats.article_counts(conn, "year", today) == [{"period": "2025", "count": 1}, {"period": "2026", "count": 4}]
+    assert stats.article_counts(db.connect(":memory:"), "year", today) == [{"period": "2026", "count": 0}]
+
+
+def test_article_stats_api_and_chart_section(tmp_path):
+    c, _ = make_client(tmp_path, ("A사 해킹", "A사", "", "2026-10-10", "t"))
+    d = c.get("/api/article-stats", params={"unit": "day"}).json()
+    assert d["unit"] == "day" and len(d["series"]) == 30 and d["total"] == 1   # the article was just inserted
+    assert len(c.get("/api/article-stats", params={"unit": "month"}).json()["series"]) == 12
+    assert c.get("/api/article-stats", params={"unit": "week"}).status_code == 400
+    page = c.get("/").text
+    assert all(f'data-unit="{u}"' in page for u in ("day", "month", "year")) and "날짜별" in page
+
+
+def test_side_pane_and_toggle_only_on_list_page(tmp_path):
+    c, ids = make_client(tmp_path, ("A사 해킹", "A사", "", "2026-10-10", "t"))
+    page = c.get("/").text
+    assert 'class="pane-toggle"' in page and 'aria-controls="side"' in page and '<aside id="side"' in page
+    assert page.index('<aside id="side"') < page.index("<main>")          # pane is left of the list
+    assert page.index('class="cloud-box"') < page.index("<main>") and page.index('class="trend-chart"') < page.index("<main>")
+    detail = c.get(f"/incidents/{ids[0]}").text
+    assert "pane-toggle" not in detail and '<aside id="side"' not in detail
+
+
+def _org_lists(tmp_path):
+    gov = tmp_path / "gov.csv"   # KOSIS layout, EUC-KR like the original download
+    gov.write_bytes("기관코드,기관명,기관유형\n101,국방부,중앙행정기관\n201,서울특별시,지방자치단체\n"
+                    "202,서울특별시 종로구,지방자치단체\n301,한국인터넷진흥원,기타기관\n".encode("cp949"))
+    pub = tmp_path / "pub.csv"   # 공공기관 지정현황 layout, UTF-8 with BOM
+    pub.write_text("기관명,기관유형,주무부처\n(재)예술경영지원센터,기타공공기관,문화체육관광부\n88관광개발(주),기타공공기관,국가보훈부\n"
+                   "주식회사 에스알,공기업,국토교통부\n한국인터넷진흥원,준정부기관,과학기술정보통신부\n", encoding="utf-8-sig")
+    return gov, pub
+
+
+def test_org_classifier_lists_parentheses_aliases_and_containment(tmp_path):
+    from newscollect import orgs
+    gov, pub = _org_lists(tmp_path)
+    c = orgs.Classifier(str(gov), str(pub))
+    assert c.tags("국방부") == ["정부기관"]
+    assert c.tags("예술경영지원센터") == c.tags("(재) 예술경영지원센터") == ["공공기관"]   # "(재)" ignored
+    assert c.tags("88관광개발") == c.tags("에스알") == ["공공기관"]                         # "(주)", 주식회사 ignored
+    assert c.tags("한국인터넷진흥원") == ["정부기관", "공공기관"]                            # on both lists
+    assert c.tags("서울시") == c.tags("종로구청") == c.tags("서울특별시 종로구") == ["정부기관"]  # local-gov short forms
+    assert c.tags("한국인터넷진흥원 침해대응센터") == ["정부기관", "공공기관"]                # victim containing a listed name
+    assert c.tags("SK텔레콤") == c.tags("") == c.tags("한국") == []
+    assert orgs.Classifier(str(tmp_path / "missing.csv"), str(pub)).tags("국방부") == []     # missing file: no crash
+
+
+def test_gov_tab_lists_only_tagged_incidents(tmp_path):
+    gov, pub = _org_lists(tmp_path)
+    p = write_cfg(tmp_path)
+    p.write_text(p.read_text() + f'\n[orgs]\ngovernment_list = "{gov}"\npublic_list = "{pub}"\n')
+    conn = db.connect(load_config(p).database)
+    for n, (title, victim) in enumerate([("국방부 해킹", "국방부"), ("에스알 유출", "주식회사 에스알"),
+                                         ("롯데카드 해킹", "롯데카드"), ("국방 관련 랜섬웨어", "")]):
+        dedupe.upsert_incident(conn, ex(title, victim, d=f"2026-10-1{n}"), seed_article(conn, f"http://u/{n}"))
+    conn.commit()
+    c = TestClient(create_app(p, run_collector=False))
+    victims = lambda **kw: [r["victim"] for r in c.get("/api/incidents", params=kw).json()]
+    assert victims(tab="gov") == ["주식회사 에스알", "국방부"]
+    assert len(victims()) == 4 and victims(tab="gov", q="국방부") == ["국방부"]
+    assert c.get("/api/incidents", params={"tab": "x"}).status_code == 400
+    page = c.get("/", params={"tab": "gov"}).text
+    import re
+    assert re.search(r'tab=gov" aria-current="page"[^>]*>정부공공 <span class="count">2</span>', page)
+    assert "롯데카드 해킹" not in page
+    assert '<span class="tag org">공공기관</span>' in page and 'name="tab" value="gov"' in page  # search keeps the tab
+    assert '전체 <span class="count">4</span>' in page
+    assert '<span class="tag org">정부기관</span>' in c.get("/incidents/1").text
+
+
+class FakeClaude:
+    """Stands in for anthropic.Anthropic: records create() kwargs and returns canned responses (or raises)."""
+    def __init__(self, *outs):
+        from types import SimpleNamespace as NS
+        self.calls, self.outs = [], list(outs)
+        self.beta = NS(messages=NS(create=self._create))
+
+    def _create(self, **kw):
+        self.calls.append(kw)
+        out = self.outs[min(len(self.calls) - 1, len(self.outs) - 1)]
+        if isinstance(out, Exception):
+            raise out
+        return out
+
+
+def claude_msg(text="", stop_reason="end_turn", category=None):
+    from types import SimpleNamespace as NS
+    blocks = [NS(type="thinking", thinking="")] + ([NS(type="text", text=text)] if text else [])
+    return NS(content=blocks, stop_reason=stop_reason,
+              stop_details=NS(category=category) if stop_reason == "refusal" else None)
+
+
+def test_claude_backend_request_shape_text_and_errors():
+    import anthropic, httpx2
+    fake = FakeClaude(claude_msg('{"same": true}'))
+    out = llm.Claude(fake, effort="medium").chat("claude-sonnet-5-5", "SYS", "USER", json=True, temperature=0.4)
+    assert out == '{"same": true}'
+    kw = fake.calls[0]
+    assert kw["model"] == "claude-sonnet-5-5" and kw["system"] == "SYS"
+    assert kw["messages"] == [{"role": "user", "content": "USER"}]
+    assert kw["output_config"] == {"effort": "medium"} and "temperature" not in kw   # sampling params are rejected
+    assert kw["fallbacks"] == "default" and kw["betas"] == ["server-side-fallback-2026-07-01"]
+    with pytest.raises(llm.LLMError, match="거부.*cyber"):
+        llm.Claude(FakeClaude(claude_msg(stop_reason="refusal", category="cyber"))).chat("m", "s", "u")
+    with pytest.raises(llm.LLMError, match="텍스트가 없음"):
+        llm.Claude(FakeClaude(claude_msg(""))).chat("m", "s", "u")
+    req = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+    with pytest.raises(llm.LLMUnavailable):          # network down: the collector waits for the next cycle
+        llm.Claude(FakeClaude(anthropic.APIConnectionError(request=req))).chat("m", "s", "u")
+    with pytest.raises(llm.LLMUnavailable):          # wrong key: same, don't burn article attempts
+        llm.Claude(FakeClaude(anthropic.AuthenticationError("bad key", response=httpx2.Response(401, request=req), body=None))).chat("m", "s", "u")
+    with pytest.raises(llm.LLMError):                # a bad request is this answer's problem
+        llm.Claude(FakeClaude(anthropic.BadRequestError("bad", response=httpx2.Response(400, request=req), body=None))).chat("m", "s", "u")
+
+
+def test_extract_with_claude_backend_uses_claude_model_for_all_languages():
+    class Cfg:
+        llm_enabled, llm_provider, claude_model = True, "claude", "claude-sonnet-5-5"
+        llm_model, llm_foreign_model = "solar", "exaone"
+    answer = json.dumps({**GOOD, "summary": "2026년 10월 1일 빗썸이 해킹을 당해 개인정보가 유출됐다. 회사는 조사 중이다."})
+    fake = FakeClaude(claude_msg(answer))
+    ex_ = extractor.extract(llm.Claude(fake), Cfg, ART)
+    assert ex_.is_incident and ex_.victim == "빗썸" and fake.calls[0]["model"] == "claude-sonnet-5-5"
+    assert extractor.model_for(Cfg, korean=False) == "claude-sonnet-5-5"
+    fake2 = FakeClaude(claude_msg(stop_reason="refusal", category="cyber"))   # every attempt refused
+    assert extractor.extract(llm.Claude(fake2), Cfg, ART).method == "heuristic"   # Korean: keyword fallback
+    assert len(fake2.calls) == 3
+    with pytest.raises(Exception):
+        extractor.extract(llm.Claude(fake2), Cfg, EN_ART)                      # English: fail, retried next cycle
+
+
+def test_provider_config_and_missing_key(tmp_path, monkeypatch):
+    p = write_cfg(tmp_path)
+    assert load_config(p).llm_provider == "local" and load_config(p).claude_effort == "low"
+    p.write_text(p.read_text().replace('[llm]\n', '[llm]\nprovider = "claude"\nclaude_effort = "high"\n'))
+    cfg = load_config(p)
+    assert (cfg.llm_provider, cfg.claude_model, cfg.claude_effort) == ("claude", "claude-sonnet-5-5", "high")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    with pytest.raises(llm.LLMUnavailable, match="ANTHROPIC_API_KEY"):
+        llm.from_config(cfg, None)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    assert isinstance(llm.from_config(cfg, None), llm.Claude)
+    bad = tmp_path / "bad.toml"
+    bad.write_text(p.read_text().replace('provider = "claude"', 'provider = "openai"'))
+    with pytest.raises(ValueError, match="provider"):
+        load_config(bad)
+
+
+def test_collector_with_claude_and_no_key_leaves_articles_untouched(tmp_path, monkeypatch):
+    p = write_cfg(tmp_path)
+    p.write_text(p.read_text().replace('[llm]\n', '[llm]\nprovider = "claude"\n'))
+    cfg = load_config(p)
+    conn = db.connect(cfg.database)
+    conn.execute("INSERT INTO articles(source,url,title,body) VALUES('s','http://u/1','빗썸 해킹','빗썸 해킹 유출')")
+    conn.commit()
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setattr(collector.feeds, "fetch_feed", lambda *a, **k: [])
+    collector.collect_once(conn, cfg)
+    assert tuple(conn.execute("SELECT status, attempts FROM articles").fetchone()) == ("new", 0)
+
+
+def test_hashtags_cleaned_from_llm_answer():
+    c = extractor.clean_hashtags
+    assert c(["#랜섬웨어", "Lock Bit", "제조업", "extra"]) == ["랜섬웨어", "LockBit", "제조업"]   # '#'/spaces gone, max 3
+    assert c("#빗썸 #해킹, #거래소") == ["빗썸", "해킹", "거래소"]                              # string form accepted
+    assert c(["해킹", "해킹", "x", "#", "아주아주아주아주아주아주아주긴해시태그입니다", 5]) == ["해킹"]  # dupes/too short/long/non-str
+    assert c(None) == [] and c({"a": 1}) == []
+    ex_ = extractor.parse_llm_json(json.dumps({**GOOD, "hashtags": ["#빗썸", "가상자산거래소", "해킹"]}), "2026-10-01")
+    assert ex_.hashtags == ["빗썸", "가상자산거래소", "해킹"]
+    assert extractor.parse_llm_json(json.dumps(GOOD), "2026-10-01").hashtags == []        # missing: no failure
+
+
+def test_hashtags_column_added_to_existing_database(tmp_path):
+    import sqlite3
+    path = tmp_path / "old.db"
+    old = sqlite3.connect(path)
+    old.execute("CREATE TABLE incidents (id INTEGER PRIMARY KEY, title TEXT NOT NULL, occurred_at TEXT NOT NULL, "
+                "attacker TEXT DEFAULT '', victim TEXT DEFAULT '', damage TEXT DEFAULT '', category TEXT DEFAULT '', "
+                "summary TEXT DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+                "updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)")
+    old.execute("INSERT INTO incidents(title, occurred_at) VALUES('옛 사고', '2026-01-01')")
+    old.commit(); old.close()
+    conn = db.connect(str(path))
+    assert conn.execute("SELECT hashtags FROM incidents").fetchone()[0] == "[]"
+    db.connect(str(path))  # second start: no error
+
+
+def test_hashtags_stored_merged_shown_and_searchable(tmp_path):
+    p = write_cfg(tmp_path)
+    conn = db.connect(load_config(p).database)
+    a = ex("빗썸 해킹", "빗썸")
+    a.hashtags = ["빗썸", "가상자산거래소", "해킹"]
+    i = dedupe.upsert_incident(conn, ex("빗썸 해킹", "빗썸"), seed_article(conn, "http://u/1"))   # first: no tags
+    assert dedupe.upsert_incident(conn, a, seed_article(conn, "http://u/2")) == i                 # merge fills them
+    b = ex("빗썸 해킹", "빗썸"); b.hashtags = ["다른", "태그들", "입니다"]
+    dedupe.upsert_incident(conn, b, seed_article(conn, "http://u/3"))                              # existing tags kept
+    conn.commit()
+    assert json.loads(conn.execute("SELECT hashtags FROM incidents").fetchone()[0]) == a.hashtags
+    c = TestClient(create_app(p, run_collector=False))
+    assert c.get("/api/incidents").json()[0]["hashtags"] == a.hashtags
+    assert len(c.get("/api/incidents", params={"q": "가상자산거래소"}).json()) == 1
+    page = c.get("/").text
+    assert '<a href="/?q=%EA%B0%80%EC%83%81%EC%9E%90%EC%82%B0%EA%B1%B0%EB%9E%98%EC%86%8C">#가상자산거래소</a>' in page
+    assert "#가상자산거래소" in c.get(f"/incidents/{i}").text
+
+
+def test_regenerate_refreshes_hashtags(tmp_path, monkeypatch):
+    c, ids = make_client(tmp_path, ("A사 랜섬웨어", "A사", "", "2026-10-10", "A사 랜섬웨어 공격"))
+    seen = {"n": 0}
+    def handler(req):
+        if req.url.path == "/api/chat":
+            body = json.loads(req.content)
+            if "format" in body:
+                out = {"is_incident": True, "title": "A사 랜섬웨어 피해", "occurred_at": "2026-10-10", "attacker": "",
+                       "victim": "A사", "damage": "서버 마비", "category": "랜섬웨어", "summary": "요약.",
+                       "hashtags": ["A사", "랜섬웨어", "서버마비"]}
+                return httpx.Response(200, json={"message": {"content": json.dumps(out)}})
+            return httpx.Response(200, json={"message": {"content": GOOD_SUMMARY}})
+        return httpx.Response(404)
+    real = httpx.Client
+    monkeypatch.setattr(regen.httpx, "Client", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    r = c.post(f"/incidents/{ids[0]}/regenerate")
+    assert r.status_code == 200, r.text
+    assert c.get("/api/incidents").json()[0]["hashtags"] == ["A사", "랜섬웨어", "서버마비"]

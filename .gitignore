@@ -11,3 +11,7 @@ __pycache__/
 
 # local virtualenv
 venv/
+
+# macOS
+.DS_Store
+*.swp

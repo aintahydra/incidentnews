@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS incidents (
   damage TEXT DEFAULT '',
   category TEXT DEFAULT '',
   summary TEXT DEFAULT '',
+  hashtags TEXT NOT NULL DEFAULT '[]',  -- JSON array of up to 3 tags (without '#')
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -42,4 +43,13 @@ def connect(path: str) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(SCHEMA)
+    _migrate(conn)
     return conn
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Columns added after a database was created (CREATE TABLE IF NOT EXISTS doesn't touch existing tables)."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(incidents)")}
+    if "hashtags" not in cols:
+        conn.execute("ALTER TABLE incidents ADD COLUMN hashtags TEXT NOT NULL DEFAULT '[]'")
+        conn.commit()

@@ -1,0 +1,438 @@
+기관코드,기관명,기관유형,전화번호,팩스번호,우편번호,주소,사용여부,승인통계유무,홈페이지,기관명(영문),등록일,최종수정일
+101,국가데이터처,중앙행정기관,110,042-481-2470,352-08,대전광역시 서구 청사로 189,Y,Y,https://kostat.go.kr,Ministry of Data and Statistics,2012-08-08,2025-11-07
+102,기획재정부,중앙행정기관,044-215-2114,02-503-9282,301-09,세종특별자치시 갈매로 477,Y,Y,https://www.moef.go.kr,Ministry of Economy and Finance,2012-08-08,2025-11-07
+103,통일부,중앙행정기관,02-2100-5802,02-2100-5879,031-71,서울특별시 종로구 세종대로 209(세종로),Y,Y,https://www.unikorea.go.kr/,Ministry of Unification,2012-08-08,2025-11-07
+106,기후에너지환경부,중앙행정기관,1577-8866,,301-03,세종특별자치시 도움6로 11,Y,Y,https://www.me.go.kr/,Ministry of Environment,2012-08-08,2025-11-07
+108,법제처,중앙행정기관,02-3703-2114,,301-02,세종특별자치시 도움5로 20,Y,N,https://www.moleg.go.kr,Ministry of Government Legislation,2012-08-08,2025-11-07
+109,국가보훈부,중앙행정기관,1577-0606,02-786-3025,301-13,세종특별자치시 도움4로 9,Y,Y,https://www.mpva.go.kr/,Ministry of Patriots and Veterans Affairs,2012-08-08,2025-11-07
+110,행정안전부,중앙행정기관,02-2100-3399,02-2100-4426,301-16,세종특별자치시 한누리대로 411(어진동),Y,Y,https://www.mois.go.kr/,Ministry of the Interior and Safety,2012-08-08,2025-11-07
+111,법무부,중앙행정기관,02-503-7072,02-503-0190,138-09,경기도 과천시 관문로 47(중앙동),Y,Y,https://www.moj.go.kr/,Ministry of Justice,2012-08-08,2025-11-07
+112,교육부,중앙행정기관,02-6222-6060,02-736-3402,301-19,세종특별자치시 갈매로 408,Y,Y,https://www.moe.go.kr/,Ministry of Education,2012-08-08,2025-11-07
+113,문화체육관광부,중앙행정기관,044-203-2000,02-3704-9669,301-19,세종특별자치시 갈매로 388,Y,Y,https://www.mcst.go.kr/,"Ministry of Culture, Sports and Tourism",2012-08-08,2025-11-07
+114,농림축산식품부,중앙행정기관,1577-1020,044-868-0846,301-10,세종특별자치시 다솜2로 94(어진동),Y,Y,https://www.mafra.go.kr/,"Ministry of Agriculture, Food and Rural Affairs",2012-08-08,2025-11-07
+115,산업통상부,중앙행정기관,1577-0900,02-503-9601,301-18,세종특별자치시 한누리대로 402,Y,Y,https://www.motie.go.kr,"Ministry of Trade, Industry and Energy",2012-08-08,2025-11-07
+116,국토교통부,중앙행정기관,1599-0001,044-860-9500,301-03,세종특별자치시 도움6로 11,Y,Y,https://www.molit.go.kr/,"Ministry of Land, Infrastructure and Transport",2012-08-08,2025-11-07
+117,보건복지부,중앙행정기관,129,02-504-1394,301-13,세종특별자치시 도움4로 13,Y,Y,https://www.mohw.go.kr,Ministry of Health and Welfare,2012-08-08,2025-11-07
+118,고용노동부,중앙행정기관,1350,02-507-6944,301-17,세종특별자치시 한누리대로 422,Y,Y,https://www.moel.go.kr,Ministry of Employment and Labor,2012-08-08,2025-11-07
+121,외교부,중앙행정기관,02-2100-2114,,031-72,서울특별시 종로구 사직로8길 60,Y,N,https://www.mofa.go.kr/www/main.do,Ministry of Foreign Affairs,2012-08-08,2025-11-07
+122,국방부,중앙행정기관,02-795-0071,02-748-5799,043-83,서울특별시 용산구 이태원로 22,Y,Y,https://www.mnd.go.kr,Ministry of National Defense,2012-08-08,2025-11-07
+127,과학기술정보통신부,중앙행정기관,,,301-09,세종특별자치시 갈매로 477 (어진동),Y,Y,https://www.msit.go.kr,Ministry of Science and ICT,2013-03-29,2025-11-07
+129,국가인권위원회,중앙행정기관,02-2125-9800,02-2125-0913,045-51,서울특별시 중구 삼일대로 340,Y,Y,https://www.humanrights.go.kr,National Human Rights Commission of Korea,2019-05-31,2025-11-07
+131,조달청,중앙행정기관,042-481-2114,,352-08,대전광역시 서구 청사로 189,Y,Y,https://www.pps.go.kr/,Public Procurement Service,2012-08-08,2025-11-07
+132,경찰청,중앙행정기관,02-313-0513,,037-39,서울특별시 서대문구 통일로 97,Y,Y,https://www.police.go.kr,National Police Agency,2012-08-08,2025-11-07
+133,국세청,중앙행정기관,02-397-1888,02-720-0279,301-28,세종특별자치시 국세청로 8-14,Y,Y,https://www.nts.go.kr/,National Tax Service,2012-08-08,2025-11-07
+134,관세청,중앙행정기관,042-481-7905,042-481-7819,352-08,대전광역시 서구 청사로 189,Y,Y,https://www.customs.go.kr/,Korea Customs Service,2012-08-08,2025-11-07
+135,검찰청,중앙행정기관,02-535-5890,,065-90,서울특별시 서초구 반포대로 157,Y,Y,https://www.spo.go.kr,Supreme Prosecutors' Office,2012-08-08,2025-11-07
+136,산림청,중앙행정기관,042-481-4195,042-481-4198,352-08,대전광역시 서구 청사로 189,Y,Y,https://www.forest.go.kr,Korea Forest Service,2012-08-08,2025-11-07
+138,지식재산처,중앙행정기관,042-481-5078,,352-08,대전광역시 서구 청사로 189,Y,Y,https://www.kipo.go.kr/,Korean Intellectual Property Office,2012-08-08,2025-11-07
+141,기상청,중앙행정기관,02-841-0011,02-842-3677,352-08,대전광역시 서구 청사로 189,Y,Y,https://www.kma.go.kr/kma/,Korea Meteorological Administration,2012-08-08,2025-11-07
+142,중소벤처기업부,중앙행정기관,042-481-4499,,301-21,세종특별자치시 가름로 180(어진동),Y,Y,https://www.mss.go.kr,Ministry of SMEs and Startups,2012-08-08,2025-11-07
+143,농촌진흥청,중앙행정기관,031-299-2200,031-299-2469,548-75,전북특별자치도 전주시 덕진구 농생명로 300,Y,Y,https://www.rda.go.kr/,Rural Development Administration,2012-08-08,2025-11-07
+144,병무청,중앙행정기관,042-481-2663,042-481-2670,352-08,대전광역시 서구 청사로 189,Y,Y,https://www.mma.go.kr/,Military Manpower Administration,2012-08-08,2025-11-07
+145,식품의약품안전처,중앙행정기관,043-719-1559,,281-59,충청북도 청원군 오송읍 오송생명2로 187,Y,Y,https://www.mfds.go.kr/,Ministry of Food and Drug Safety,2012-08-08,2025-11-07
+146,해양수산부,중앙행정기관,044-200-5555,,301-10,세종특별자치시 다솜2로 94,Y,Y,https://www.mof.go.kr,Ministry of Oceans and Fisheries,2013-03-29,2025-11-07
+150,국가유산청,중앙행정기관,042-481-4782,042-481-4799,352-08,대전광역시 서구 청사로 189,Y,Y,https://www.cha.go.kr/,Korea Heritage Service,2012-08-08,2025-11-07
+152,공정거래위원회,중앙행정기관,044-200-4010,,301-08,세종특별자치시 다솜3로 95,Y,Y,https://www.ftc.go.kr,Korea Fair Trade Commission,2012-08-08,2025-11-07
+154,성평등가족부,중앙행정기관,02-2100-6783,02-2100-6668,031-71,서울특별시 종로구 세종대로 209(세종로),Y,Y,https://www.mogef.go.kr/,Ministry of Gender Equality and Family,2012-08-08,2025-11-07
+155,해양경찰청,중앙행정기관,032-835-2278,032-835-3708,219-95,인천광역시 연수구 해돋이로 130,Y,Y,https://www.kcg.go.kr/,Korea Coast Guard,2012-08-08,2025-11-07
+156,소방청,중앙행정기관,02-2100-5230,02-2100-5239,301-28,세종특별자치시 정부2청사로 13(나성동),Y,Y,https://www.nfa.go.kr,National Fire Agency,2012-08-08,2025-11-07
+157,행정중심복합도시건설청,중앙행정기관,044-200-3000,,301-03,세종특별자치시 도움6로 11,Y,N,https://naacc.go.kr,National Agency for Administrative City Construction,2012-08-08,2025-11-07
+158,새만금개발청,중앙행정기관,044-415-1118,044-415-1254,540-04,전북 군산시 새만금북로 466,Y,N,,Saemangeum Development and Investment Agency,2015-01-28,2025-11-07
+164,방송미디어통신위원회,중앙행정기관,,,138-09,경기도 과천시 관문로47,Y,Y,https://www.kcc.go.kr/,Korea Communications Commission,2012-08-08,2025-11-07
+168,금융위원회,중앙행정기관,02-2156-8000,,031-71,서울특별시 종로구 세종대로 209 (세종로),Y,N,https://www.fsc.go.kr/,Financial Services Commission,2012-08-08,2025-11-07
+169,방위사업청,중앙행정기관,02-3703-2311,,138-09,경기도 과천시 관문로 47,Y,Y,https://www.dapa.go.kr,Defense Acquisition Program Administration,2012-08-08,2025-11-07
+170,국무조정실,중앙행정기관,044-200-2382,044-200-2383,301-07,세종특별자치시 다솜로 261,Y,Y,https://www.opm.go.kr,Office for Government Policy Coordination,2012-06-26,2025-11-07
+173,원자력안전위원회,중앙행정기관,02-397-7247,02-397-7246,045-28,서울특별시 중구 소월로3,Y,N,https://www.nssc.go.kr,Nuclear Safety and Security Commission,2012-03-14,2025-11-07
+174,인사혁신처,중앙행정기관,,,301-28,세종특별자치시 정부2청사로 13 (나성동),Y,Y,,Ministry of Personnel Management,2014-11-25,2025-11-07
+177,질병관리청,중앙행정기관,,,281-59,충청북도 청주시 흥덕구 오송읍 오송생명2로 187,Y,Y,,Korea Disease Contrl and Prevention Agency,2020-09-03,2025-11-07
+178,국민권익위원회,중앙행정기관,,,301-02,세종특별자치시 도움5로 20,Y,N,,Anti-Corruption & Civil Rights Commission,2020-11-12,2025-11-07
+179,개인정보 보호위원회,중앙행정기관,,,031-71,서울특별시 종로구 세종대로 209,Y,Y,,Personal Information Protection Commission,2020-11-12,2025-11-07
+182,재외동포청,중앙행정기관,032-585-3100,,220-09,인천광역시 연수구 인천타워대로 241 (송도동),Y,Y,http://www.oka.go.kr/oka/,Overseas Koreans Agency,2023-08-22,2025-11-07
+183,우주항공청,중앙행정기관,055-856-1190,,525-35,경상남도 사천시 사남면 해안산업로 537,Y,Y,,Korea AeroSpace Administration,2024-05-27,2025-11-07
+201,서울특별시,지방자치단체,02-2104-1448,02-2104-2417,045-24,서울특별시 중구 세종대로 110,Y,Y,https://www.seoul.go.kr/,Seoul Metropolitan City,2012-08-08,2025-11-07
+202,부산광역시,지방자치단체,051-888-2192,051-888-2099,475-45,부산광역시 연제구 중앙대로 1001(연산동),Y,Y,https://www.busan.go.kr/,Busan Metropolitan City,2012-08-08,2025-11-07
+203,대구광역시,지방자치단체,053-803-0114,053-803-3030,419-11,대구광역시 중구 공평로 88,Y,Y,https://www.daegu.go.kr/,Daegu Metropolitan City,2012-08-08,2025-11-07
+204,인천광역시,지방자치단체,032-440-2114,032-440-2359,215-54,인천광역시 남동구 정각로29,Y,Y,https://www.incheon.go.kr/,Incheon Metropolitan City,2012-08-08,2025-11-07
+205,광주광역시,지방자치단체,062-613-2442,062-613-2419,619-45,광주광역시 서구 내방로 111,Y,Y,https://www.gwangju.go.kr,Gwangju Metropolitan City,2012-08-08,2025-11-07
+206,대전광역시,지방자치단체,042-600-3313,042-600-2219,352-42,대전광역시 서구 둔산로 100,Y,Y,https://www.daejeon.go.kr,Daejeon Metropolitan City,2012-08-08,2025-11-07
+207,울산광역시,지방자치단체,052-229-2353,052-229-2339,446-75,울산광역시 남구 중앙로 201(신정동),Y,Y,https://www.ulsan.go.kr/,Ulsan Metropolitan City,2012-08-08,2025-11-07
+208,세종특별자치시,지방자치단체,044-211-3114,044-211-3114,301-51,세종특별자치시 한누리대로 2130(보람동),Y,Y,https://www.sejong.go.kr/index.do,Sejong Special Self-governing City,2012-06-30,2025-11-07
+210,경기도,지방자치단체,031-249-2937,031-249-3090,165-08,경기도 수원시 영통구 도청로 30(이의동),Y,Y,https://www.gg.go.kr/,Gyeonggi-do,2012-08-08,2025-11-07
+211,강원특별자치도,지방자치단체,033-249-2488,033-249-4143,242-66,강원특별자치도 춘천시 중앙로1(봉의동),Y,Y,https://www.provin.gangwon.kr/portal,Gangwon State,2012-08-08,2025-11-07
+212,충청북도,지방자치단체,043-220-2331,043-220-2319,285-15,충청북도 청주시 상당구 상당로82(문화동),Y,Y,https://www.chungbuk.go.kr,Chungcheongbuk-do,2012-08-08,2025-11-07
+213,충청남도,지방자치단체,042-251-2668,041-635-2109,322-55,충청남도 홍성군 홍북읍 충남대로 21,Y,Y,http://www.chungnam.go.kr,Chungcheongnam-do,2012-08-08,2025-11-07
+214,전북특별자치도,지방자치단체,063-281-2042,063-281-2106,549-68,전북특별자치도 전주시 완산구 효자로 225,Y,Y,https://www.jeonbuk.go.kr/,Jeonbuk State,2012-08-08,2025-11-07
+215,전라남도,지방자치단체,061-247-0011,062-607-4674,585-64,전라남도 무안군 삼향읍 오룡길 1,Y,Y,,Jeollanam-do,2012-08-08,2025-11-07
+216,경상북도,지방자치단체,053-950-3080,053-950-3849,367-59,경상북도 안동시 풍천면 도청대로 455,Y,Y,https://www.gb.go.kr,Gyeongsangbuk-do,2012-08-08,2025-11-07
+217,경상남도,지방자치단체,055-211-2551,055-211-2319,511-54,경상남도 창원시 의창구 중앙대로 300,Y,Y,https://www.gyeongnam.go.kr,Gyeongsangnam-do,2012-08-08,2025-11-07
+218,제주특별자치도,지방자치단체,064-710-2114,,631-22,제주특별자치도 제주시 문연로6(연동),Y,Y,https://www.jeju.go.kr/,Jeju-do,2012-08-08,2025-11-07
+220,세종특별자치시교육청,지방자치단체,044-861-1000,,301-51,세종특별자치시 한누리대로 2154,Y,N,https://www.sje.go.kr/sje/main.do,Sejong City Office of Education,2012-08-21,2025-11-07
+231,서울특별시교육청,지방자치단체,02-399-9494,02-399-9465,031-78,서울특별시 종로구 송원길 48,Y,N,https://www.sen.go.kr,Seoul Metropolitan Office of Education,2012-08-08,2025-11-07
+232,부산광역시교육청,지방자치단체,051-866-3127,02-860-0412,471-19,부산광역시 부산진구 화지로 12(양정동),Y,N,https://www.pen.go.kr,Busan Metropolitan Office of Education,2012-08-08,2025-11-07
+233,대구광역시교육청,지방자치단체,053-752-9111,,421-23,대구광역시 수성구 수성로76길 11,Y,N,https://www.dge.go.kr,Daegu Metropolitan Office of Education,2012-08-08,2025-11-07
+234,인천광역시교육청,지방자치단체,032-423-3303,,215-54,인천광역시 남동구 정각로9 (구월동),Y,N,https://www.ice.go.kr,Incheon Metropolitan City Office of Education,2012-08-08,2025-11-07
+235,광주광역시교육청,지방자치단체,062-380-4500,,619-87,광주광역시 서구 화운로 93,Y,N,http://www.gen.go.kr,Gwangju Metropolitan Office of Education,2012-08-08,2025-11-07
+236,대전광역시교육청,지방자치단체,042-480-7979,,352-39,대전광역시 서구 둔산로 89(둔산동),Y,N,https://www.dje.go.kr,Daejeon Metropolitan Office of Education,2012-08-08,2025-11-07
+237,울산광역시교육청,지방자치단체,052-270-3768,,445-40,울산광역시 중구 북부순환도로 375(유곡동),Y,N,https://www.use.go.kr,Ulsan Metropolitan Office of Education,2012-08-08,2025-11-07
+240,경기도교육청,지방자치단체,031-248-1040,031-253-0033,162-79,경기도 수원시 장안구 조원로 18,Y,N,https://www.goe.go.kr/,Gyeonggi-do Office of Education,2012-08-08,2025-11-07
+241,강원특별자치도교육청,지방자치단체,033-253-5321,,242-23,강원특별자치도 춘천시 영서로 2854(사농동),Y,N,https://www.gwe.go.kr/mbshome/mbs/kr/index.do,Gangwon State Office of Education,2012-08-08,2025-11-07
+242,충청북도교육청,지방자치단체,043-290-1262,,286-35,충청북도 청주시 서원구 청남로 1929,Y,N,https://www.cbe.go.kr,Chungcheongbuk-do Office of Education,2012-08-08,2025-11-07
+243,충청남도교육청,지방자치단체,042-580-7114,,322-55,충청남도 홍성군 홍북읍 선화로 22,Y,N,https://www.cne.go.kr,Chungcheongnam-do Office of Education,2012-08-08,2025-11-07
+244,전북특별자치도교육청,지방자치단체,063-252-0011,,550-65,전북특별자치도 전주시 완산구 홍산로 111,Y,N,https://www.jbe.go.kr,Jeonbuk State Office of Education,2012-08-08,2025-11-07
+245,전라남도교육청,지방자치단체,062-571-0411,062-571-9412,585-64,전라남도 무안군 삼향읍 어진누리길 10,Y,N,https://www.jne.go.kr,Jeollanam-do Office of Education,2012-08-08,2025-11-07
+246,경상북도교육청,지방자치단체,053-959-2101,053-953-4960,367-59,경상북도 안동시 풍천면 도청대로 511,Y,N,https://www.gbe.kr,Gyeongsangbuk-do Office of Education,2012-08-08,2025-11-07
+247,경상남도교육청,지방자치단체,055-268-1112,,514-30,경상남도 창원시 성산구 중앙대로 241,Y,N,,Gyeongsangnam-do Office of Education,2012-08-08,2025-11-07
+248,제주특별자치도교육청,지방자치단체,064-746-0181,064-710-0375,631-19,제주특별자치도 제주시 문연로 5,Y,N,https://www.jje.go.kr,Jeju Special Self-Governing Provincial Office of Education,2012-08-08,2025-11-07
+301,한국은행,금융기관,02-759-4946,02-759-4307,045-31,서울특별시 중구 남대문로 39(남대문로3가),Y,Y,https://www.bok.or.kr/,Bank of Korea,2012-08-08,2025-11-07
+303,중소기업은행,금융기관,02-729-6892,02-729-6605,045-41,서울특별시 중구 을지로 79,Y,Y,https://www.ibk.co.kr/,Industrial Bank of Korea,2012-08-08,2025-11-07
+307,수산업협동조합중앙회,협회/조합,02-2240-3296,02-2240-3059,055-42,서울특별시 송파구 올림픽로 342,Y,Y,https://www.suhyup.co.kr/,National Federation of Fisheries Cooperatives,2012-08-08,2025-11-07
+309,소상공인시장진흥공단,공사/공단,042-363-7885,042-363-7701,349-17,대전광역시 중구 보문로 246,Y,Y,https://www.semas.or.kr,Small Enterprise and Market Service,2012-08-08,2025-11-07
+310,한국전력공사,공사/공단,02-3456-3622,,583-22,전라남도 나주시 전력로 55(빛가람동 120),Y,Y,https://www.kepco.co.kr/,Korea Electric Power Corporation,2012-08-08,2025-11-07
+311,한국농어촌공사,공사/공단,031-420-4145,,583-27,전라남도 나주시 그린로 20(빛가람동 358),Y,Y,https://www.ekr.or.kr/,Korea Rural Community Corporation,2012-08-08,2025-11-07
+313,한국도로공사,공사/공단,02-2230-4442,02-2230-4506,396-60,경상북도 김천시 혁신8로 77,Y,Y,https://www.ex.co.kr/,Korea Expressway Corporation,2012-08-08,2025-11-07
+314,한국관광공사,공사/공단,02-729-9600,02-756-9482,264-64,강원특별자치도 원주시 세계로 10,Y,Y,https://www.visitkorea.or.kr/,Korea Tourism Organization,2012-08-08,2025-11-07
+318,한국석유공사,공사/공단,052-216-2532,052-216-5911,445-38,울산광역시 중구 종가로 305,Y,Y,https://www.knoc.co.kr/,Korea National Oil Corporation,2012-08-08,2025-11-07
+321,한국주택금융공사,공사/공단,02-2014-8474,02-755-1638,484-00,부산광역시 남구 문현금융로40(문현동),Y,Y,https://www.hf.go.kr/,Korea Housing Finance Corporation,2012-08-08,2025-11-07
+322,국민연금공단,공사/공단,02-3218-8624,02-541-2901,548-70,전북특별자치도 전주시 덕진구 기지로 180,Y,Y,https://www.nps.or.kr/jsppage/main.jsp,National Pension Service,2012-08-08,2025-11-07
+323,축산물품질평가원,공사/공단,031-390-5534,031-390-5597,301-00,세종특별자치시 아름서길21,Y,Y,https://www.ekape.or.kr,Korea Institute for Animal Products Quality Evaluation,2012-08-08,2025-11-07
+325,한국금융투자협회,협회/조합,02-2122-0147,02-2122-0095,073-32,서울특별시 영등포구 의사당대로 143,Y,Y,https://www.kofia.or.kr/,Korea Financial Investment Association,2012-08-08,2025-11-07
+326,해외건설협회,협회/조합,02-3406-1092,02-3406-1123,045-13,"서울특별시 중구 세종대로9길 42, 13층(서소문동)",Y,Y,http://www.icak.or.kr/,International Contractors Association of Korea,2012-08-08,2025-11-07
+327,한국고용정보원,기타기관,02-2629-7000,02-2629-7259,277-40,충청북도 음성군 맹동면 태정로6,Y,Y,https://www.keis.or.kr/,Korea Employment Information Service,2012-08-08,2025-11-07
+328,국토안전관리원,공사/공단,031-910-4166,031-910-4182,528-56,경상남도 진주시 에나로128번길 24,Y,Y,https://www.kalis.or.kr,Korea Infrastructure Safety Corporation,2012-08-08,2025-11-07
+329,한국인터넷진흥원,기타기관,02-2186-4500,02-2186-4494,583-24,전라남도 나주시 진흥길 9,Y,Y,https://www.kisa.or.kr/,Korea Internet & Security Agency,2012-08-08,2025-11-07
+331,한국보건사회연구원,연구기관,02-355-8334,02-352-9129,301-47,세종특별자치시 시청대로 370,Y,Y,https://www.kihasa.re.kr/,Korea Institute for Health and Social Affairs,2012-08-08,2025-11-07
+334,한국교육개발원,연구기관,043-530-9114,043-530-9819,278-73,충청북도 진천군 덕산읍 교학로 7,Y,Y,https://www.kedi.re.kr,Korean Educational Development Institute,2012-08-08,2025-11-07
+336,한국노동연구원,연구기관,02-782-0141,02-3775-0041,301-47,세종특별자치시 시청대로 370,Y,Y,https://www.kli.re.kr/,Korea Labor Institute,2012-08-08,2025-11-07
+337,한국에너지공단,공사/공단,031-260-4114,,445-38,울산광역시 중구 종가로 323,Y,Y,https://www.energy.or.kr,Korea Energy Agency,2012-08-08,2025-11-07
+338,한국여성정책연구원,연구기관,02-3156-7167,,033-67,서울특별시 은평구 진흥로 225,Y,Y,https://www.kwdi.re.kr/,Korea Women`s Development Institute,2012-08-08,2025-11-07
+339,에너지경제연구원,연구기관,031-420-2114,,445-43,울산광역시 중구 종가로 405-11,Y,Y,https://www.keei.re.kr/,Korea Energy Economics Institute,2012-08-08,2025-11-07
+340,중소기업중앙회,협회/조합,02-2124-3212,02-780-9124,072-42,서울특별시 영등포구 은행로 30,Y,Y,https://www.kbiz.or.kr/,Korea Federation of SMEs,2012-08-08,2025-11-07
+341,한국조세재정연구원,연구기관,02-2186-2278,02-2186-2309,301-47,세종특별자치시 시청대로 336,Y,Y,https://www.kipf.re.kr/,Korea Institute of Public Finance,2012-08-08,2025-11-07
+343,한국거래소,금융기관,051-662-2357,,484-00,부산광역시 남구 문현금융로 40,Y,Y,https://www.krx.co.kr/,Korea Exchange,2012-08-08,2025-11-07
+344,한국생산성본부,기타기관,02-724-1114,02-736-0322,031-70,서울특별시 종로구 새문안로5가길 32,Y,Y,https://www.kpc.or.kr/,Korea Productivity Center,2012-08-08,2025-11-07
+348,한국예탁결제원,금융기관,02-3774-3000,,484-00,부산광역시 남구 문현금융로 40,Y,Y,https://www.ksd.or.kr/,Korea Securities Depository,2012-08-08,2025-11-07
+350,국민건강보험공단,공사/공단,02-3270-9114,02-3270-9840,264-64,강원특별자치도 원주시 건강로 32(반곡동),Y,Y,https://www.nhis.or.kr,National Health Insurance Service,2012-08-08,2025-11-07
+354,건강보험심사평가원,기타기관,02-705-6114,02-585-6918,264-65,강원특별자치도 원주시 혁신로 60(반곡동),Y,Y,https://www.hira.or.kr/,Health Insurance Review & Assessment Service,2012-08-08,2025-11-07
+355,국립공원공단,공사/공단,02-3279-2700,02-3279-2804,264-66,강원특별자치도 원주시 혁신로22,Y,Y,https://www.knps.or.kr/,Korea National Park Service,2012-08-08,2025-11-07
+357,한국철도공사,공사/공단,042-481-3400,042-481-3741,346-18,대전광역시 동구 중앙로 240,Y,Y,https://www.korail.com/,Korea Railroad Corporation,2012-08-08,2025-11-07
+358,한국보건산업진흥원,연구기관,02-2194-7398,02-821-2566,281-59,충청북도 청주시 흥덕구 오송읍 오송생명2로 187,Y,Y,https://www.khidi.or.kr/,Korea Health Industry Development Institute,2012-08-08,2025-11-07
+359,한국전기산업연구원,연구기관,02-3219-0521,02-3219-0559,282-20,충청북도 청주시 흥덕구 오송읍 오송생명8로 9,Y,Y,https://www.erik.re.kr/,Electrical Industry Research Institute of Korea,2012-08-08,2025-11-07
+360,한국무역협회,협회/조합,02-6000-5415,02-6000-6198,061-64,서울특별시 강남구 영동대로 511,Y,Y,https://www.kita.net/,Korea International Trade Association,2012-08-08,2025-11-07
+363,한국철강협회,협회/조합,02-559-3500,02-559-3558-9,057-17,서울특별시 송파구 중대로 135,Y,Y,https://www.kosa.or.kr/,Korea Iron & Steel Association,2012-08-08,2025-11-07
+365,대한건설협회,협회/조합,02-3485-8200,02-542-6264,060-50,서울특별시 강남구 언주로 711,Y,Y,http://www.cak.or.kr/,Construction Association of Korea,2012-08-08,2025-11-07
+366,대한전문건설협회,협회/조합,02-549-8981,02-3284-1033,070-71,서울특별시 동작구 보라매로5길 15,Y,Y,https://www.kosca.or.kr,Korea Specialty Construction Association,2012-08-08,2025-11-07
+367,생명보험협회,협회/조합,02-2262-6600,02-2262-6580,045-54,서울특별시 중구 퇴계로 173,Y,Y,https://www.klia.or.kr/,Korea Life Insurance Association,2012-08-08,2025-11-07
+369,대한기계설비건설협회,협회/조합,02-6240-1132,02-6240-1114,060-68,서울특별시 강남구 학동로 429(청담동),Y,Y,https://www.kmcca.or.kr/,Korea Mech.Const.Contractors Association,2012-08-08,2025-11-07
+370,한국전기공사협회,협회/조합,02-3219-0534,02-3219-0499,076-64,서울특별시 강서구 공항대로58가길 8(등촌동),Y,Y,https://www.keca.or.kr/,Korea Electrical Contractors Association,2012-08-08,2025-11-07
+372,한국엔지니어링협회,협회/조합,02-3019-3200,02-3019-3300,070-23,서울특별시 동작구 남부순환로 2017(사당동),Y,Y,http://www.kenca.or.kr,Korea Engineering and Consulting Association,2012-08-08,2025-11-07
+373,한국기계산업진흥회,협회/조합,02-369-7835,,072-38,서울특별시 영등포구 은행로37,Y,Y,https://www.koami.or.kr/,Korea Association of Machinery Industry,2012-08-08,2025-11-07
+375,한국인공지능·소프트웨어산업협회,협회/조합,02-2188-6900,02-2188-6901,057-17,서울특별시 송파구 중대로 135,Y,Y,https://www.sw.or.kr/,Korea AI·Software Industry Association,2012-08-08,2025-11-07
+376,금융감독원,금융기관,02-3786-8183,,073-21,서울특별시 영등포구 여의대로38(여의도동),Y,Y,https://www.fss.or.kr/,Financial Supervisory Service,2012-08-08,2025-11-07
+377,한국공간정보산업협회,협회/조합,02-2670-7100,02-2631-3867,073-16,서울특별시 영등포구 도신로 237(신길동 110-4),Y,Y,https://www.kasm.or.kr/,"Korean Association of Spatial information, surveying & Mapping",2012-08-08,2025-11-07
+378,한국건설엔지니어링협회,협회/조합,02-3460-8600,02-3463-4560,062-96,서울특별시 강남구 남부순환로 2714 (도곡동),Y,Y,https://www.ekacem.or.kr:446,Korea Association of Construction Consulting Engineering & Management,2012-08-08,2025-11-07
+380,한국산업안전보건공단,공사/공단,032-5100-773,032-502-7105,444-29,울산광역시 중구 종가로 400 성안동,Y,Y,https://www.kosha.or.kr/,Korea Occupational Safety & Health Agency,2012-08-08,2025-11-07
+381,한국공항공사,공사/공단,02-2660-2256~7,02-2660-4078,075-05,서울특별시 강서구 하늘길 78(공항동),Y,Y,https://www.airport.co.kr/,Korea Airports Corporation,2012-08-08,2025-11-07
+382,보험개발원,금융기관,02-368-4273,02-368-4047,073-28,서울특별시 영등포구 국제금융로6길 38,Y,Y,https://www.kidi.or.kr/,Korea Insurance Development Institute,2012-08-08,2025-11-07
+383,한국장애인고용공단,공사/공단,031-728-7105,031-728-7104,136-19,경기도 성남시 분당구 구미로 173번길 59 (구미동),Y,Y,https://www.kead.or.kr/,Korea Employment Agency for the Disabled,2012-08-08,2025-11-07
+386,한국광해광업공단,공사/공단,033-736-5542,033-736-5607,264-64,강원특별자치도 원주시 혁신로 199,Y,Y,https://www.komir.or.kr/,Korea Mine Rehabilitation and Mineral Resources Corp.,2012-08-08,2025-11-07
+387,한국산업인력공단,공사/공단,02-2629-7133,02-2629-1749,445-38,울산광역시 중구 종가로 345,Y,Y,https://www.hrdkorea.or.kr/,Human Resources Development Service of Korea,2012-08-08,2025-11-07
+388,한국전력거래소,기타기관,02-3456-6643,02-3456-6569,583-22,전라남도 나주시 빛가람로 625(빛가람동),Y,Y,https://www.kpx.or.kr/,Korea Power Exchange,2012-08-08,2025-11-07
+389,한국직업능력연구원,연구기관,02-3485-5000,02-3485-5200,301-47,세종특별자치시 시청대로 370,Y,Y,https://www.krivet.re.kr/,Korea Research Institute for Vocational Education and Training,2012-08-08,2025-11-07
+390,국토연구원,연구기관,031-380-0114,031-380-0470,301-47,세종특별자치시 국책연구원로 5 (반곡동),Y,Y,https://www.krihs.re.kr/,Korea Research Institute for Human Settlements,2012-08-08,2025-11-07
+392,한국환경공단,공사/공단,032-590-4000,032-590-3299,226-89,인천광역시 서구 환경로 42,Y,Y,https://www.keco.or.kr/,Korea Environment Corporation,2012-08-08,2025-11-07
+394,인천국제공항공사,공사/공단,032-741-5521,032-741-2950,223-82,인천광역시 중구 공항로 424번길 47,Y,Y,https://www.airport.kr/,Incheon International Airport Corporation,2012-08-08,2025-11-07
+395,과학기술정책연구원,연구기관,02-3284-1846,02-849-8015,301-47,세종특별자치시 시청대로 370,Y,Y,https://www.stepi.re.kr/,Science and Technology Policy Institute,2012-08-08,2025-11-07
+397,한국건설기술연구원,연구기관,031-910-0421,031-910-0011,102-23,경기도 고양시 일산서구 고양대로 283,Y,Y,https://www.kict.re.kr/,Korea Institute of Civil Engineering and Building Technology,2012-08-08,2025-11-07
+398,중소기업기술정보진흥원,연구기관,02-3787-0400,02-784-0509,301-41,세종특별자치시 집현중앙로 79,Y,Y,https://www.tipa.or.kr/,Korea Technology & Information Promotion Agency for SMEs,2012-08-08,2025-11-07
+399,한국산업단지공단,공사/공단,02-6300-5732,02-6300-5840,410-68,대구광역시 동구 첨단로 39 (신서동),Y,Y,https://www.kicox.or.kr/,Korea Industrial Complex Corporation,2012-08-08,2025-11-07
+401,한국로봇산업협회,협회/조합,02-780-3060,02-780-3062,043-79,서울특별시 용산구 한강대로 31,Y,Y,https://www.korearobot.or.kr,Korea Association of Robot industry,2012-08-08,2025-11-07
+402,한국청소년정책연구원,연구기관,02-2188-8806,02-2188-8819,301-47,세종특별자치시 시청대로370,Y,Y,https://www.nypi.re.kr/,National Youth Policy Institute,2011-10-11,2025-11-07
+403,한국형사·법무정책연구원,연구기관,02-3460-5133,02-571-7488,067-64,서울특별시 서초구 태봉로 114(우면동 142),Y,Y,https://www.kic.re.kr/,Korean Institute of Criminology,2012-01-06,2025-11-07
+405,정보통신정책연구원,연구기관,02-570-4125,02-570-4249,278-72,충청북도 진천군 덕산읍 정통로 18,Y,Y,https://www.kisdi.re.kr,Korea Information Society Development Institute,2012-08-08,2025-11-07
+406,한국산업은행,금융기관,02-787-7869,02-787-7894,072-42,서울특별시 영등포구 은행로 14,Y,Y,https://www.kdb.co.kr,Korea Development Bank,2012-08-08,2025-11-07
+408,한국부동산원,기타기관,053-663-8546,053-663-8549,410-68,대구광역시 동구 이노밸리로 291(신서동),Y,Y,https://www.reb.or.kr,Korea Real Estate Board,2012-02-07,2025-11-07
+409,한국방위산업진흥회,기타기관,02-3270-6033,02-3270-6061,041-58,서울특별시 마포구 마포대로 49,Y,Y,https://www.kdia.or.kr,Korea Defense Industry association,2012-07-06,2025-11-07
+410,한국환경산업기술원,연구기관,02-380-0396,02-380-0355,033-67,서울특별시 은평구 진흥로 215,Y,Y,https://www.keiti.re.kr,Korea Environmental Industry and Technology Institute,2012-07-18,2025-11-07
+411,국립중앙의료원,기타기관,02-6362-3403,02-6362-3434,045-64,서울특별시 중구 을지로 245,Y,Y,https://www.nmc.or.kr,National Medical Center,2012-09-14,2025-11-07
+412,(재)한국정보통신산업연구원,연구기관,031-231-3433,031-269-5210,163-24,경기도 수원시 장안구 하률로 12번길 80,Y,Y,https://www.kici.re.kr,Korea Information & Communication Industry Institute,2012-11-08,2025-11-07
+413,한국언론진흥재단,기타기관,02-2001-7751,02-2001-7750,045-20,서울특별시 중구 세종대로 124,Y,Y,https://www.kpf.or.kr,Korea Press Foundation,2012-11-09,2025-11-07
+414,주택도시보증공사,공사/공단,080-800-9001,051-955-5405,484-00,부산광역시 남구 문현금융로 40,Y,Y,https://www.khug.or.kr,Korea Housing & Urban Guarantee Corporation,2012-12-26,2025-11-07
+415,한국공정거래조정원,기타기관,02-2056-0071,,045-13,서울특별시 중구 세종대로 39,Y,Y,https://www.kofair.or.kr,Korea Fair Trade Mediation Agency,2013-01-09,2025-11-07
+417,한국행정연구원,연구기관,02-2007-0663,02-567-2221,033-67,서울특별시 은평구 진흥로 235,Y,Y,https://www.kipa.re.kr,The Korea Institute of Public Administration,2013-06-28,2025-11-07
+418,한국사학진흥재단,기타기관,02-3479-2556,02-3479-2500,410-69,대구광역시 동구 혁신대로 345,Y,Y,https://www.kasfo.or.kr,Korea Advancing Schools Foundation,2013-10-15,2025-11-07
+420,국가평생교육진흥원,기타기관,02-3780-9764,02-2070-3145,045-20,서울특별시 중구 청계천로 14,Y,Y,https://www.nile.or.kr,National Institute for Lifelong Education,2014-09-24,2025-11-07
+421,한국한의학연구원,연구기관,042-868-9357,042-868-9349,340-54,대전광역시 유성구 유성대로 1672,Y,Y,https://www.kiom.re.kr,Korea Institute of Oriental Medicine,2014-10-20,2025-11-07
+422,한국전기안전공사,공사/공단,063-716-2332,063-716-9644,553-65,전북특별자치도 완주군 이서면 안전로 111,Y,Y,,Korea Electrical Safety Corporation,2014-12-10,2025-11-07
+423,한국방송광고진흥공사,공사/공단,02-731-7416,02 735 0221,045-20,서울특별시 중구 세종대로 124,Y,Y,,Korea Broadcast Advertising Corporation,2015-08-03,2025-11-07
+424,한국기상산업기술원,기타기관,070-5003-5311,02-733-7364,037-352,서울특별시 서대문구 통일로 135,Y,Y,https://www.kmiti.or.kr/,Korea Meteorological Institute,2015-08-04,2025-11-07
+426,한국교통안전공단,공사/공단,054-459-7430,,396-60,경상북도 김천시 혁신6로 17,Y,Y,,Korea Transportation Safety Authority,2015-10-16,2025-11-07
+427,(재)한국청년기업가정신재단,기타기관,02-2156-2293,02-2156-2290,065-95,서울특별시 서초구 서초대로45길16,Y,Y,,Korea Entrepreneurship Foundation,2015-12-11,2025-11-07
+428,한국지질자원연구원,연구기관,042-868-3292,042-868-3412,341-32,대전광역시 유성구 과학로 124,Y,Y,,Korea Institute of Geoscience and Mineral Resources,2015-12-29,2025-11-07
+429,한국지방재정공제회,협회/조합,02-3274-2085,,042-12,서울특별시 마포구 마포대로 136,Y,Y,,Local Finance Association,2016-01-05,2025-11-07
+430,한국전시산업진흥회,협회/조합,02-574-2019,02-574-2696,055-56,서울특별시 송파구 올림픽로 82(잠실동 175-9),Y,Y,,Asssociation of Korea Exhibition Industry,2016-10-26,2025-11-07
+431,(사)한국여행업협회,협회/조합,02-6200-3921,,041-58,서울특별시 마포구 마포대로 49 (도화동),Y,Y,,Korea Association of Travel Agents,2016-11-01,2025-11-07
+432,대한법률구조공단,공사/공단,054-810-1164,,396-60,경상북도 김천시 혁신2로 26,Y,Y,,Korea Legal Aid Corporation,2016-11-02,2025-11-07
+433,한국문화예술위원회,기타기관,061-900-2126,,583-26,전라남도 나주시 빛가람로 640,Y,Y,,Arts Council Korea,2016-11-08,2025-11-07
+434,한국문화관광연구원,연구기관,02-2669-8954,,075-11,서울특별시 강서구 금낭화로 154,Y,Y,,Korea Culture and Tourism Institute,2016-11-10,2025-11-07
+435,(사)한국여신전문금융업협회,협회/조합,02-2011-0762,,045-21,서울특별시 중구 다동길 43 (다동70번지),Y,Y,https://www.crefia.or.kr/,The Credit Finance Association,2016-12-14,2025-11-07
+436,한국가스안전공사,공사/공단,043-750-1371,043-750-1925,277-38,충청북도 음성군 맹동면 원중로 1390,Y,Y,,Korea Gas Safety Corporation,2016-12-19,2025-11-07
+437,북한이탈주민지원재단(남북하나재단),기타기관,02-3215-5857,02-3215-5729,041-68,"서울특별시 마포구 새창로 7, 4-5-14층",Y,Y,,Korea Hana Foundation,2016-12-20,2025-11-07
+438,한국장애인개발원,연구기관,02-3433-0648,,072-36,서울특별시 영등포구 의사당대로 22,Y,Y,,Korea Disabled People's Development Institute,2017-02-27,2025-11-07
+439,근로복지공단,공사/공단,02-2670-0458,,444-28,울산광역시 중구 종가로 340,Y,Y,,Korea Workers' Compensation and Welfare Service,2017-08-08,2025-11-07
+440,예금보험공사,공사/공단,02-758-0130,,045-21,서울특별시 중구 청계천로 30,Y,Y,,Korea Deposit Insurance Corporation,2017-08-09,2025-11-07
+441,한국에너지기술평가원,기타기관,02-3469-8442,02-556-1337,061-75,서울특별시 강남구 테헤란로 114길 14,Y,Y,,Korea Energy Technology Evaluation and Planning,2017-08-21,2025-11-07
+442,한국과학기술연구원,연구기관,02-3393-3933,,027-92,서울특별시 성북구 화랑로 14길5,Y,Y,,Korea Institute of Science and Technology,2017-09-28,2025-11-07
+443,한국저작권위원회,기타기관,055-792-0084,,528-52,경상남도 진주시 충의로 19,Y,Y,,Korea Copyright Commission,2017-11-06,2025-11-07
+444,한국교통연구원,연구기관,044-211-3203,044-211-3233,301-47,세종특별자치시 시청대로 370,Y,Y,,The Korea Transport Institute,2017-11-06,2025-11-07
+445,대한적십자사,기타기관,033-811-0087,,264-65,강원특별자치도 원주시 혁신로 50,Y,Y,https://www.bloodinfo.net,Korean Red Cross,2017-11-21,2025-11-07
+446,손해보험협회,협회/조합,02-3702-8642,02-3701-9727,031-51,서울특별시 종로구 종로5길 68,Y,Y,,General Insurance Association of Korea,2017-12-12,2025-11-07
+447,한국무역보험공사,공사/공단,02-399-6149,,031-87,서울특별시 종로구 종로 14 (서린동),Y,Y,,Korea Trade Insurance Corporation,2017-12-27,2025-11-07
+448,(사)한국디자인산업연합회,협회/조합,02-3445-5398,02-3445-2314,061-25,서울특별시 강남구 봉은사로18길 4 (역삼동),Y,Y,,Korea Federation of Design Industry Association,2018-03-21,2025-11-07
+449,한국생명공학연구원,연구기관,042-879-8524,,341-41,대전광역시 유성구 과학로 125,Y,Y,,Korea Research Institute of Bioscience & Biotechnology,2018-09-07,2025-11-07
+450,한국청소년활동진흥원,연구기관,02-330-2844,,037-52,서울특별시 서대문구 경기대로 47,Y,Y,,Korea Youth Work Agency,2018-09-19,2025-11-07
+451,부산항만공사,공사/공단,051-999-3147,051-999-3275,489-43,부산광역시 중구 대교로 122,Y,Y,,Busan Port Authority,2018-11-15,2025-11-07
+452,한국사회보장정보원,기타기관,02-6360-4605,,049-33,서울특별시 광진구 능동로 400,Y,Y,,Korea Social Security Information Service,2019-03-22,2025-11-07
+453,재단법인 여성기업종합지원센터,기타기관,02-369-0929,,062-24,서울특별시 강남구 역삼로 221,Y,Y,,Women Enterprise Supporting Center,2019-04-05,2025-11-07
+455,산업연구원,연구기관,044-287-3847,044-287-3400,301-47,세종특별자치시 시청대로 370,Y,N,,Korea Institute for Industrial Economics & Trade,2019-06-18,2025-11-07
+456,한국법제연구원,연구기관,044-861-0386,044-868-9919,301-47,세종특별자치시 국책연구원로 15,Y,Y,,Korea Legislation Research Institute,2019-06-28,2025-11-07
+458,한국세라믹기술원,연구기관,055-792-2433,055-792-2419,528-51,경상남도 진주시 소호로 101,Y,Y,,Korea Institute of Ceramic Ingineering and Techinology,2020-11-09,2025-11-07
+459,한국수산자원공단,공사/공단,051-718-2441,,460-41,부산광역시 기장군 일광읍 이동길 4,Y,Y,,Korea Fisheries Resources Agency,2021-06-28,2025-11-07
+460,한국국토정보공사,공사/공단,063-713-1244,,548-70,전북특별자치도 전주시 덕진구 기지로 120,Y,Y,,LX,2021-09-03,2025-11-07
+461,신용보증기금,공사/공단,053-430-4179,0505-071-9211,410-68,대구광역시 동구 첨단로 7,Y,Y,,Korea Credit Guarantee Fund,2021-11-11,2025-11-07
+462,건축공간연구원,연구기관,044-417-9616,,301-16,세종특별자치시 가름로 143,Y,Y,,Architecture & Urban Research Institute,2022-03-21,2025-11-07
+463,(사)한국자동차튜닝산업협회,협회/조합,02-3453-6035,,055-10,"서울특별시 송파구 올림픽로35가길 11(신천동, 한신잠실코아)",Y,Y,http://www.katiagroup.or.kr,Korea auto tuning industry association,2022-06-24,2025-11-07
+464,한국노인인력개발원,기타기관,02-6731-6124,,103-10,경기도 고양시 일산동구 하늘마을로 106(중산동),Y,Y,https://www.kordi.or.kr/,Korea Labor Force Development Institute for the aged,2022-06-27,2025-11-07
+465,한국자산관리공사,공사/공단,051-794-2926,,484-00,부산광역시 남구 문현금융로 40(문현동),Y,Y,,KAMCO,2022-09-30,2025-11-07
+466,(사)한국쌀가공식품협회,협회/조합,031-526-1375,02-503-9998,169-26,경기도 용인시 기흥구 이현로30번길 45-19(보정동),Y,Y,https://www.krfa.or.kr,The Korea Rice Foodstuffs Association,2022-11-11,2025-11-07
+467,한국콘텐츠진흥원,기타기관,061-900-6545,061-900-6589,583-26,전라남도 나주시 교육길 35(빛가람동),Y,Y,https://www.kocca.kr,Korea Creative Content Agency,2023-03-17,2025-11-07
+468,아동권리보장원,기타기관,02-6454-8804,,031-50,서울특별시 종로구 삼봉로 71 (수송동),Y,Y,https://www.ncrc.or.kr/ncrc/main.do,National Center for the Rights of the Child,2023-05-09,2025-11-07
+469,한국도박문제예방치유원,기타기관,02-740-9029,,045-54,서울특별시 중구 퇴계로 173 (충무로3가),Y,Y,https://kcgp.or.kr/,Korea Problem Gambling Agency,2024-03-20,2025-11-07
+470,학교안전공제중앙회,협회/조합,02-6410-5064,,072-38,서울특별시 영등포구 국회대로74길 4 (여의도동),Y,Y,https://ssif.or.kr/,School Safety and Insurance Federation,2024-12-06,2025-11-07
+471,국회미래연구원,연구기관,,,072-33,서울특별시 영등포구 의사당대로 1 (여의도동),Y,N,https://www.nafi.re.kr/new/index.do,National Assembly Futures Institute,2024-12-18,2025-11-07
+472,(사)한국문화유산협회,협회/조합,,042-367-3263,352-03,대전광역시 서구 둔산대로117번길 44 (만년동),Y,Y,www.kaah.kr,교류협력부,2025-05-19,2025-11-07
+501,서울특별시 종로구,지방자치단체,02-731-0114,,031-53,서울특별시 종로구 삼봉로 43 (수송동),Y,Y,https://www.jongno.go.kr,"Jongno-gu, Seoul",2012-08-08,2025-11-07
+502,서울특별시 중구,지방자치단체,,,045-58,서울특별시 중구 창경궁로 17 (예관동),Y,Y,https://www.junggu.seoul.kr,"Jung-gu, Seoul",2012-08-08,2025-11-07
+503,서울특별시 용산구,지방자치단체,,,043-90,서울특별시 용산구 녹사평대로 150 (이태원동),Y,Y,https://www.yongsan.go.kr/,"Yongsan-gu, Seoul",2012-08-08,2025-11-07
+504,서울특별시 성동구,지방자치단체,,,047-50,서울특별시 성동구 고산자로 270 (행당동),Y,Y,https://www.sd.go.kr/,"Seongdong-gu, Seoul",2012-08-08,2025-11-07
+505,서울특별시 광진구,지방자치단체,,,050-26,서울특별시 광진구 자양로 117 (자양동),Y,Y,https://www.gwangjin.go.kr/,"Gwangjin-gu, Seoul",2012-08-08,2025-11-07
+506,서울특별시 동대문구,지방자치단체,,,025-65,서울특별시 동대문구 천호대로 145 (용두동),Y,Y,https://www.ddm.go.kr/,"Dongdaemun-gu, Seoul",2012-08-08,2025-11-07
+507,서울특별시 중랑구,지방자치단체,,,020-43,서울특별시 중랑구 봉화산로 179 (신내동),Y,Y,https://www.jungnang.go.kr,"Jungnang-gu, Seoul",2012-08-08,2025-11-07
+508,서울특별시 성북구,지방자치단체,,,028-48,서울특별시 성북구 보문로 168 (삼선동5가),Y,Y,https://www.sb.go.kr,"Seongbuk-gu, Seoul",2012-08-08,2025-11-07
+509,서울특별시 강북구,지방자치단체,,,010-71,서울특별시 강북구 도봉로89길 13 (수유동),Y,Y,https://www.gangbuk.go.kr,"Gangbuk-gu, Seoul",2012-08-08,2025-11-07
+510,서울특별시 도봉구,지방자치단체,,,013-31,서울특별시 도봉구 마들로 656 (방학동),Y,Y,https://www.dobong.go.kr/,"Dobong-gu, Seoul",2012-08-08,2025-11-07
+511,서울특별시 노원구,지방자치단체,,,016-89,서울특별시 노원구 노해로 437 (상계동),Y,Y,https://www.nowon.kr/,"Nowon-gu, Seoul",2012-08-08,2025-11-07
+512,서울특별시 은평구,지방자치단체,,,033-84,서울특별시 은평구 은평로 195 (녹번동),Y,Y,https://www.ep.go.kr,"Eunpyeong-gu, Seoul",2012-08-08,2025-11-07
+513,서울특별시 서대문구,지방자치단체,,,037-18,서울특별시 서대문구 연희로 248 (연희동),Y,Y,https://www.sdm.go.kr/,"Seodaemun-gu, Seoul",2012-08-08,2025-11-07
+514,서울특별시 마포구,지방자치단체,,,039-37,서울특별시 마포구 월드컵로 212 (성산동),Y,Y,https://www.mapo.go.kr/,"Mapo-gu, Seoul",2012-08-08,2025-11-07
+515,서울특별시 양천구,지방자치단체,,,080-95,서울특별시 양천구 목동동로 105 (신정동),Y,Y,https://www.yangcheon.go.kr/,"Yangcheon-gu, Seoul",2012-08-08,2025-11-07
+516,서울특별시 강서구,지방자치단체,,,076-58,서울특별시 강서구 화곡로 302 (화곡동),Y,Y,https://www.gangseo.seoul.kr/,"Gangseo-gu, Seoul",2012-08-08,2025-11-07
+517,서울특별시 구로구,지방자치단체,,,082-84,서울특별시 구로구 가마산로 245 (구로동),Y,Y,https://www.guro.go.kr,"Guro-gu, Seoul",2012-08-08,2025-11-07
+518,서울특별시 금천구,지방자치단체,,,086-11,서울특별시 금천구 시흥대로73길 70 (시흥동),Y,Y,https://www.geumcheon.go.kr/,"Geumcheon-gu, Seoul",2012-08-08,2025-11-07
+519,서울특별시 영등포구,지방자치단체,,,072-60,서울특별시 영등포구 당산로 123 (당산동3가),Y,Y,https://www.ydp.go.kr/,"Yeongdeungpo-gu, Seoul",2012-08-08,2025-11-07
+520,서울특별시 동작구,지방자치단체,,,069-28,서울특별시 동작구 장승배기로 161 (노량진동),Y,Y,https://www.dongjak.go.kr/,"Dongjak-gu, Seoul",2012-08-08,2025-11-07
+521,서울특별시 관악구,지방자치단체,,,088-32,서울특별시 관악구 관악로 145 (봉천동),Y,Y,https://www.gwanak.go.kr/,"Gwanak-gu, Seoul",2012-08-08,2025-11-07
+522,서울특별시 서초구,지방자치단체,,,067-50,서울특별시 서초구 남부순환로 2584 (서초동),Y,Y,https://www.seocho.go.kr/,"Seocho-gu, Seoul",2012-08-08,2025-11-07
+523,서울특별시 강남구,지방자치단체,,,060-90,서울특별시 강남구 학동로 426 (삼성동),Y,Y,https://www.gangnam.go.kr/,"Gangnam-gu, Seoul",2012-08-08,2025-11-07
+524,서울특별시 송파구,지방자치단체,02-410-3114,,055-52,서울특별시 송파구 올림픽로 326 (신천동),Y,Y,https://www.songpa.go.kr/,"Songpa-gu, Seoul",2012-08-08,2025-11-07
+525,서울특별시 강동구,지방자치단체,,,053-97,서울특별시 강동구 성내로 25 (성내동),Y,Y,https://www.gangdong.go.kr/,"Gangdong-gu, Seoul",2012-08-08,2025-11-07
+531,부산광역시 중구,지방자치단체,,,489-26,부산광역시 중구 중구로 120 (대청동1가),Y,Y,https://www.bsjunggu.go.kr/,"Jung-gu, Busan",2012-08-08,2025-11-07
+532,부산광역시 서구,지방자치단체,,,492-47,부산광역시 서구 구덕로 120,Y,Y,https://www.bsseogu.go.kr,"Seo-gu, Busan",2012-08-08,2025-11-07
+533,부산광역시 동구,지방자치단체,,,487-81,부산광역시 동구 구청로 1(수정동),Y,Y,https://www.bsdonggu.go.kr/,"Dong-gu, Busan",2012-08-08,2025-11-07
+534,부산광역시 영도구,지방자치단체,,,490-11,부산광역시 영도구 태종로 423 (청학동),Y,Y,https://www.yeongdo.go.kr/,"Yeongdo-gu, Busan",2012-08-08,2025-11-07
+535,부산광역시 부산진구,지방자치단체,,,471-93,부산광역시 부산진구 시민공원로 30 (부암동),Y,Y,https://www.busanjin.go.kr/,"Busanjin-gu, Busan",2012-08-08,2025-11-07
+536,부산광역시 동래구,지방자치단체,,,478-08,부산광역시 동래구 명륜로94번길 55 (복천동),Y,Y,https://www.dongnae.go.kr/,"Dongnae-gu, Busan",2012-08-08,2025-11-07
+537,부산광역시 남구,지방자치단체,,,484-52,부산광역시 남구 못골로 19 (대연동),Y,Y,https://www.bsnamgu.go.kr/index.namgu,"Nam-gu, Busan",2012-08-08,2025-11-07
+538,부산광역시 북구,지방자치단체,,,465-04,부산광역시 북구 낙동대로1570번길 33 (구포동),Y,Y,https://www.bsbukgu.go.kr/,"Buk-gu, Busan",2012-08-08,2025-11-07
+539,부산광역시 해운대구,지방자치단체,,,480-95,부산광역시 해운대구 중동2로 11 (중동),Y,Y,https://www.haeundae.go.kr/,"Haeundae-gu, Busan",2012-08-08,2025-11-07
+540,부산광역시 사하구,지방자치단체,,,493-28,부산광역시 사하구 낙동대로398번길 12 (당리동),Y,Y,https://www.saha.go.kr/main.do,"Saha-gu, Busan",2012-08-08,2025-11-07
+541,부산광역시 금정구,지방자치단체,,,462-74,부산광역시 금정구 중앙대로 1777 (부곡동),Y,Y,https://www.geumjeong.go.kr/,"Geumjeong-gu, Busan",2012-08-08,2025-11-07
+542,부산광역시 강서구,지방자치단체,,,467-02,부산광역시 강서구 낙동북로 477 (대저1동),Y,Y,https://www.bsgangseo.go.kr/,"Gangseo-gu, Busan",2012-08-08,2025-11-07
+543,부산광역시 연제구,지방자치단체,,,476-05,부산광역시 연제구 연제로 2 (연산동),Y,Y,https://www.yeonje.go.kr/,"Yeonje-gu, Busan",2012-08-08,2025-11-07
+544,부산광역시 수영구,지방자치단체,,,483-05,부산광역시 수영구 남천동로 100 (남천동),Y,Y,https://www.suyeong.go.kr/,"Suyeong-gu, Busan",2012-08-08,2025-11-07
+545,부산광역시 사상구,지방자치단체,,,469-85,부산광역시 사상구 학감대로 242,Y,Y,https://www.sasang.go.kr/,"Sasang-gu, Busan",2012-08-08,2025-11-07
+546,부산광역시 기장군,지방자치단체,,,460-77,부산광역시 기장군 기장읍 기장대로 560,Y,Y,,"Gijang-gun, Busan",2012-08-08,2025-11-07
+551,대구광역시 중구,지방자치단체,,,419-08,대구광역시 중구 국채보상로139길 1 (동인동2가),Y,Y,https://www.jung.daegu.kr,"Jung-gu, Daegu",2012-08-08,2025-11-07
+552,대구광역시 동구,지방자치단체,,,411-85,대구광역시 동구 아양로 207 (신암동),Y,Y,https://www.dong.daegu.kr/,"Dong-gu, Daegu",2012-08-08,2025-11-07
+553,대구광역시 서구,지방자치단체,,,417-77,대구광역시 서구 국채보상로 257 (평리동),Y,Y,https://www.dgs.go.kr/,"Seo-gu, Daegu",2012-08-08,2025-11-07
+554,대구광역시 남구,지방자치단체,,,424-29,대구광역시 남구 이천로 51 (봉덕동),Y,Y,https://www.nam.daegu.kr/,"Nam-gu, Daegu",2012-08-08,2025-11-07
+555,대구광역시 북구,지방자치단체,,,415-90,대구광역시 북구 옥산로 65 (침산동),Y,Y,https://www.buk.daegu.kr/,"Buk-gu, Daegu",2012-08-08,2025-11-07
+556,대구광역시 수성구,지방자치단체,,,420-86,대구광역시 수성구 달구벌대로 2450 (범어동),Y,Y,https://www.suseong.kr/,"Suseong-gu, Daegu",2012-08-08,2025-11-07
+557,대구광역시 달서구,지방자치단체,,,427-31,대구광역시 달서구 학산로 45 (월성동),Y,Y,https://www.dalseo.daegu.kr/,"Dalseo-gu, Daegu",2012-08-08,2025-11-07
+558,대구광역시 달성군,지방자치단체,,,429-74,대구광역시 달성군 논공읍 달성군청로 33,Y,Y,https://www.dalseong.daegu.kr/,"Dalseong-gun, Daegu",2012-08-08,2025-11-07
+559,대구광역시 군위군,지방자치단체,,,431-13,대구광역시 군위군 군위읍 군청로 200,Y,Y,https://www.gunwi.go.kr/,"Gunwi-gun, Daegu",2012-08-08,2025-11-07
+561,인천광역시 중구,지방자치단체,,,223-15,인천광역시 중구 신포로27번길 80 (관동1가),Y,Y,https://www.icjg.go.kr/,"Jung-gu, Incheon",2012-08-08,2025-11-07
+562,인천광역시 동구,지방자치단체,,,225-56,인천광역시 동구 금곡로 67 (송림동),Y,Y,https://www.icdonggu.go.kr/,"Dong-gu, Incheon",2012-08-08,2025-11-07
+563,인천광역시 미추홀구,지방자치단체,,,221-69,인천광역시 미추홀구 독정이로 95 (숭의동),Y,Y,https://www.michuhol.go.kr,"Nam-gu, Incheon",2012-08-08,2025-11-07
+564,인천광역시 연수구,지방자치단체,,,219-67,인천광역시 연수구 원인재로 115 (동춘동),Y,Y,https://www.yeonsu.go.kr/main/,"Yeonsu-gu, Incheon",2012-08-08,2025-11-07
+565,인천광역시 남동구,지방자치단체,,,215-89,인천광역시 남동구 소래로 633 (만수동),Y,Y,https://www.namdong.go.kr/,"Namdong-gu, Incheon",2012-08-08,2025-11-07
+566,인천광역시 부평구,지방자치단체,,,213-54,인천광역시 부평구 부평대로 168 (부평동),Y,Y,https://www.icbp.go.kr/,"Bupyeong-gu, Incheon",2012-08-08,2025-11-07
+567,인천광역시 계양구,지방자치단체,,,210-67,인천광역시 계양구 계산새로 88 (계산동),Y,Y,https://www.gyeyang.go.kr/,"Gyeyang-gu, Incheon",2012-08-08,2025-11-07
+568,인천광역시 서구,지방자치단체,,,227-26,인천광역시 서구 서곶로 307 (심곡동),Y,Y,https://www.seo.incheon.kr/,"Seo-gu, Incheon",2012-08-08,2025-11-07
+569,인천광역시 강화군,지방자치단체,,,230-31,인천광역시 강화군 강화읍 강화대로 394,Y,Y,https://www.ganghwa.go.kr,"Ganghwa-gun, Incheon",2012-08-08,2025-11-07
+570,인천광역시 옹진군,지방자치단체,,,221-93,인천광역시 미추홀구 매소홀로 120 (용현동),Y,Y,https://www.ongjin.go.kr/,"Ongjin-gun, Incheon",2012-08-08,2025-11-07
+581,광주광역시 동구,지방자치단체,,,614-66,광주광역시 동구 서남로 1 (서석동),Y,Y,https://www.donggu.kr/,"Dong-gu, Gwangju",2012-08-08,2025-11-07
+582,광주광역시 서구,지방자치단체,,,619-28,광주광역시 서구 경열로 33 (농성동) 7층 기획실,Y,Y,https://seogu.gwangju.kr/,"Seo-gu, Gwangju",2012-08-08,2025-11-07
+583,광주광역시 남구,지방자치단체,,,616-87,광주광역시 남구 봉선로 1 (주월동),Y,Y,,"Nam-gu, Gwangju",2012-08-08,2025-11-07
+584,광주광역시 북구,지방자치단체,,,611-87,광주광역시 북구 우치로 77 (용봉동),Y,Y,https://bukgu.gwangju.kr,"Buk-gu, Gwangju",2012-08-08,2025-11-07
+585,광주광역시 광산구,지방자치단체,,,624-30,광주광역시 광산구 광산로29번길 15 (송정동),Y,Y,https://www.gwangsan.go.kr/,"Gwangsan-gu, Gwangju",2012-08-08,2025-11-07
+591,대전광역시 동구,지방자치단체,,,346-91,대전광역시 동구 동구청로 147 (가오동),Y,Y,https://www.donggu.go.kr/,"Dong-gu, Daejeon",2012-08-08,2025-11-07
+592,대전광역시 중구,지방자치단체,,,349-39,대전광역시 중구 중앙로 100 (대흥동),Y,Y,https://www.djjunggu.go.kr/,"Jung-gu, Daejeon",2012-08-08,2025-11-07
+593,대전광역시 서구,지방자치단체,,,352-38,대전광역시 서구 둔산서로 100 (둔산동),Y,Y,https://www.seogu.go.kr,"Seo-gu, Daejeon",2012-08-08,2025-11-07
+594,대전광역시 유성구,지방자치단체,,,341-39,대전광역시 유성구 대학로 211 (어은동),Y,Y,https://www.yuseong.go.kr,"Yuseong-gu, Daejeon",2012-08-08,2025-11-07
+595,대전광역시 대덕구,지방자치단체,,,344-43,대전광역시 대덕구 대전로1033번길 20,Y,Y,https://www.daedeok.go.kr/,"Daedeok-gu, Daejeon",2012-08-08,2025-11-07
+601,울산광역시 중구,지방자치단체,,,444-75,울산광역시 중구 단장골길 1,Y,Y,https://www.junggu.ulsan.kr/,"Jung-gu, Ulsan",2012-08-08,2025-11-07
+602,울산광역시 남구,지방자치단체,,,447-01,울산광역시 남구 돋질로 233 (달동),Y,Y,https://www.ulsannamgu.go.kr/cmm/main/mainPage.do,"Nam-gu, Ulsan",2012-08-08,2025-11-07
+603,울산광역시 동구,지방자치단체,,,440-21,울산광역시 동구 봉수로 155 (화정동),Y,Y,https://www.donggu.ulsan.kr/,"Dong-gu, Ulsan",2012-08-08,2025-11-07
+604,울산광역시 북구,지방자치단체,,,442-48,울산광역시 북구 산업로 1010 (연암동),Y,Y,https://www.bukgu.ulsan.kr/,"Buk-gu, Ulsan",2012-08-08,2025-11-07
+605,울산광역시 울주군,지방자치단체,,,449-59,울산광역시 울주군 청량읍 군청로 1,Y,Y,https://www.ulju.ulsan.kr/,"Ulju-gun, Ulsan",2012-08-08,2025-11-07
+611,경기도 수원시,지방자치단체,031-228-2051,031-228-3703,164-90,경기도 수원시 팔달구 경수대로 424-1,Y,Y,https://www.suwon.go.kr/,"Suwon-si, Gyeonggi-do",2012-08-08,2025-11-07
+612,경기도 성남시,지방자치단체,,,134-37,경기도 성남시 중원구 성남대로 997 (여수동),Y,Y,https://www.seongnam.go.kr,"Seongnam-si, Gyeonggi-do",2012-08-08,2025-11-07
+613,경기도 의정부시,지방자치단체,,,116-22,경기도 의정부시 시민로 1 (의정부동),Y,Y,https://www.ui4u.go.kr/main.do,"Uijeongbu-si, Gyeonggi-do",2012-08-08,2025-11-07
+614,경기도 안양시,지방자치단체,,,410-53,경기도 안양시 동안구 시민대로 235,Y,Y,https://www.anyang.go.kr/main/index.do,"Anyang-si, Gyeonggi-do",2012-08-08,2025-11-07
+615,경기도 부천시,지방자치단체,031-320-2114,,145-47,경기도 부천시 길주로 210 (중동),Y,Y,https://www.bucheon.go.kr/,"Bucheon-si, Gyeonggi-do",2012-08-08,2025-11-07
+616,경기도 광명시,지방자치단체,,,142-34,경기도 광명시 시청로 20 (철산동),Y,Y,https://www.gm.go.kr,"Gwangmyeong-si, Gyeonggi-do",2012-08-08,2025-11-07
+617,경기도 평택시,지방자치단체,,,179-01,경기도 평택시 경기대로 245 (비전동),Y,Y,https://www.pyeongtaek.go.kr/main.do,"Pyeongtaek-si, Gyeonggi-do",2012-08-08,2025-11-07
+618,경기도 동두천시,지방자치단체,,,113-17,경기도 동두천시 방죽로 23,Y,Y,https://www.ddc.go.kr,"Dongducheon-si, Gyeonggi-do",2012-08-08,2025-11-07
+619,경기도 안산시,지방자치단체,,,153-35,경기도 안산시 단원구 화랑로 387 (고잔동),Y,Y,https://www.ansan.go.kr,"Ansan-si, Gyeonggi-do",2012-08-08,2025-11-07
+620,경기도 고양시,지방자치단체,,,104-60,경기도 고양시 덕양구 고양시청로 10 (주교동),Y,Y,https://www.goyang.go.kr/,"Goyang-si, Gyeonggi-do",2012-08-08,2025-11-07
+621,경기도 과천시,지방자치단체,02-3677-2083,,138-06,경기도 과천시 관문로 69 (중앙동),Y,Y,https://www.gccity.go.kr/,"Gwacheon-si, Gyeonggi-do",2012-08-08,2025-11-07
+622,경기도 구리시,지방자치단체,,,119-54,경기도 구리시 아차산로 439 (교문동),Y,Y,https://www.guri.go.kr/,"Guri-si, Gyeonggi-do",2012-08-08,2025-11-07
+623,경기도 남양주시,지방자치단체,,,122-32,경기도 남양주시 경춘로 1037 (금곡동),Y,Y,https://www.nyj.go.kr/main/1,"Namyangju-si, Gyeonggi-do",2012-08-08,2025-11-07
+624,경기도 오산시,지방자치단체,,,181-32,경기도 오산시 성호대로 141 (오산동),Y,Y,https://www.osan.go.kr/,"Osan-si, Gyeonggi-do",2012-08-08,2025-11-07
+625,경기도 시흥시,지방자치단체,,,149-98,경기도 시흥시 시청로 20,Y,Y,https://www.siheung.go.kr/main.do,"Siheung-si, Gyeonggi-do",2012-08-08,2025-11-07
+626,경기도 군포시,지방자치단체,,,158-29,경기도 군포시 청백리길 6 (금정동),Y,Y,https://www.gunpo.go.kr,"Gunpo-si, Gyeonggi-do",2012-08-08,2025-11-07
+627,경기도 의왕시,지방자치단체,,,160-75,경기도 의왕시 시청로 11 (고천동),Y,Y,https://www.uiwang.go.kr,"Uiwang-si, Gyeonggi-do",2012-08-08,2025-11-07
+628,경기도 하남시,지방자치단체,,,129-51,경기도 하남시 대청로 10 (신장동),Y,Y,https://www.hanam.go.kr/www/index.do,"Hanam-si, Gyeonggi-do",2012-08-08,2025-11-07
+629,경기도 용인시,지방자치단체,,,170-19,경기도 용인시 처인구 중부대로 1199,Y,Y,https://www.yongin.go.kr/index.do,"Yongin-si, Gyeonggi-do",2012-08-08,2025-11-07
+630,경기도 파주시,지방자치단체,,,109-32,경기도 파주시 시청로 50 (아동동),Y,Y,https://www.paju.go.kr/,"Paju-si, Gyeonggi-do",2012-08-08,2025-11-07
+631,경기도 이천시,지방자치단체,,,173-79,경기도 이천시 부악로 40,Y,Y,https://www.icheon.go.kr/,"Icheon-si, Gyeonggi-do",2012-08-08,2025-11-07
+632,경기도 안성시,지방자치단체,,,175-86,경기도 안성시 시청길 25 (봉산동),Y,Y,https://www.anseong.go.kr/,"Anseong-si, Gyeonggi-do",2012-08-08,2025-11-07
+633,경기도 김포시,지방자치단체,,,101-09,경기도 김포시 사우중로 1,Y,Y,https://www.gimpo.go.kr/,"Gimpo-si, Gyeonggi-do",2012-08-08,2025-11-07
+634,경기도 양주시,지방자치단체,031-820-2163,031-820-2149,114-98,경기도 양주시 부흥로 1533 (남방동),Y,Y,https://www.yangju.go.kr/,"Yangju-si, Gyeonggi-do",2012-08-08,2025-11-07
+635,경기도 여주시,지방자치단체,031-883-2114,031-885-3121,126-19,경기도 여주시 세종로 1 (홍문동),Y,Y,https://www.yeoju.go.kr,"Yeoju-si, Gyeonggi-do",2012-08-08,2025-11-07
+636,경기도 화성시,지방자치단체,,,182-74,경기도 화성시 남양읍 남양로 708,Y,Y,https://www.hscity.go.kr,"Hwaseong-si, Gyeonggi-do",2012-08-08,2025-11-07
+637,경기도 광주시,지방자치단체,031-760-2756,,127-38,경기도 광주시 행정타운로 50,Y,Y,https://www.gjcity.go.kr/,"Gwangju-si, Gyeonggi-do",2012-08-08,2025-11-07
+638,경기도 연천군,지방자치단체,,,110-17,경기도 연천군 연천읍 연천로 220,Y,Y,https://www.yeoncheon.go.kr,"Yeoncheon-gun, Gyeonggi-do",2012-08-08,2025-11-07
+639,경기도 포천시,지방자치단체,,,111-47,경기도 포천시 중앙로61번길9-6,Y,Y,https://www.pcs21.net/,"Pocheon-si, Gyeonggi-do",2012-08-08,2025-11-07
+640,경기도 가평군,지방자치단체,,,124-17,경기도 가평군 가평읍 석봉로 181,Y,Y,https://www.gp.go.kr/portal/index.do,"Gapyeong-gun, Gyeonggi-do",2012-08-08,2025-11-07
+641,경기도 양평군,지방자치단체,,,125-54,경기도 양평군 양평읍 군청앞길 2,Y,Y,https://www.yp21.go.kr,"Yangpyeong-gun, Gyeonggi-do",2012-08-08,2025-11-07
+651,강원특별자치도 춘천시,지방자치단체,,,243-47,강원특별자치도 춘천시 시청길 11,Y,Y,https://www.chuncheon.go.kr/cityhall/,"Chuncheon-si, Gangwon State",2012-08-08,2025-11-07
+652,강원특별자치도 원주시,지방자치단체,,,263-84,강원특별자치도 원주시 시청로 1 (무실동),Y,Y,https://www.wonju.go.kr/www/index.do,"Wonju-si, Gangwon State",2012-08-08,2025-11-07
+653,강원특별자치도 강릉시,지방자치단체,,,255-22,강원특별자치도 강릉시 강릉대로 33 (홍제동),Y,Y,https://www.gn.go.kr/www/index.do,"Gangneung-si, Gangwon State",2012-08-08,2025-11-07
+654,강원특별자치도 동해시,지방자치단체,,,257-55,강원특별자치도 동해시 천곡로 77 (천곡동),Y,Y,https://www.dh.go.kr/,"Donghae-si, Gangwon State",2012-08-08,2025-11-07
+655,강원특별자치도 태백시,지방자치단체,,,260-23,강원특별자치도 태백시 태붐로 21 (황지동),Y,Y,https://www.taebaek.go.kr/,"Taebaek-si, Gangwon State",2012-08-08,2025-11-07
+656,강원특별자치도 속초시,지방자치단체,,,248-26,강원특별자치도 속초시 중앙로 183 (중앙동),Y,Y,https://www.sokcho.go.kr/portal,"Sokcho-si, Gangwon State",2012-08-08,2025-11-07
+657,강원특별자치도 삼척시,지방자치단체,,,259-14,강원특별자치도 삼척시 중앙로 296 (교동),Y,Y,https://www.samcheok.go.kr/,"Samcheok-si, Gangwon State",2012-08-08,2025-11-07
+658,강원특별자치도 홍천군,지방자치단체,,,251-21,강원특별자치도 홍천군 홍천읍 석화로 93,Y,Y,https://www.hongcheon.go.kr/www/index.do,"Hongcheon-gun, Gangwon State",2012-08-08,2025-11-07
+659,강원특별자치도 횡성군,지방자치단체,,,252-20,강원특별자치도 횡성군 횡성읍 태기로 15,Y,Y,https://www.hsg.go.kr/www/index.do,"Hoengseong-gun, Gangwon State",2012-08-08,2025-11-07
+660,강원특별자치도 영월군,지방자치단체,,,262-35,강원특별자치도 영월군 영월읍 하송로 64,Y,Y,https://www.yw.go.kr/,"Yeongwol-gun, Gangwon State",2012-08-08,2025-11-07
+661,강원특별자치도 평창군,지방자치단체,,,253-74,강원특별자치도 평창군 평창읍 군청길 77,Y,Y,https://www.pc.go.kr,"Pyeongchang-gun, Gangwon State",2012-08-08,2025-11-07
+662,강원특별자치도 정선군,지방자치단체,,,261-31,강원특별자치도 정선군 봉양3길 21,Y,Y,https://www.jeongseon.go.kr/portal,"Jeongseon-gun, Gangwon State",2012-08-08,2025-11-07
+663,강원특별자치도 철원군,지방자치단체,,,240-40,강원특별자치도 철원군 갈말읍 삼부연로 51,Y,Y,https://www.cwg.go.kr/www/index.do,"Cheorwon-gun, Gangwon State",2012-08-08,2025-11-07
+664,강원특별자치도 화천군,지방자치단체,,,241-25,강원특별자치도 화천군 화천읍 화천새싹길 45,Y,Y,https://www.ihc.go.kr/www/index.do,"Hwacheon-gun, Gangwon State",2012-08-08,2025-11-07
+665,강원특별자치도 양구군,지방자치단체,,,245-22,강원특별자치도 양구군 양구읍 관공서로 38,Y,Y,https://www.yanggu.go.kr/,"Yanggu-gun, Gangwon State",2012-08-08,2025-11-07
+666,강원특별자치도 인제군,지방자치단체,,,246-31,강원특별자치도 인제군 인제읍 인제로187번길 8,Y,Y,https://www.inje.go.kr,"Inje-gun, Gangwon State",2012-08-08,2025-11-07
+667,강원특별자치도 고성군,지방자치단체,,,247-35,강원특별자치도 고성군 간성읍 고성중앙길 9,Y,Y,https://www.gwgs.go.kr/kor/index.do,"Goseong-gun, Gangwon State",2012-08-08,2025-11-07
+668,강원특별자치도 양양군,지방자치단체,,,250-23,강원특별자치도 양양군 양양읍 군청길 1,Y,Y,https://www.yangyang.go.kr/gw/portal,"YangYang-gun, Gangwon State",2012-08-08,2025-11-07
+671,충청북도 청주시,지방자치단체,,,285-42,충청북도 청주시 상당구 상당로 155 (북문로3가),Y,Y,https://www.cheongju.go.kr/www/index.do,"Cheongju-si, Chungcheongbuk-do",2012-08-08,2025-11-07
+672,충청북도 충주시,지방자치단체,,,273-39,충청북도 충주시 으뜸로 21 (금릉동),Y,Y,https://www.chungju.go.kr,"Chungju-si, Chungcheongbuk-do",2012-08-08,2025-11-07
+673,충청북도 제천시,지방자치단체,,,271-88,충청북도 제천시 내토로 295 (천남동),Y,Y,https://www.jecheon.go.kr,"Jecheon-si, Chungcheongbuk-do",2012-08-08,2025-11-07
+675,충청북도 보은군,지방자치단체,,,289-37,충청북도 보은군 보은읍 군청길 38,Y,Y,https://www.boeun.go.kr/,"Boeun-gun, Chungcheongbuk-do",2012-08-08,2025-11-07
+676,충청북도 옥천군,지방자치단체,,,290-32,충청북도 옥천군 옥천읍 중앙로 99,Y,Y,https://www.oc.go.kr,"Okcheon-gun, Chungcheongbuk-do",2012-08-08,2025-11-07
+677,충청북도 영동군,지방자치단체,,,291-40,충청북도 영동군 영동읍 동정로 1,Y,Y,https://www.yd21.go.kr/,"Yeongdong-gun, Chungcheongbuk-do",2012-08-08,2025-11-07
+678,충청북도 진천군,지방자치단체,,,278-32,충청북도 진천군 진천읍 상산로 13,Y,Y,https://www.jincheon.go.kr/,"Jincheon-gun, Chungcheongbuk-do",2012-08-08,2025-11-07
+679,충청북도 괴산군,지방자치단체,,,280-26,충청북도 괴산군 임꺽정로 90,Y,Y,https://www.goesan.go.kr/,"Geosan-gun, Chungcheongbuk-do",2012-08-08,2025-11-07
+680,충청북도 음성군,지방자치단체,,,276-90,충청북도 음성군 음성읍 중앙로 173,Y,Y,https://www.eumseong.go.kr,"Eumseong-gun, Chungcheongbuk-do",2012-08-08,2025-11-07
+681,충청북도 단양군,지방자치단체,,,270-10,충청북도 단양군 단양읍 중앙1로 10,Y,Y,https://www.danyang.go.kr,"Danyang-gun, Chungcheongbuk-do",2012-08-08,2025-11-07
+682,충청북도 증평군,지방자치단체,,,279-27,충청북도 증평군 증평읍 광장로 88,Y,Y,https://www.jp.go.kr/,"Jeungpyeong-gun, Chungcheongbuk-do",2012-08-08,2025-11-07
+691,충청남도 천안시,지방자치단체,,,311-62,충청남도 천안시 서북구 번영로 156,Y,Y,https://www.cheonan.go.kr/kor/index.do,"Cheonan-si, Chungcheongnam-do",2012-08-08,2025-11-07
+692,충청남도 공주시,지방자치단체,,,325-52,충청남도 공주시 봉황로 1 (봉황동),Y,Y,https://www.gongju.go.kr/kr/index.do,"Gongju-si, Chungcheongnam-do",2012-08-08,2025-11-07
+693,충청남도 보령시,지방자치단체,,,334-83,충청남도 보령시 성주산로 77 (명천동),Y,Y,https://www.brcn.go.kr,"Boryeong-si, Chungcheongnam-do",2012-08-08,2025-11-07
+694,충청남도 아산시,지방자치단체,,,315-12,충청남도 아산시 시민로 456 (온천동),Y,Y,https://www.asan.go.kr/,"Asan-si, Chungcheongnam-do",2012-08-08,2025-11-07
+695,충청남도 서산시,지방자치단체,,,319-74,충청남도 서산시 관아문길1,Y,Y,https://www.seosan.go.kr/,"Seosan-si, Chungcheongnam-do",2012-08-08,2025-11-07
+696,충청남도 논산시,지방자치단체,,,329-87,충청남도 논산시 시민로210번길 9 (내동),Y,Y,https://nonsan.go.kr/kor/index.html,"Nonsan-si, Chungcheongnam-do",2012-08-08,2025-11-07
+697,충청남도 계룡시,지방자치단체,,,328-23,충청남도 계룡시 장안로 46 (금암동),Y,Y,https://www.gyeryong.go.kr/,"Gyeryong-si, Chungcheongnam-do",2012-08-08,2025-11-07
+698,충청남도 금산군,지방자치단체,,,327-33,충청남도 금산군 금산읍 군청길 13,Y,Y,https://www.geumsan.go.kr/,"Geumsan-gun, Chungcheongnam-do",2012-08-08,2025-11-07
+700,충청남도 부여군,지방자치단체,,,331-68,충청남도 부여군 부여읍 사비로 33,Y,Y,https://www.buyeo.go.kr/html/kr/,"Buyeo-gun, Chungcheongnam-do",2012-08-08,2025-11-07
+701,충청남도 청양군,지방자치단체,,,333-23,충청남도 청양군 청양읍 문화예술로 222,Y,Y,https://www.cheongyang.go.kr/,"Cheongyang-gun, Chungcheongnam-do",2012-08-08,2025-11-07
+702,충청남도 홍성군,지방자치단체,,,322-28,충청남도 홍성군 홍성읍 아문길 27,Y,Y,https://www.hongseong.go.kr/,"Hongseong-gun, Chungcheongnam-do",2012-08-08,2025-11-07
+703,충청남도 예산군,지방자치단체,,,324-35,충청남도 예산군 예산읍 군청로 22,Y,Y,https://www.yesan.go.kr/,"Yesan-gun, Chungcheongnam-do",2012-08-08,2025-11-07
+704,충청남도 태안군,지방자치단체,,,321-44,충청남도 태안군 군청로 1,Y,Y,https://www.taean.go.kr/,"Taean-gun, Chungcheongnam-do",2012-08-08,2025-11-07
+705,충청남도 당진시,지방자치단체,,,317-73,충청남도 당진시 시청1로 1 (수청동),Y,Y,https://www.dangjin.go.kr/,"Dangjin-si, Chungcheongnam-do",2012-08-08,2025-11-07
+706,충청남도 서천군,지방자치단체,,,336-38,충청남도 서천군 서천읍 군청로 57,Y,Y,https://www.seocheon.go.kr/,"Seocheon-gun, Chungcheongnam-do",2012-08-08,2025-11-07
+711,전북특별자치도 전주시,지방자치단체,,,549-94,전북특별자치도 전주시 완산구 노송광장로 29 (서노송동),Y,Y,https://www.jeonju.go.kr/,"Jeonju-si, Jeonbuk State",2012-08-08,2025-11-07
+712,전북특별자치도 군산시,지방자치단체,,,540-78,전북특별자치도 군산시 시청로 17 (조촌동),Y,Y,https://www.gunsan.go.kr/main,"Gunsan-si, Jeonbuk State",2012-08-08,2025-11-07
+713,전북특별자치도 익산시,지방자치단체,,,546-22,전북특별자치도 익산시 인북로32길 1 (남중동),Y,Y,,"Iksan-si, Jeonbuk State",2012-08-08,2025-11-07
+714,전북특별자치도 정읍시,지방자치단체,,,561-80,전북특별자치도 정읍시 충정로 234 (수성동),Y,Y,https://www.jeongeup.go.kr/,"Jeongeup-si, Jeonbuk State",2012-08-08,2025-11-07
+715,전북특별자치도 남원시,지방자치단체,,,557-38,전북특별자치도 남원시 시청로 60 (도통동),Y,Y,https://www.namwon.go.kr/index.do,"Namwon-si, Jeonbuk State",2012-08-08,2025-11-07
+716,전북특별자치도 김제시,지방자치단체,,,543-86,전북특별자치도 김제시 중앙로 40,Y,Y,,"Gimje-si, Jeonbuk State",2012-08-08,2025-11-07
+717,전북특별자치도 완주군,지방자치단체,,,553-52,전북특별자치도 완주군 용진읍 지암로 61,Y,Y,,"Wanju-gun, Jeonbuk State",2012-08-08,2025-11-07
+718,전북특별자치도 진안군,지방자치단체,,,554-34,전북특별자치도 진안군 진안읍 중앙로 67,Y,Y,,"Jinan-gun, Jeonbuk State",2012-08-08,2025-11-07
+719,전북특별자치도 무주군,지방자치단체,,,555-17,전북특별자치도 무주군 무주읍 주계로 97,Y,Y,https://www.muju.go.kr/index.9is,"Muju-gun, Jeonbuk State",2012-08-08,2025-11-07
+720,전북특별자치도 장수군,지방자치단체,,,556-34,전북특별자치도 장수군 장수읍 호비로 10,Y,Y,https://www.jangsu.go.kr/,"Jangsu-gun, Jeonbuk State",2012-08-08,2025-11-07
+721,전북특별자치도 임실군,지방자치단체,,,559-27,전북특별자치도 임실군 임실읍 수정로 30,Y,Y,https://www.imsil.go.kr/,"Imsil-gun, Jeonbuk State",2012-08-08,2025-11-07
+722,전북특별자치도 순창군,지방자치단체,,,560-39,전북특별자치도 순창군 순창읍 경천로 33,Y,Y,https://www.sunchang.go.kr/,"Sunchang-gun, Jeonbuk State",2012-08-08,2025-11-07
+723,전북특별자치도 고창군,지방자치단체,,,564-28,전북특별자치도 고창군 고창읍 중앙로 245,Y,Y,,"Gochang-gun, Jeonbuk State",2012-08-08,2025-11-07
+724,전북특별자치도 부안군,지방자치단체,,,563-05,전북특별자치도 부안군 부안읍 당산로 91,Y,Y,,"Buan-gun, Jeonbuk State",2012-08-08,2025-11-07
+731,전라남도 목포시,지방자치단체,,,586-13,전라남도 목포시 양을로 203 (용당동),Y,Y,,"Mokpo-si, Jeollanam-do",2012-08-08,2025-11-07
+732,전라남도 여수시,지방자치단체,,,596-75,전라남도 여수시 시청로 1 (학동),Y,Y,https://www.yeosu.go.kr/,"Yeosu-si, Jeollanam-do",2012-08-08,2025-11-07
+733,전라남도 순천시,지방자치단체,,,579-56,전라남도 순천시 장명로 30,Y,Y,https://www.suncheon.go.kr/,"Suncheon-si, Jeollanam-do",2012-08-08,2025-11-07
+734,전라남도 나주시,지방자치단체,,,582-63,전라남도 나주시 시청길 22 (송월동),Y,Y,https://www.naju.go.kr/,"Naju-si, Jeollanam-do",2012-08-08,2025-11-07
+735,전라남도 광양시,지방자치단체,,,577-85,전라남도 광양시 시청로 33 (중동),Y,Y,https://www.gwangyang.go.kr/,"Gwangyang-si, Jeollanam-do",2012-08-08,2025-11-07
+736,전라남도 담양군,지방자치단체,061-380-3213-4,,573-39,전라남도 담양군 담양읍 추성로 1371,Y,Y,https://www.damyang.go.kr/index.damyang,"Damyang-gun, Jeollanam-do",2012-08-08,2025-11-07
+737,전라남도 곡성군,지방자치단체,,,575-36,전라남도 곡성군 곡성읍 군청로 50,Y,Y,https://www.gokseong.go.kr,"Gokseong-gun, Jeollanam-do",2012-08-08,2025-11-07
+738,전라남도 구례군,지방자치단체,,,576-56,전라남도 구례군 구례읍 봉성로 1,Y,Y,https://www.gurye.go.kr/kr/main.do,"Gurye-gun, Jeollanam-do",2012-08-08,2025-11-07
+739,전라남도 고흥군,지방자치단체,,,595-35,전라남도 고흥군 고흥읍 고흥군청로 1,Y,Y,https://www.goheung.go.kr/index.do,"Goheung-gun, Jeollanam-do",2012-08-08,2025-11-07
+740,전라남도 보성군,지방자치단체,,,594-55,전라남도 보성군 송재로 165,Y,Y,,"Boseong-gun, Jeollanam-do",2012-08-08,2025-11-07
+741,전라남도 화순군,지방자치단체,,,581-12,전라남도 화순군 화순읍 동헌길 23,Y,Y,,"Hwasun-gun, Jeollanam-do",2012-08-08,2025-11-07
+742,전라남도 장흥군,지방자치단체,,,593-28,전라남도 장흥군 장흥읍 장흥로 21,Y,Y,,"Jangheung-gun, Jeollanam-do",2012-08-08,2025-11-07
+743,전라남도 강진군,지방자치단체,,,592-28,전라남도 강진군 강진읍 탐진로 111,Y,Y,https://www.gangjin.go.kr/,"Gangjin-gun, Jeollanam-do",2012-08-08,2025-11-07
+744,전라남도 해남군,지방자치단체,,,590-28,전라남도 해남군 해남읍 군청길 4,Y,Y,https://www.haenam.go.kr/index.9is,"Haenam-gun, Jeollanam-do",2012-08-08,2025-11-07
+745,전라남도 영암군,지방자치단체,,,584-15,전라남도 영암군 영암읍 군청로 1,Y,Y,https://www.yeongam.go.kr/home/www,"Yeongam-gun, Jeollanam-do",2012-08-08,2025-11-07
+746,전라남도 무안군,지방자치단체,,,585-32,전라남도 무안군 무안읍 무안로 530,Y,Y,https://www.muan.go.kr/,"Muan-gun, Jeollanam-do",2012-08-08,2025-11-07
+747,전라남도 함평군,지방자치단체,,,571-49,전라남도 함평군 함평읍 중앙길 200,Y,Y,https://www.hampyeong.go.kr,"Hampyeong-gun, Jeollanam-do",2012-08-08,2025-11-07
+748,전라남도 영광군,지방자치단체,,,570-36,전라남도 영광군 영광읍 중앙로 203,Y,Y,https://www.yeonggwang.go.kr/main,"Yeonggwang-gun, Jeollanam-do",2012-08-08,2025-11-07
+749,전라남도 장성군,지방자치단체,,,572-19,전라남도 장성군 장성읍 영천로 200,Y,Y,https://www.jangseong.go.kr/home/www,"Jangseong-gun, Jeollanam-do",2012-08-08,2025-11-07
+750,전라남도 완도군,지방자치단체,,,591-24,전라남도 완도군 완도읍 청해진남로 51,Y,Y,https://www.wando.go.kr/,"Wando-gun, Jeollanam-do",2012-08-08,2025-11-07
+751,전라남도 진도군,지방자치단체,,,589-15,전라남도 진도군 진도읍 철마길 25,Y,Y,https://www.jindo.go.kr/home/main.cs,"Jindo-gun, Jeollanam-do",2012-08-08,2025-11-07
+752,전라남도 신안군,지방자치단체,,,588-27,전라남도 신안군 압해읍 천사로 1004,Y,Y,https://www.shinan.go.kr/home/www,"Shinan-gun, Jeollanam-do",2012-08-08,2025-11-07
+761,경상북도 포항시,지방자치단체,,,376-83,경상북도 포항시 남구 시청로 1 (대잠동),Y,Y,https://www.pohang.go.kr/pohang/index.do,"Pohang-si, Gyeongsangbuk-do",2012-08-08,2025-11-07
+762,경상북도 경주시,지방자치단체,,,381-02,경상북도 경주시 양정로 260 (동천동),Y,Y,https://www.gyeongju.go.kr/,"Gyeongju-si, Gyeongsangbuk-do",2012-08-08,2025-11-07
+763,경상북도 김천시,지방자치단체,,,395-32,경상북도 김천시 시청1길 1 (신음동),Y,Y,https://www.gc.go.kr,"Gimcheon-si, Gyeongsangbuk-do",2012-08-08,2025-11-07
+764,경상북도 안동시,지방자치단체,,,366-91,경상북도 안동시 퇴계로 115 (명륜동),Y,Y,https://www.andong.go.kr/main.do,"Andong-si, Gyeongsangbuk-do",2012-08-08,2025-11-07
+765,경상북도 구미시,지방자치단체,,,392-81,경상북도 구미시 송정대로 55 (송정동),Y,Y,https://www.gumi.go.kr/,"Gumi-si, Gyeongsangbuk-do",2012-08-08,2025-11-07
+766,경상북도 영주시,지방자치단체,,,361-32,경상북도 영주시 시청로 1 (휴천동),Y,Y,https://www.yeongju.go.kr/,"Yeongju-si, Gyeongsangbuk-do",2012-08-08,2025-11-07
+767,경상북도 영천시,지방자치단체,,,388-56,경상북도 영천시 시청로 16 (문외동),Y,Y,https://www.yc.go.kr/,"Yeongcheon-si, Gyeongsangbuk-do",2012-08-08,2025-11-07
+768,경상북도 상주시,지방자치단체,,,372-11,경상북도 상주시 상산로 223 (남성동),Y,Y,https://www.sangju.go.kr/,"Sangju-si, Gyeongsangbuk-do",2012-08-08,2025-11-07
+769,경상북도 문경시,지방자치단체,,,369-82,경상북도 문경시 당교로 225 (모전동),Y,Y,https://www.gbmg.go.kr/main.do,"Mungyeong-si, Gyeongsangbuk-do",2012-08-08,2025-11-07
+770,경상북도 경산시,지방자치단체,,,386-17,경상북도 경산시 남매로 159 (중방동),Y,Y,https://www.gbgs.go.kr,"Gyeongsan-si, Gyeongsangbuk-do",2012-08-08,2025-11-07
+772,경상북도 의성군,지방자치단체,,,373-37,경상북도 의성군 의성읍 군청길 31,Y,Y,https://www.usc.go.kr/main.tc,"Uiseong-gun, Gyeongsangbuk-do",2012-08-08,2025-11-07
+773,경상북도 청송군,지방자치단체,,,374-27,경상북도 청송군 청송읍 군청로 51,Y,Y,https://www.cs.go.kr/,"Cheongsong-gun, Gyeongsangbuk-do",2012-08-08,2025-11-07
+774,경상북도 영양군,지방자치단체,,,365-37,경상북도 영양군 영양읍 군청길 37,Y,Y,https://www.yyg.go.kr/,"Yeongyang-gun, Gyeongsangbuk-do",2012-08-08,2025-11-07
+775,경상북도 영덕군,지방자치단체,,,364-29,경상북도 영덕군 영덕읍 군청길 116,Y,Y,https://www.yd.go.kr/,"Yeongdeok-gun, Gyeongsangbuk-do",2012-08-08,2025-11-07
+776,경상북도 청도군,지방자치단체,,,383-30,경상북도 청도군 화양읍 청화로 70,Y,Y,https://www.cheongdo.go.kr/,"Cheongdo-gun, Gyeongsangbuk-do",2012-08-08,2025-11-07
+777,경상북도 고령군,지방자치단체,,,401-38,경상북도 고령군 대가야읍 왕릉로 55,Y,Y,https://www.goryeong.go.kr/,"Goryeong-gun, Gyeongsangbuk-do",2012-08-08,2025-11-07
+778,경상북도 성주군,지방자치단체,,,400-22,경상북도 성주군 성주읍 성주로 3200,Y,Y,https://www.sj.go.kr,"Seongju-gun, Gyeongsangbuk-do",2012-08-08,2025-11-07
+779,경상북도 칠곡군,지방자치단체,,,398-88,경상북도 칠곡군 왜관읍 군청1길 80,Y,Y,https://www.chilgok.go.kr/,"Chilgok-gun, Gyeongsangbuk-do",2012-08-08,2025-11-07
+780,경상북도 예천군,지방자치단체,,,368-26,경상북도 예천군 예천읍 충효로 111,Y,Y,https://www.ycg.kr/open.content/ko/,"Yecheon-gun, Gyeongsangbuk-do",2012-08-08,2025-11-07
+781,경상북도 봉화군,지방자치단체,,,362-39,경상북도 봉화군 봉화읍 봉화로 1111,Y,Y,https://www.bonghwa.go.kr/,"Bonghwa-gun, Gyeongsangbuk-do",2012-08-08,2025-11-07
+782,경상북도 울진군,지방자치단체,,,363-23,경상북도 울진군 울진읍 울진중앙로 121,Y,Y,https://www.uljin.go.kr/index.uljin,"Uljin-gun, Gyeongsangbuk-do",2012-08-08,2025-11-07
+783,경상북도 울릉군,지방자치단체,,,402-22,경상북도 울릉군 울릉읍 도동2길 66,Y,Y,https://www.ulleung.go.kr/,"Ulleung-gun, Gyeongsangbuk-do",2012-08-08,2025-11-07
+791,경상남도 창원시,지방자치단체,,,514-35,경상남도 창원시 성산구 중앙대로 151 (용호동),Y,Y,https://www.changwon.go.kr/,"Changwon-si, Gyeongsangnam-do",2012-08-08,2025-11-07
+793,경상남도 진주시,지방자치단체,055-749-2114,,527-89,경상남도 진주시 동진로 155 (상대동),Y,Y,https://www.jinju.go.kr/,"Jinju-si, Gyeongsangnam-do",2012-08-08,2025-11-07
+795,경상남도 통영시,지방자치단체,,,530-40,경상남도 통영시 통영해안로 515 (무전동),Y,Y,https://www.tongyeong.go.kr/,"Tongyeong-si, Gyeongsangnam-do",2012-08-08,2025-11-07
+796,경상남도 사천시,지방자치단체,,,525-39,경상남도 사천시 용현면 시청로 77,Y,Y,https://www.sacheon.go.kr/,"Sacheon-si, Gyeongsangnam-do",2012-08-08,2025-11-07
+797,경상남도 김해시,지방자치단체,,,509-24,경상남도 김해시 김해대로 2401 (부원동),Y,Y,https://www.gimhae.go.kr/,"Gimhae-si, Gyeongsangnam-do",2012-08-08,2025-11-07
+798,경상남도 밀양시,지방자치단체,,,504-20,경상남도 밀양시 밀양대로 2047 (교동),Y,Y,https://www.miryang.go.kr/web/index.do,"Miryang-si, Gyeongsangnam-do",2012-08-08,2025-11-07
+799,경상남도 거제시,지방자치단체,,,532-57,경상남도 거제시 계룡로 125 (고현동),Y,Y,,"Geoje-si, Gyeongsangnam-do",2012-08-08,2025-11-07
+800,경상남도 양산시,지방자치단체,,,506-24,경상남도 양산시 중앙로 39 (남부동),Y,Y,https://www.yangsan.go.kr/main.do,"Yangsan-si, Gyeongsangnam-do",2012-08-08,2025-11-07
+801,경상남도 의령군,지방자치단체,,,521-40,경상남도 의령군 의령읍 충익로 63,Y,Y,https://www.uiryeong.go.kr/,"Uiryeong-gun, Gyeongsangnam-do",2012-08-08,2025-11-07
+802,경상남도 함안군,지방자치단체,,,520-43,경상남도 함안군 가야읍 말산로 1,Y,Y,https://www.haman.go.kr/main.web,"Haman-gun, Gyeongsangnam-do",2012-08-08,2025-11-07
+803,경상남도 창녕군,지방자치단체,,,503-17,경상남도 창녕군 창녕읍 군청길 1,Y,Y,https://www.cng.go.kr/,"Changnyeong-gun, Gyeongsangnam-do",2012-08-08,2025-11-07
+804,경상남도 고성군,지방자치단체,,,529-43,경상남도 고성군 고성읍 성내로 130,Y,Y,https://www.goseong.go.kr/,"Goseong-gun, Gyeongsangnam-do",2012-08-08,2025-11-07
+805,경상남도 남해군,지방자치단체,,,524-25,경상남도 남해군 남해읍 망운로9번길 12,Y,Y,https://www.namhae.go.kr/,"Namhae-gun, Gyeongsangnam-do",2012-08-08,2025-11-07
+806,경상남도 하동군,지방자치단체,,,523-33,경상남도 하동군 하동읍 군청로 23,Y,Y,https://www.hadong.go.kr/,"Hadong-gun, Gyeongsangnam-do",2012-08-08,2025-11-07
+807,경상남도 산청군,지방자치단체,,,522-21,경상남도 산청군 산청읍 산엔청로 1,Y,Y,https://www.sancheong.go.kr/,"Sancheong-gun, Gyeongsangnam-do",2012-08-08,2025-11-07
+808,경상남도 함양군,지방자치단체,,,500-36,경상남도 함양군 함양읍 고운로 35,Y,Y,https://www.hygn.go.kr,"Hamyang-gun, Gyeongsangnam-do",2012-08-08,2025-11-07
+809,경상남도 거창군,지방자치단체,,,501-32,경상남도 거창군 거창읍 중앙로 103,Y,Y,https://www.geochang.go.kr/portal/Index.do,"Geochang-gun, Gyeongsangnam-do",2012-08-08,2025-11-07
+810,경상남도 합천군,지방자치단체,,,502-31,경상남도 합천군 합천읍 동서로 119,Y,Y,https://www.hc.go.kr/main.web,"Hapcheon-gun, Gyeongsangnam-do",2012-08-08,2025-11-07

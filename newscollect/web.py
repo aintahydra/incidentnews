@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import threading
 import time
@@ -11,13 +12,13 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import collector, db, regen, wordcloud
+from . import collector, db, orgs, regen, stats, wordcloud
 from .config import load_config
 
 BASE = Path(__file__).parent
 WEEKDAYS = "월화수목금토일"
 REGEN_COOLDOWN = 20  # seconds, per incident
-SEARCH_FIELDS = ("title", "summary", "attacker", "victim", "damage", "category")
+SEARCH_FIELDS = ("title", "summary", "attacker", "victim", "damage", "category", "hashtags")
 
 
 class NoCacheStatic(StaticFiles):
@@ -38,6 +39,7 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
     lock = threading.Lock()
     regen_busy = threading.Lock()  # one LLM regeneration at a time
     last_regen: dict[int, float] = {}
+    classifier = orgs.Classifier(cfg.gov_list, cfg.public_list)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -63,7 +65,16 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
         return q("SELECT a.title,a.url,a.source FROM articles a JOIN incident_articles ia ON ia.article_id=a.id "
                  "WHERE ia.incident_id=? ORDER BY a.published_at", (inc_id,))
 
-    def listing(limit=200, offset=0, query=""):
+    def tagged(r):
+        r["org_tags"] = classifier.tags(r["victim"])
+        try:
+            r["hashtags"] = [t for t in json.loads(r.get("hashtags") or "[]") if isinstance(t, str)]
+        except ValueError:
+            r["hashtags"] = []
+        return r
+
+    def listing(limit=200, offset=0, query="", tab="all"):
+        """(page of incidents for the tab, {tab: count}); tags come from the victim name, so they follow list edits."""
         # every whitespace-separated term must match some field or a linked article title
         clauses, args = [], []
         for term in query.split()[:5]:
@@ -73,30 +84,35 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
                            "WHERE ia.incident_id=incidents.id AND a.title LIKE ? ESCAPE '\\'))")
             args += [like] * (len(SEARCH_FIELDS) + 1)
         where = "WHERE " + " AND ".join(clauses) if clauses else ""
-        rows = q(f"SELECT * FROM incidents {where} ORDER BY occurred_at DESC, id DESC LIMIT ? OFFSET ?",
-                 (*args, limit, offset))
-        for r in rows:
+        rows = [tagged(r) for r in q(f"SELECT * FROM incidents {where} ORDER BY occurred_at DESC, id DESC", args)]
+        by_tab = {"all": rows}
+        for name, tags in orgs.TAB_TAGS.items():
+            by_tab[name] = [r for r in rows if set(r["org_tags"]) & set(tags)]
+        page = by_tab.get(tab, rows)[offset:offset + limit]
+        for r in page:
             r["sources"] = sources_of(r["id"])
-        return rows
+        return page, {k: len(v) for k, v in by_tab.items()}
 
     def one(inc_id):
         rows = q("SELECT * FROM incidents WHERE id=?", (inc_id,))
         if not rows:
             raise HTTPException(404, "사고를 찾을 수 없습니다")
         rows[0]["sources"] = sources_of(inc_id)
-        return rows[0]
+        return tagged(rows[0])
 
     @app.get("/", response_class=HTMLResponse)
-    def index(request: Request, q: str = ""):
+    def index(request: Request, q: str = "", tab: str = "all"):
         q = q.strip()[:100]
+        tab = tab if tab in orgs.TAB_TAGS else "all"
         groups: dict[str, list] = {}
-        rows = listing(query=q)
+        rows, counts = listing(query=q, tab=tab)
         for r in rows:
             groups.setdefault(r["occurred_at"], []).append(r)
         days = [{"date": d, "weekday": WEEKDAYS[date.fromisoformat(d).weekday()], "items": items}
                 for d, items in groups.items()]
         return templates.TemplateResponse(request, "index.html",
-                                          {"title": cfg.site_title, "days": days, "q": q, "total": len(rows)})
+                                          {"title": cfg.site_title, "days": days, "q": q, "total": counts[tab],
+                                           "tab": tab, "counts": counts})
 
     @app.get("/incidents/{inc_id}", response_class=HTMLResponse)
     def detail(request: Request, inc_id: int):
@@ -129,8 +145,10 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
             regen_busy.release()
 
     @app.get("/api/incidents")
-    def api_incidents(limit: int = 100, offset: int = 0, q: str = ""):
-        return listing(max(1, min(limit, 500)), max(0, offset), q.strip()[:100])
+    def api_incidents(limit: int = 100, offset: int = 0, q: str = "", tab: str = "all"):
+        if tab != "all" and tab not in orgs.TAB_TAGS:
+            raise HTTPException(400, "tab은 all 또는 gov여야 합니다")
+        return listing(max(1, min(limit, 500)), max(0, offset), q.strip()[:100], tab)[0]
 
     @app.get("/api/wordcloud")
     def api_wordcloud(period: str = "week", limit: int = 60):
@@ -145,6 +163,14 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
         return {"period": period, "since": start, "incidents": len(rows),
                 "words": wordcloud.cloud(rows, max(1, min(limit, 150)), trivial)}
 
+    @app.get("/api/article-stats")
+    def api_article_stats(unit: str = "day"):
+        if unit not in stats.UNITS:
+            raise HTTPException(400, "unit은 day, month, year 중 하나여야 합니다")
+        with lock:
+            series = stats.article_counts(conn, unit)
+        return {"unit": unit, "total": sum(x["count"] for x in series), "series": series}
+
     @app.get("/healthz")
     def healthz():
         return {"ok": True, "incidents": q("SELECT COUNT(*) c FROM incidents")[0]["c"]}
@@ -153,4 +179,6 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
 
 
 def app_factory():
+    from dotenv import find_dotenv, load_dotenv
+    load_dotenv(find_dotenv(usecwd=True))  # also when started as `uvicorn newscollect.web:app_factory --factory`
     return create_app(os.environ.get("NEWSCOLLECT_CONFIG"))

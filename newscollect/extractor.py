@@ -3,10 +3,10 @@ import json
 import re
 import time
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, timedelta
 
-import httpx
+from . import llm as llmmod
 
 INCIDENT_WORDS = ["해킹", "랜섬웨어", "유출", "침해", "공격", "탈취", "감염", "피싱", "악성코드",
                   "디도스", "DDoS", "먹통", "사칭", "해커", "데이터 노출", "침투", "크리덴셜"]
@@ -25,7 +25,8 @@ SYSTEM = """너는 사이버 보안 뉴스에서 '사고'를 추출하는 분석
 - victim: 피해 기업/기관. 기사 본문에 쓰인 표기를 그대로 옮긴다(한국어 기사는 한글 표기, 영어 기사는 영어 표기. 번역·음차 금지). 모르면 ""
 - damage: 피해 규모(건수, 금액, 영향 등)를 한국어로 (모르면 "")
 - category: 랜섬웨어|데이터 유출|해킹|악성코드|DDoS|피싱|기타 중 하나
-- summary: 한국어 2~4문장. 언제, 누가 누구를 공격했는지, 피해 규모가 어느 정도인지 반드시 포함. 기사에 없는 내용은 지어내지 않는다."""
+- summary: 한국어 2~4문장. 언제, 누가 누구를 공격했는지, 피해 규모가 어느 정도인지 반드시 포함. 기사에 없는 내용은 지어내지 않는다.
+- hashtags: 이 사고를 대표하는 해시태그 3개의 배열. '#' 없이, 띄어쓰기 없이 쓴다. 피해 대상, 공격 유형·수법, 업종·영향처럼 서로 다른 측면을 하나씩 담는다(예: ["SK텔레콤", "유심정보유출", "통신사"], ["LockBit", "랜섬웨어", "제조업"]). 이름은 기사 표기 그대로, 나머지는 한국어로."""
 
 
 HANGUL = re.compile(r"[가-힣]{2}")
@@ -42,6 +43,7 @@ class Extraction:
     category: str = ""
     summary: str = ""
     method: str = "llm"
+    hashtags: list[str] = field(default_factory=list)
 
 
 def _s(v) -> str:
@@ -76,7 +78,22 @@ def parse_llm_json(text: str, published_at: str) -> Extraction:
     occurred = plausible_date(occurred, published_at) if re.fullmatch(r"\d{4}-\d{2}-\d{2}", occurred) else published_at
     return Extraction(bool(data.get("is_incident")), _s(data.get("title")), occurred,
                       _s(data.get("attacker")), _s(data.get("victim")), _s(data.get("damage")),
-                      _s(data.get("category")), clip(_s(data.get("summary"))))
+                      _s(data.get("category")), clip(_s(data.get("summary"))), hashtags=clean_hashtags(data.get("hashtags")))
+
+
+MAX_HASHTAGS = 3
+
+
+def clean_hashtags(raw) -> list[str]:
+    """Up to 3 distinct tags: '#' and spaces removed, 2-20 chars. Accepts a list or a "#a #b, #c" string.
+    Bad tags are dropped rather than failing the extraction (tags are a convenience, not a checked field)."""
+    items = raw if isinstance(raw, list) else re.split(r"[,\s]+(?=#)|,", raw) if isinstance(raw, str) else []
+    out: list[str] = []
+    for t in items:
+        t = re.sub(r"[\s#]+", "", _s(t)).strip(".,·'\"“”‘’")
+        if 2 <= len(t) <= 20 and re.search(r"[0-9A-Za-z가-힣]", t) and t.lower() not in {x.lower() for x in out}:
+            out.append(t)
+    return out[:MAX_HASHTAGS]
 
 
 TOKEN = re.compile(r"[0-9A-Za-z가-힣]{2,}")
@@ -134,8 +151,8 @@ def repair_extraction(ex: Extraction, source_text: str) -> Extraction:
     return ex
 
 
-def extract_llm(client: httpx.Client, base_url: str, model: str, article: dict,
-                temperature: float = 0, num_ctx: int = 8192, deadline: float | None = None) -> Extraction:
+def extract_llm(llm, model: str, article: dict, temperature: float = 0, deadline: float | None = None) -> Extraction:
+    """llm: an llm.Ollama / llm.Claude backend."""
     body = article["body"][:4000]
     user = (f"게시일: {article['published_at']}\n제목: {article['title']}\n본문: {body}"
             "\n\nJSON만 출력하고, title과 summary는 반드시 한국어로 작성하라.")
@@ -150,14 +167,9 @@ def extract_llm(client: httpx.Client, base_url: str, model: str, article: dict,
             break
         hint = f"\n\n이전 답변의 문제: {'; '.join(problems)}. 기사에 나온 이름을 한 글자도 바꾸지 말고 원문 표기 그대로(영어 기사라면 영어 그대로) 사용하라." if problems else ""
         try:
-            r = client.post(f"{base_url}/api/chat", json={
-                "model": model, "stream": False, "format": "json",
-                "options": {"temperature": max(temp, temperature), "num_ctx": num_ctx, "num_predict": 1000},
-                "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": user + hint}],
-            })
-            r.raise_for_status()
-            ex = parse_llm_json(r.json()["message"]["content"], article["published_at"])
-        except (httpx.HTTPStatusError, json.JSONDecodeError, KeyError) as e:  # transient 5xx / bad JSON: retry
+            content = llm.chat(model, SYSTEM, user + hint, json=True, temperature=max(temp, temperature), max_tokens=1000)
+            ex = parse_llm_json(content, article["published_at"])
+        except (llmmod.LLMError, json.JSONDecodeError, KeyError) as e:  # transient 5xx / refusal / bad JSON: retry
             problems = [f"LLM 응답 오류: {type(e).__name__}"]
             seen += [p for p in problems if p not in seen]
             continue
@@ -252,9 +264,8 @@ def _clean_summary(text: str) -> str:
     return re.sub(r"^(요약|요약문)\s*[:：]\s*", "", text)
 
 
-def write_summary(client: httpx.Client, base_url: str, model: str, article: dict, fields: dict,
-                  temperature: float = 0.2, num_ctx: int = 8192, deadline: float | None = None,
-                  forbidden: list[str] = ()) -> str:
+def write_summary(llm, model: str, article: dict, fields: dict, temperature: float = 0.2,
+                  deadline: float | None = None, forbidden: list[str] = ()) -> str:
     """Plain-prose summary; retried (hotter, with the reasons as a hint) until it passes summary_problems."""
     body = article["body"][:4000]
     facts = [("발생일", article["published_at"]), ("피해 대상", fields.get("victim")),
@@ -271,14 +282,9 @@ def write_summary(client: httpx.Client, base_url: str, model: str, article: dict
             break
         hint = f"\n\n이전 답변의 문제: {'; '.join(problems)}. 규칙을 지켜 다시 쓰라." if problems else ""
         try:
-            r = client.post(f"{base_url}/api/chat", json={
-                "model": model, "stream": False,
-                "options": {"temperature": max(temp, temperature), "num_ctx": num_ctx, "num_predict": 700},
-                "messages": [{"role": "system", "content": SUMMARY_SYSTEM}, {"role": "user", "content": user + hint}],
-            })
-            r.raise_for_status()
-            text = _clean_summary(r.json()["message"]["content"])
-        except (httpx.HTTPStatusError, KeyError) as e:
+            text = _clean_summary(llm.chat(model, SUMMARY_SYSTEM, user + hint, temperature=max(temp, temperature),
+                                           max_tokens=700))
+        except llmmod.LLMError as e:
             problems = [f"LLM 응답 오류: {type(e).__name__}"]
             seen += [p for p in problems if p not in seen]
             continue
@@ -318,8 +324,7 @@ def headline_names(article: dict) -> list[str]:
     return [n for n in proper_nouns(article["body"], limit=40) if n in article["title"]]
 
 
-def polish_names(client: httpx.Client, base_url: str, model: str, article: dict, summary: str,
-                 num_ctx: int = 8192) -> str:
+def polish_names(llm, model: str, article: dict, summary: str) -> str:
     """English articles: when a headline name (Claude, Gemini...) is missing from the summary the model usually
     transliterated it. Ask for a minimal edit; keep the original unless the edit is clean."""
     source_text = article["title"] + " " + article["body"][:4000]
@@ -327,14 +332,9 @@ def polish_names(client: httpx.Client, base_url: str, model: str, article: dict,
     if not missing or is_korean(source_text[:700]):
         return summary
     try:
-        r = client.post(f"{base_url}/api/chat", json={
-            "model": model, "stream": False,
-            "options": {"temperature": 0, "num_ctx": num_ctx, "num_predict": 700},
-            "messages": [{"role": "system", "content": NAMEFIX_SYSTEM},
-                         {"role": "user", "content": f"영어 이름: {', '.join(missing)}\n\n요약문:\n{summary}"}]})
-        r.raise_for_status()
-        fixed = _clean_summary(r.json()["message"]["content"])
-    except (httpx.HTTPStatusError, KeyError):
+        fixed = _clean_summary(llm.chat(model, NAMEFIX_SYSTEM, f"영어 이름: {', '.join(missing)}\n\n요약문:\n{summary}",
+                                        max_tokens=700))
+    except llmmod.LLMError:
         return summary
     years = known_years(source_text, article["published_at"])
     ok = (not summary_problems(fixed, source_text=source_text, allowed_years=years)
@@ -397,8 +397,8 @@ def names_hint(article_text: str) -> str:
 
 
 def model_for(cfg, korean: bool) -> str:
-    """Korean articles use `model`; other languages use `foreign_model` when one is configured."""
-    return cfg.llm_model if korean else (getattr(cfg, "llm_foreign_model", "") or cfg.llm_model)
+    """Model for an article: see llm.model_for (claude: claude_model; local: model / foreign_model)."""
+    return llmmod.model_for(cfg, korean)
 
 
 def looks_like_incident(article: dict) -> bool:
@@ -425,7 +425,8 @@ def extract_heuristic(article: dict) -> Extraction:
                       category="기타", method="heuristic")
 
 
-def extract(client, cfg, article: dict) -> Extraction:
+def extract(llm, cfg, article: dict) -> Extraction:
+    """llm: the backend for cfg (llm.from_config); unused when the LLM is disabled."""
     # cheap pre-filter: no incident vocabulary at all -> not worth an LLM call
     if not looks_like_incident(article):
         return Extraction(False, method="prefilter")
@@ -435,14 +436,13 @@ def extract(client, cfg, article: dict) -> Extraction:
     if cfg.llm_enabled:
         try:
             model = model_for(cfg, korean)
-            ex = extract_llm(client, cfg.llm_base_url, model, article, num_ctx=cfg.llm_num_ctx)
+            ex = extract_llm(llm, model, article)
             src = article["title"] + " " + article["body"][:4000]
             if ex.is_incident and summary_problems(ex.summary, source_text=src,
                                                    allowed_years=known_years(src, article["published_at"])):  # cramped JSON summary: write it properly
                 try:
-                    ex.summary = write_summary(client, cfg.llm_base_url, model, article,
-                                               {"victim": ex.victim, "attacker": ex.attacker, "damage": ex.damage},
-                                               num_ctx=cfg.llm_num_ctx)
+                    ex.summary = write_summary(llm, model, article,
+                                               {"victim": ex.victim, "attacker": ex.attacker, "damage": ex.damage})
                 except Exception:
                     if not korean:  # nothing to fall back on for English text: fail and retry next cycle
                         raise
@@ -451,7 +451,7 @@ def extract(client, cfg, article: dict) -> Extraction:
                     if lead and not summary_problems(lead):
                         ex.summary = lead
             if ex.is_incident and not korean:
-                ex.summary = polish_names(client, cfg.llm_base_url, model, article, ex.summary, cfg.llm_num_ctx)
+                ex.summary = polish_names(llm, model, article, ex.summary)
             return ex
         except Exception:
             if not korean:  # the heuristic would store English text: fail so the article is retried later

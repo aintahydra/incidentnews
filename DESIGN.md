@@ -105,6 +105,36 @@ On a match: link the article, fill empty fields, keep the longer summary.
   (금융권해킹 -> 금융권) and words left empty are dropped. Victim/attacker names are never cut, only dropped when they
   consist solely of trivial keywords.
 
+- Collected-article chart (`stats.py`, `GET /api/article-stats?unit=`): `articles` counted by
+  `datetime(fetched_at,'localtime')` prefix (fetched_at is UTC), zero-filled: last 30 days / last 12 months / every
+  year since the first. Single-series SVG column chart drawn client-side (blue series color, hairline grid, peak
+  value labelled, per-column hover/focus tooltip, table view).
+
+- Sticky header (`position: sticky`); its height is published as `--header-h` so the pane sticks right below it.
+- Side pane (list page, also on search results): `<aside id="side">` left of `<main>` holding the cloud and the chart,
+  sticky, toggled by the header's icon button (inline SVG, `aria-expanded`). Grid columns pane | list (≤760px) | spacer
+  keep the list centred while there is room, with the pane's cards right-aligned against the list. State is `data-pane` on `<html>`, set before first paint from
+  `localStorage` (default open; always closed below 900px, where the pane is a fixed overlay drawer). Both widgets skip
+  layout while their box is zero-sized and re-lay out when the pane opens.
+
+- Org tags (`orgs.py`): victim -> "정부기관" if on `[orgs].government_list` (KOSIS, column 2), "공공기관" if on
+  `public_list` (column 1); both possible. Names normalized (drop `(...)`, 재단법인/사단법인/주식회사, spaces, punctuation);
+  match = equal, or a listed name of >= 3 chars contained in the victim; local governments also get short forms
+  (서울시, 종로구청). Computed at read time (cached per victim, lists re-read when the file mtime changes), so tags follow
+  list updates without a migration. Tabs `?tab=all|gov` filter the search result in Python before paging.
+
+- LLM backends (`llm.py`): `[llm].provider = "local"` (Ollama `/api/chat`) or `"claude"` (Anthropic SDK,
+  `client.beta.messages.create` with `output_config.effort`, adaptive thinking, server-side fallback `fallbacks: "default"`
+  for cyber refusals; no `temperature` - the model rejects non-default sampling). One interface,
+  `chat(model, system, user, json=, temperature=, max_tokens=)`; errors normalized to `LLMError` (retry/give up on the
+  article: bad status, refusal, empty answer) and `LLMUnavailable` (transport, auth, rate limit, missing key: the collector
+  stops for the cycle without burning attempts). `.env` loaded at startup with python-dotenv.
+
+- Hashtags: the extraction JSON gains `hashtags` (3 tags, different aspects: victim / attack type / sector). Cleaned in
+  `extractor.clean_hashtags` (strip `#` and spaces, 2-20 chars, dedupe, max 3; never fails the extraction). Stored as a
+  JSON array in `incidents.hashtags` (added to old databases by `db._migrate`); merge keeps the first non-empty set;
+  regenerate replaces it; searchable; rendered as links to `/?q=<tag>`.
+
 ## 9. Non-Korean (English) sources
 
 - Language is auto-detected per article (`is_korean`: Hangul share of title + body start).

@@ -3,7 +3,7 @@ import logging
 
 import httpx
 
-from . import db, dedupe, extractor, feeds
+from . import db, dedupe, extractor, feeds, llm as llmmod
 from .config import load_config
 
 log = logging.getLogger("newscollect")
@@ -12,7 +12,7 @@ MAX_ATTEMPTS = 3
 
 def collect_once(conn, cfg) -> dict:
     stats = {"new": 0, "incidents": 0, "skipped": 0, "failed": 0}
-    with httpx.Client(timeout=20) as web, httpx.Client(timeout=cfg.llm_timeout) as llm:
+    with httpx.Client(timeout=20) as web, httpx.Client(timeout=cfg.llm_timeout) as http:
         for src in (s for s in cfg.sources if s.enabled):
             try:
                 items = feeds.fetch_feed(web, src.url, cfg.max_articles_per_run, cfg.max_age_days)
@@ -26,8 +26,15 @@ def collect_once(conn, cfg) -> dict:
                 if cur.rowcount:
                     stats["new"] += 1
             conn.commit()
+        llm = None
+        if cfg.llm_enabled:
+            try:
+                llm = llmmod.from_config(cfg, http)
+            except llmmod.LLMUnavailable as e:  # e.g. provider "claude" without ANTHROPIC_API_KEY
+                log.error("%s; articles wait for the next cycle", e)
+                return stats
         # the judge compares Korean summaries: the main model does this well, the foreign model was too conservative
-        judge = dedupe.llm_judge(llm, cfg.llm_base_url, cfg.llm_model, cfg.llm_num_ctx) if cfg.llm_enabled else None
+        judge = dedupe.llm_judge(llm, llmmod.main_model(cfg)) if llm else None
         pending = conn.execute(
             "SELECT * FROM articles WHERE status IN ('new','failed') AND attempts < ? ORDER BY published_at",
             (MAX_ATTEMPTS,)).fetchall()
@@ -46,7 +53,7 @@ def collect_once(conn, cfg) -> dict:
                     stats["skipped"] += 1
                 conn.execute("UPDATE articles SET body=?, status=?, attempts=attempts+1, error=NULL WHERE id=?",
                              (art["body"], "done" if ex.is_incident else "skipped", art["id"]))
-            except httpx.TransportError as e:
+            except llmmod.LLMUnavailable as e:
                 # LLM unreachable: don't burn this article's retry attempts, and don't wait on every other one
                 log.warning("LLM unreachable (%s); remaining articles wait for the next cycle", e)
                 break

@@ -1,9 +1,10 @@
 """Re-generate an incident's summary from its linked articles (LLM only, no heuristic fallback)."""
+import json
 import time
 
 import httpx
 
-from . import extractor, feeds
+from . import extractor, feeds, llm as llmmod
 
 MAX_BODY_CHARS = 4000
 MAX_ARTICLES = 3
@@ -28,7 +29,8 @@ def regenerate(conn, lock, cfg, inc_id: int) -> dict:
             "WHERE ia.incident_id=? ORDER BY a.published_at", (inc_id,))][:MAX_ARTICLES]
     per_article = MAX_BODY_CHARS // max(len(arts), 1)
     deadline = time.monotonic() + BUDGET_SECONDS
-    with httpx.Client(timeout=20) as web, httpx.Client(timeout=cfg.llm_timeout) as llm:
+    with httpx.Client(timeout=20) as web, httpx.Client(timeout=cfg.llm_timeout) as http:
+        llm = llmmod.from_config(cfg, http)
         for a in arts:  # the stored body may be only the RSS snippet; try for the full text
             a["body"] = feeds.fetch_body(web, a["url"], a["body"])
         headline = arts[0]["title"] if arts else inc["title"]
@@ -39,18 +41,21 @@ def regenerate(conn, lock, cfg, inc_id: int) -> dict:
         }
         source_text = combined["title"] + " " + combined["body"][:MAX_BODY_CHARS]
         fields = {k: inc[k] for k in FIELDS}
+        new_tags = None  # fresh hashtags from step 1, when the model gave some
         model = extractor.model_for(cfg, extractor.is_korean(combined["title"] + " " + combined["body"][:600]))
-        kw = dict(num_ctx=cfg.llm_num_ctx, deadline=deadline)
+        kw = dict(deadline=deadline)
 
         # 1) fresh structured fields, name-checked against the article
         try:
-            ex = extractor.extract_llm(llm, cfg.llm_base_url, model, combined, temperature=TEMPERATURE, **kw)
+            ex = extractor.extract_llm(llm, model, combined, temperature=TEMPERATURE, **kw)
         except ValueError:
             ex = None  # validation failed (e.g. garbled company name): repair the stored fields below
         if ex is not None:
             if not ex.is_incident:
                 raise NotAnIncident("LLM이 이 기사를 사고로 판단하지 않아 기존 요약을 유지합니다")
             fields.update({k: getattr(ex, k) for k in FIELDS if getattr(ex, k)})
+            if ex.hashtags:
+                new_tags = ex.hashtags
         bad = extractor.ungrounded_names(
             extractor.Extraction(True, victim=fields["victim"], attacker=fields["attacker"]), source_text)
         fields = extractor.repair_fields(fields, source_text, headline)
@@ -58,7 +63,7 @@ def regenerate(conn, lock, cfg, inc_id: int) -> dict:
         # 2) the summary itself, written as prose
         method = "llm"
         try:
-            summary = extractor.write_summary(llm, cfg.llm_base_url, model, combined, fields,
+            summary = extractor.write_summary(llm, model, combined, fields,
                                               temperature=TEMPERATURE, forbidden=bad, **kw)
         except ValueError:
             # The model could not write an acceptable summary. Keep the stored one unless it is itself
@@ -70,10 +75,12 @@ def regenerate(conn, lock, cfg, inc_id: int) -> dict:
             summary, method = lead, "extract"
 
         if method == "llm" and not extractor.is_korean(source_text[:700]):
-            summary = extractor.polish_names(llm, cfg.llm_base_url, model, combined, summary, cfg.llm_num_ctx)
+            summary = extractor.polish_names(llm, model, combined, summary)
 
     # occurred_at is kept (dedupe depends on it)
     upd = {**fields, "summary": summary}
+    if new_tags:
+        upd["hashtags"] = json.dumps(new_tags, ensure_ascii=False)
     with lock:
         for a in arts:
             conn.execute("UPDATE articles SET body=? WHERE id=?", (a["body"], a["id"]))
