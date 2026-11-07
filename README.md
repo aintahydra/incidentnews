@@ -59,5 +59,3 @@ python3 -m pytest                   # 테스트
 ## 엔드포인트
 
 `/` 사고 목록(날짜별, `?q=` 검색) · `/incidents/{id}` 상세 · `/incidents/{id}/card` 카드 조각 · `POST /incidents/{id}/regenerate` · `/api/incidents` JSON · `/api/wordcloud?period=day|week|month|year` · `/api/article-stats?unit=day|month|year` · `/api/version` 변경 감지용 · `/healthz`
-
-주의: 인증이 없으므로 재생성 버튼은 사이트에 접근할 수 있는 누구나 누를 수 있다(LLM 호출을 일으킴). 외부에 공개한다면 리버스 프록시 등으로 `POST` 경로를 제한하라.
