@@ -28,11 +28,15 @@ endpoint = "127.0.0.1:11434"
 model = "gemma4:31b"
 # Model for non-Korean (e.g. English) articles. solar writes garbled Korean from English text;
 # exaone3.5 gives clean Korean. Remove this line to use `model` for everything.
-foreign_model = "exaone3.5:7.8b"
+#foreign_model = "exaone3.5:7.8b"
+foreign_model = "gemma4:31b"
 timeout_seconds = 180
 # Context window sent to Ollama. Its default (4096) is too small for long Korean articles
 # (~1.1 tokens per character) and silently truncates the prompt.
 num_ctx = 8192
+# Thinking models (gemma4, qwen3, ...) reason before answering. That is slow, and the reasoning counts toward
+# the reply length limit, so answers came back empty or cut off. Leave false unless you raise the limits.
+think = false
 
 [collector]
 interval_minutes = 30
@@ -76,3 +80,13 @@ enabled = true
 name = "The Hacker News"
 url = "https://feeds.feedburner.com/TheHackersNews"
 enabled = true
+
+#[[sources]]
+#name = "Dark Reading"
+#url = "https://www.darkreading.com/rss.xml"
+#enabled = true
+
+#[[sources]]
+#name = "DataBreaches.Net"
+#url = "https://databreaches.net/feed/"
+#enabled = true

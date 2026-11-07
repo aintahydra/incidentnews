@@ -25,7 +25,7 @@ SYSTEM = """너는 사이버 보안 뉴스에서 '사고'를 추출하는 분석
 - victim: 피해 기업/기관. 기사 본문에 쓰인 표기를 그대로 옮긴다(한국어 기사는 한글 표기, 영어 기사는 영어 표기. 번역·음차 금지). 모르면 ""
 - damage: 피해 규모(건수, 금액, 영향 등)를 한국어로 (모르면 "")
 - category: 랜섬웨어|데이터 유출|해킹|악성코드|DDoS|피싱|기타 중 하나
-- summary: 한국어 2~4문장. 언제, 누가 누구를 공격했는지, 피해 규모가 어느 정도인지 반드시 포함. 기사에 없는 내용은 지어내지 않는다.
+- summary: 한국어 2~4문장. 언제, 누가 누구를 공격했는지, 피해 규모가 어느 정도인지 반드시 포함. 기사에 없는 내용은 지어내지 않는다. 모든 문장은 '~했다.', '~이다.'처럼 '다.'로 끝나는 평서문으로 쓰고, 존댓말('~습니다', '~입니다', '~해요')은 절대 쓰지 않는다.
 - hashtags: 이 사고를 대표하는 해시태그 3개의 배열. '#' 없이, 띄어쓰기 없이 쓴다. 피해 대상, 공격 유형·수법, 업종·영향처럼 서로 다른 측면을 하나씩 담는다(예: ["SK텔레콤", "유심정보유출", "통신사"], ["LockBit", "랜섬웨어", "제조업"]). 이름은 기사 표기 그대로, 나머지는 한국어로."""
 
 
@@ -78,7 +78,7 @@ def parse_llm_json(text: str, published_at: str) -> Extraction:
     occurred = plausible_date(occurred, published_at) if re.fullmatch(r"\d{4}-\d{2}-\d{2}", occurred) else published_at
     return Extraction(bool(data.get("is_incident")), _s(data.get("title")), occurred,
                       _s(data.get("attacker")), _s(data.get("victim")), _s(data.get("damage")),
-                      _s(data.get("category")), clip(_s(data.get("summary"))), hashtags=clean_hashtags(data.get("hashtags")))
+                      _s(data.get("category")), clip(plain_form(_s(data.get("summary")))), hashtags=clean_hashtags(data.get("hashtags")))
 
 
 MAX_HASHTAGS = 3
@@ -193,6 +193,7 @@ def extract_llm(llm, model: str, article: dict, temperature: float = 0, deadline
 SUMMARY_SYSTEM = """너는 보안 뉴스 편집자다. 주어진 기사로 사이버 보안 사고 요약문을 쓴다.
 규칙:
 - 3~4개의 완전한 문장으로 쓴다. 모든 문장은 '~했다.', '~됐다.', '~이다.'처럼 '다.'로 끝낸다. '~했음'이나 명사로 끝나는 메모체, 목록, '△', 괄호 메모는 쓰지 않는다.
+- 신문 기사체(평서문)로 쓴다. 존댓말은 절대 쓰지 않는다: '~했습니다'가 아니라 '~했다', '~입니다'가 아니라 '~이다', '~합니다'가 아니라 '~한다'.
 - 첫 문장: 언제, 누가(공격자) 누구를(피해 대상) 어떻게 공격했는지. 공격자를 모르면 공격자는 언급하지 않는다.
 - 두 번째 문장: 피해 규모(건수, 금액, 유출 항목, 서비스 영향).
 - 마지막 문장: 회사·당국의 대응이나 후속 조치.
@@ -204,8 +205,36 @@ SUMMARY_SYSTEM = """너는 보안 뉴스 편집자다. 주어진 기사로 사�
 형식 예시(내용이 아니라 문장 구조만 참고):
 2026년 3월 2일 A사가 랜섬웨어 조직 B의 공격을 받아 주요 서버가 암호화됐다. 이 사고로 고객 12만 명의 이름과 연락처가 유출된 것으로 확인됐고, 서비스는 이틀간 중단됐다. A사는 외부 전문기관과 원인을 조사하고 있으며 피해 고객에게 개별 안내를 진행하고 있다."""
 
-_SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")
+# a period after an English abbreviation or initial is not a sentence end: "Perry Johnson & Associates, Inc. (PJ&A)",
+# "U.S. agencies", "John F. Kennedy" (otherwise the summary check flags a fine sentence as 메모체)
+_ABBREV = ("Inc", "Corp", "Ltd", "Co", "LLC", "Bros", "Jr", "Sr", "Mr", "Ms", "Mrs", "Dr", "St", "No", "vs", "etc", "U.S", "U.K")
+_SENT_SPLIT = re.compile("".join(rf"(?<!\b{re.escape(a)}\.)" for a in _ABBREV) + r"(?<!\b[A-Z]\.)(?<=[.!?])\s+")
 _SENT_END = re.compile(r"다[.!?」”’\"')]*$")
+_POLITE_END = re.compile(r"([가-힣])니다[.!?」”’\"')]*$|요[.!?」”’\"')]*$")
+
+
+def _polite(sentence: str) -> bool:
+    """존댓말 ending: "~했습니다." / "~입니다." "~합니다." (ㅂ before 니다) / "~했어요." — but not "아니다."."""
+    m = _POLITE_END.search(sentence)
+    return bool(m) and (m.group(1) is None or m.group(1) == "습" or _jong(m.group(1)) == 17)
+
+
+def _jong(ch: str) -> int:
+    """Final-consonant index of a Hangul syllable (0 = none, 20 = ㅆ, 18 = ㅄ); -1 for anything else."""
+    return (ord(ch) - 0xAC00) % 28 if "가" <= ch <= "힣" else -1
+
+
+def plain_form(text: str) -> str:
+    """Polite sentence endings -> plain news style, only where the conversion is unambiguous:
+    past/existential "~었습니다/~했습니다/~겠습니다/~있습니다/~없습니다" -> "~었다/...", "~입니다" -> "~이다",
+    "~됩니다" -> "~된다", "~아닙니다" -> "~아니다". Others ("~합니다": 필요하다 vs 발표한다) are left for the
+    summary check to reject, so the model rewrites them."""
+    def past(m):
+        return m.group(1) + "다" if _jong(m.group(1)) in (20, 18) else m.group(0)  # syllable ending in ㅆ or ㅄ
+    text = re.sub(r"([가-힣])습니다(?=[.!?」”’\"')]*(\s|$))", past, text)
+    text = re.sub(r"아닙니다(?=[.!?」”’\"')]*(\s|$))", "아니다", text)
+    text = re.sub(r"입니다(?=[.!?」”’\"')]*(\s|$))", "이다", text)
+    return re.sub(r"됩니다(?=[.!?」”’\"')]*(\s|$))", "된다", text)
 _HANJA = re.compile(r"[\u4e00-\u9fff]")
 
 
@@ -227,6 +256,8 @@ def summary_problems(text: str, forbidden: list[str] = (), source_text: str | No
     sents = [x.strip() for x in _SENT_SPLIT.split(text) if x.strip()]
     if len(sents) > 6:
         problems.append("문장이 너무 많음")
+    if any(_polite(x) for x in sents):
+        problems.append("존댓말 사용('~습니다', '~입니다', '~요'): '~했다', '~이다'처럼 '~다'체로 써야 함")
     broken = [x for x in sents if not _SENT_END.search(x)]
     if len(broken) > len(sents) // 5:
         problems.append("'~다.'로 끝나지 않는 문장이 있음(메모체)")
@@ -282,8 +313,8 @@ def write_summary(llm, model: str, article: dict, fields: dict, temperature: flo
             break
         hint = f"\n\n이전 답변의 문제: {'; '.join(problems)}. 규칙을 지켜 다시 쓰라." if problems else ""
         try:
-            text = _clean_summary(llm.chat(model, SUMMARY_SYSTEM, user + hint, temperature=max(temp, temperature),
-                                           max_tokens=700))
+            text = plain_form(_clean_summary(llm.chat(model, SUMMARY_SYSTEM, user + hint,
+                                                      temperature=max(temp, temperature), max_tokens=700)))
         except llmmod.LLMError as e:
             problems = [f"LLM 응답 오류: {type(e).__name__}"]
             seen += [p for p in problems if p not in seen]
@@ -332,8 +363,8 @@ def polish_names(llm, model: str, article: dict, summary: str) -> str:
     if not missing or is_korean(source_text[:700]):
         return summary
     try:
-        fixed = _clean_summary(llm.chat(model, NAMEFIX_SYSTEM, f"영어 이름: {', '.join(missing)}\n\n요약문:\n{summary}",
-                                        max_tokens=700))
+        fixed = plain_form(_clean_summary(llm.chat(model, NAMEFIX_SYSTEM,
+                                                   f"영어 이름: {', '.join(missing)}\n\n요약문:\n{summary}", max_tokens=700)))
     except llmmod.LLMError:
         return summary
     years = known_years(source_text, article["published_at"])
@@ -361,7 +392,10 @@ STRONG_WORDS = ["유출", "랜섬웨어", "해킹", "침해사고", "탈취", "�
 
 EN_INCIDENT = re.compile(r"\b(hack(ed|er|ers|ing)?|breach(ed|es)?|ransomware|leak(ed|s|ing)?|stolen|steal(s|ing)?|theft|"
                          r"attack(s|ed|er|ers)?|cyber-?attack|compromis\w+|malware|phishing|ddos|extort\w*|infostealer|"
-                         r"botnet|backdoor|exfiltrat\w+|heist|data exposure|exposed)\b", re.I)
+                         r"botnet|backdoor|exfiltrat\w+|heist|data exposure|exposed|"
+                         # official breach notices: "Notice of Data Privacy Incident", "unauthorized access"
+                         r"(data|privacy|security|cyber|cybersecurity|network) (privacy )?(incident|event)s?|"
+                         r"unauthori[sz]ed (access|actor|part(y|ies)|third part(y|ies))|data breach notice)\b", re.I)
 EN_VULN_TITLE = re.compile(r"\b(vulnerabilit\w*|CVE-\d+|patch(es|ed)?|flaw|bug|zero-days?|updates?|advisory)\b", re.I)
 EN_STRONG_TITLE = re.compile(r"\b(breach(ed|es)?|ransomware|hack(ed)?|stolen|leak(ed|s)?|attacks?|attacked|"
                              r"compromis\w+|extort\w*|heist|infostealer|botnet|data (theft|exposure))\b", re.I)

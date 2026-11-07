@@ -1196,3 +1196,69 @@ def test_article_stats_count_by_published_date(tmp_path):
     assert (day["2026-11-07"], day["2026-11-05"], day["2026-10-30"], day["2026-11-06"]) == (2, 2, 1, 0)
     month = {d["period"]: d["count"] for d in stats.article_counts(conn, "month", date(2026, 11, 7))}
     assert (month["2026-11"], month["2026-10"]) == (4, 1)
+
+
+def test_ollama_think_switch_and_breach_notice_prefilter(tmp_path):
+    seen = []
+    def handler(req):
+        seen.append(json.loads(req.content))
+        return httpx.Response(200, json={"message": {"content": "{}"}})
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    llm.Ollama(client, "http://x").chat("m", "s", "u")
+    llm.Ollama(client, "http://x", think=True).chat("m", "s", "u")
+    assert [b["think"] for b in seen] == [False, True]  # thinking off by default: it ate the reply budget
+    p = write_cfg(tmp_path)
+    assert load_config(p).llm_think is False
+    p.write_text(p.read_text().replace("[llm]", "[llm]\nthink = true", 1))
+    assert load_config(p).llm_think is True
+    assert llm.from_config(load_config(p), client).think is True
+    notice = {"title": "County of Sussex, New Jersey Notice of Data Privacy Incident",
+              "body": "The Prosecutor's Office experienced a data privacy event that involved personal information."}
+    assert extractor.looks_like_incident(notice)
+    assert extractor.looks_like_incident({"title": "Clinic notifies patients", "body": "An unauthorized third party accessed files."})
+    assert not extractor.looks_like_incident({"title": "UK Wades Into Tech Sovereignty", "body": "Domestic AI investment."})
+
+
+def test_summary_check_ignores_english_abbreviation_periods():
+    ok = ("2023년 Perry Johnson & Associates, Inc. (PJ&A), Perry Johnson, Inc. (PJI)에서 데이터 유출 사고가 발생했다. "
+          "NYS Attorney General Letitia James와 U.S. 3개 주 검찰총장은 최대 1,000만 달러의 합의금을 확보했다. "
+          "이들은 시정 조치 계획을 수립하기로 했다.")
+    assert extractor.summary_problems(ok) == []
+    assert any("메모체" in p for p in extractor.summary_problems("A사가 해킹을 당했다. 피해 규모 3만 건. 조사 중임. 대응 예정."))
+
+
+def test_summaries_use_plain_da_style_not_polite():
+    polite = ("2026년 11월 3일 Norad가 사이버 공격을 받았습니다. 사용자 20,614명의 이름과 이메일 주소가 유출되었습니다. "
+              "피해 기관은 Norad입니다. 서비스는 곧 재개됩니다. 복구는 끝난 것이 아닙니다.")
+    plain = extractor.plain_form(polite)
+    assert plain == ("2026년 11월 3일 Norad가 사이버 공격을 받았다. 사용자 20,614명의 이름과 이메일 주소가 유출되었다. "
+                     "피해 기관은 Norad이다. 서비스는 곧 재개된다. 복구는 끝난 것이 아니다.")
+    assert extractor.summary_problems(plain) == []
+    # ambiguous polite forms are not guessed ("필요합니다" -> 필요하다, "진행합니다" -> 진행한다): the check rejects them
+    rest = "A사가 해킹을 당해 고객 정보가 유출됐다. 회사는 원인 조사를 진행합니다. 피해 고객에게 개별 안내를 했어요."
+    assert extractor.plain_form(rest) == rest
+    assert any("존댓말" in p for p in extractor.summary_problems(rest))
+    assert extractor.plain_form("고객 정보를 받습니다.") == "고객 정보를 받습니다."  # present-tense verb: 받는다, not 받다
+    assert not any("존댓말" in p for p in extractor.summary_problems("A사의 복구는 아직 끝난 것이 아니다. 회사는 원인을 조사하고 있다."))
+
+
+def test_polite_summary_is_converted_or_rewritten():
+    calls = []
+    def handler(req):
+        body = json.loads(req.content)
+        calls.append(body)
+        if "format" in body:  # the JSON extraction answers in polite form; "진행합니다" can't be converted safely
+            return httpx.Response(200, json={"message": {"content": json.dumps({
+                "is_incident": True, "title": "Acme 랜섬웨어 공격", "occurred_at": "2026-10-01", "victim": "Acme",
+                "attacker": "", "damage": "고객 3만 명 정보 유출", "category": "랜섬웨어",
+                "summary": "2026년 10월 1일 Acme가 랜섬웨어 공격을 받았습니다. 고객 3만 명의 정보가 유출되었습니다. Acme는 조사를 진행합니다."})}})
+        return httpx.Response(200, json={"message": {"content":
+            "2026년 10월 1일 Acme가 랜섬웨어 공격을 받았습니다. 이 사고로 고객 3만 명의 정보가 유출되었습니다. Acme는 외부 전문가와 함께 원인을 조사하고 있습니다."}})
+    art = {**ART, "title": "Acme hit by ransomware, customer data stolen",
+           "body": "Acme said on October 1, 2026 that a ransomware attack stole data on 30,000 customers. Acme is investigating with outside experts."}
+    class Cfg:
+        llm_enabled, llm_model, llm_foreign_model = True, "m", ""
+    ex_ = extractor.extract(llm.Ollama(httpx.Client(transport=httpx.MockTransport(handler)), "http://x"), Cfg(), art)
+    assert ex_.summary == ("2026년 10월 1일 Acme가 랜섬웨어 공격을 받았다. 이 사고로 고객 3만 명의 정보가 유출되었다. "
+                           "Acme는 외부 전문가와 함께 원인을 조사하고 있다.")
+    assert len(calls) == 2 and "존댓말" in calls[1]["messages"][0]["content"]  # rewritten by the prose step

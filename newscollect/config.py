@@ -30,6 +30,7 @@ class Config:
     llm_foreign_model: str = ""  # model for non-Korean articles; empty = same as llm_model
     llm_timeout: float = 180
     llm_num_ctx: int = 8192
+    llm_think: bool = False  # Ollama "think": let thinking models reason before answering
     interval_minutes: int = 30
     max_articles_per_run: int = 30
     max_age_days: int = 30
@@ -80,6 +81,7 @@ def load_config(path: Path | str | None = None) -> Config:
         llm_foreign_model=llm.get("foreign_model", ""),
         llm_timeout=float(llm.get("timeout_seconds", 180)),
         llm_num_ctx=int(llm.get("num_ctx", 8192)),
+        llm_think=bool(llm.get("think", False)),
         interval_minutes=int(col.get("interval_minutes", 30)),
         max_articles_per_run=int(col.get("max_articles_per_run", 30)),
         max_age_days=int(col.get("max_age_days", 30)),

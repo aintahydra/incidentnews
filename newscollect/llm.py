@@ -22,14 +22,17 @@ class LLMUnavailable(Exception):
 
 
 class Ollama:
-    def __init__(self, client: httpx.Client, base_url: str, num_ctx: int = 8192):
-        self.client, self.base_url, self.num_ctx = client, base_url, num_ctx
+    def __init__(self, client: httpx.Client, base_url: str, num_ctx: int = 8192, think: bool = False):
+        self.client, self.base_url, self.num_ctx, self.think = client, base_url, num_ctx, think
 
     def chat(self, model: str, system: str, user: str, *, json: bool = False, temperature: float = 0.0,
              max_tokens: int = 1000) -> str:
         body = {"model": model, "stream": False,
                 "options": {"temperature": temperature, "num_ctx": self.num_ctx, "num_predict": max_tokens},
-                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+                # thinking models (gemma4, qwen3, ...) otherwise reason first, and that reasoning counts toward
+                # num_predict: the JSON answer came back empty or cut off. Models without thinking ignore it.
+                "think": self.think}
         if json:
             body["format"] = "json"
         try:
@@ -84,7 +87,7 @@ def from_config(cfg, http: httpx.Client):
         if not os.environ.get("ANTHROPIC_API_KEY"):
             raise LLMUnavailable("[llm].provider = \"claude\"이지만 ANTHROPIC_API_KEY가 설정되지 않음(.env 확인)")
         return Claude(anthropic.Anthropic(timeout=cfg.llm_timeout), cfg.claude_effort)
-    return Ollama(http, cfg.llm_base_url, cfg.llm_num_ctx)
+    return Ollama(http, cfg.llm_base_url, cfg.llm_num_ctx, getattr(cfg, "llm_think", False))
 
 
 def model_for(cfg, korean: bool) -> str:
