@@ -1,4 +1,5 @@
 (function () {
+  var refreshers = []; // side-pane redraws run when new data arrives (live updates below)
   // --- theme buttons (initial theme is set by the inline script in <head>) ---
   var root = document.documentElement;
   function paint() {
@@ -150,6 +151,7 @@
       clearTimeout(timer);
       timer = setTimeout(function () { if (cache[current]) layout(cache[current]); }, 200);
     });
+    refreshers.push(function () { cache = {}; show(current); });
     var saved = null;
     try { saved = localStorage.getItem("cloudPeriod"); } catch (err) {}
     show(NAMES[saved] ? saved : "week");
@@ -277,8 +279,66 @@
       clearTimeout(ttimer);
       ttimer = setTimeout(function () { if (tcache[tcur]) draw(tcache[tcur]); }, 200);
     });
+    refreshers.push(function () { tcache = {}; showUnit(tcur); });
     var su = null;
     try { su = localStorage.getItem("trendUnit"); } catch (err) {}
     showUnit(["day", "month", "year"].indexOf(su) >= 0 ? su : "day");
+  }
+
+  // --- live updates (list page): poll /api/version, then swap in the freshly rendered list ---
+  var live = document.getElementById("live");
+  var refreshSec = live ? Number(live.dataset.refresh) : 0; // [server].refresh_seconds; 0 = off
+  if (live && refreshSec > 0) {
+    var POLL_MS = refreshSec * 1000, banner = document.querySelector(".new-banner"), baseTitle = document.title;
+    var known = { incidents: live.dataset.incidents, articles: live.dataset.articles }, pending = null;
+    var ids = function (rootEl) {
+      return Array.prototype.map.call(rootEl.querySelectorAll("article.incident"), function (a) { return a.id; });
+    };
+    var busy = function () { // never replace cards while a summary is regenerating or the reader is selecting text
+      return document.querySelector(".regen:disabled") || String(getSelection()).length > 0;
+    };
+    var apply = function () {
+      if (!pending) return;
+      var main = document.querySelector("main"), before = new Set(ids(main));
+      main.innerHTML = pending.html;
+      known.incidents = pending.version;
+      pending = null;
+      banner = main.querySelector(".new-banner");
+      banner.addEventListener("click", onBanner);
+      ids(main).forEach(function (id) {
+        if (!before.has(id)) document.getElementById(id).classList.add("flash", "fresh");
+      });
+      document.title = baseTitle;
+    };
+    var onBanner = function () { apply(); window.scrollTo({ top: 0, behavior: "smooth" }); };
+    banner.addEventListener("click", onBanner);
+    var check = async function () {
+      try {
+        var r = await fetch("/api/version", { cache: "no-store" });
+        if (!r.ok) return;
+        var v = await r.json();
+        if (String(v.articles) !== known.articles) { // new articles: the side-pane charts change
+          known.articles = String(v.articles);
+          refreshers.forEach(function (f) { f(); });
+        }
+        if (v.incidents === known.incidents || (pending && pending.version === v.incidents)) return;
+        var page = await fetch(location.href, { cache: "no-store" });
+        if (!page.ok) return;
+        var doc = new DOMParser().parseFromString(await page.text(), "text/html");
+        var fresh = doc.querySelector("main"), have = new Set(ids(document.querySelector("main")));
+        var added = ids(fresh).filter(function (id) { return !have.has(id); }).length;
+        fresh.querySelector("#live").dataset.incidents = v.incidents;
+        pending = { html: fresh.innerHTML, version: v.incidents };
+        if (!document.hidden && window.scrollY < 120 && !busy()) { apply(); return; } // reader at the top: just show it
+        banner.textContent = added ? "↑ 새 사고 " + added + "건 보기" : "↻ 업데이트된 사고 정보 보기";
+        banner.hidden = false;
+        if (added) document.title = "(" + added + ") " + baseTitle;
+      } catch (err) { /* offline or server restarting: try again next round */ }
+    };
+    setInterval(function () { if (!document.hidden) check(); }, POLL_MS);
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) check(); });
+    window.addEventListener("scroll", function () { // scrolled back to the top: show what was waiting
+      if (pending && window.scrollY < 120 && !busy()) apply();
+    }, { passive: true });
   }
 })();

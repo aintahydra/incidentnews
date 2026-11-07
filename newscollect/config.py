@@ -20,6 +20,7 @@ class Config:
     host: str = "0.0.0.0"
     port: int = 8000
     site_title: str = "보안 사고 타임라인"
+    refresh_seconds: int = 60  # how often the list page checks for new incidents; 0 = no auto-refresh
     llm_enabled: bool = True
     llm_provider: str = "local"  # "local" (Ollama) | "claude" (Anthropic API, ANTHROPIC_API_KEY)
     claude_model: str = "claude-sonnet-5-5"
@@ -56,6 +57,9 @@ def load_config(path: Path | str | None = None) -> Config:
     trivial = raw.get("wordcloud", {}).get("trivial", [])
     if not isinstance(trivial, list) or not all(isinstance(t, str) for t in trivial):
         raise ValueError("[wordcloud].trivial must be a list of strings")
+    refresh = server.get("refresh_seconds", 60)
+    if isinstance(refresh, bool) or not isinstance(refresh, (int, float)) or refresh < 0:
+        raise ValueError(f"[server].refresh_seconds must be a number >= 0 (0 = off), not {refresh!r}")
     provider = llm.get("provider", "local")
     if provider not in ("local", "claude"):
         raise ValueError(f'[llm].provider must be "local" or "claude", not {provider!r}')
@@ -66,6 +70,7 @@ def load_config(path: Path | str | None = None) -> Config:
         host=server.get("host", "0.0.0.0"),
         port=int(server.get("port", 8000)),
         site_title=server.get("site_title", "보안 사고 타임라인"),
+        refresh_seconds=0 if refresh == 0 else max(5, int(refresh)),  # floor 5s: don't hammer the server
         llm_enabled=bool(llm.get("enabled", True)),
         llm_provider=provider,
         claude_model=llm.get("claude_model", "claude-sonnet-5-5"),

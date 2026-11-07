@@ -95,3 +95,8 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .hashtags{display:flex;flex-wrap:wrap;gap:4px 10px;margin:4px 0;font-size:13px}
 .hashtags a{color:var(--series-1);text-decoration:none;font-weight:600}
 .hashtags a:hover{text-decoration:underline}
+/* live updates: pill under the sticky header, and a "새 사고" mark on cards that just arrived */
+.new-banner{position:sticky;top:calc(var(--header-h,69px) + 10px);z-index:5;display:block;margin:0 auto 12px;padding:8px 18px;border:0;border-radius:999px;background:var(--series-1);color:#fff;font:inherit;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.new-banner[hidden]{display:none}
+.new-banner:hover{filter:brightness(1.1)}
+.incident.fresh h3::before{content:"새 사고";display:inline-block;margin-right:6px;padding:1px 7px;border-radius:4px;background:#2e9e5b;color:#fff;font-size:12px;font-weight:600;vertical-align:2px}

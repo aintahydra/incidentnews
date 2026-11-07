@@ -5,6 +5,10 @@
 host = "0.0.0.0"
 port = 8000
 site_title = "최신 보안사고 목록"
+# How often (seconds) an open list page checks for new incidents and shows them without a reload.
+# 0 turns auto-refresh off; values below 5 are raised to 5. Applies on the next page load.
+#refresh_seconds = 60
+refresh_seconds = 600
 
 [llm]
 enabled = true
@@ -20,7 +24,8 @@ claude_effort = "low"
 # --- local (Ollama) settings ---
 # OLLAMA_HOST env var (e.g. 10.0.2.2:11434) overrides this endpoint.
 endpoint = "127.0.0.1:11434"
-model = "solar:10.7b"
+#model = "solar:10.7b"
+model = "gemma4:31b"
 # Model for non-Korean (e.g. English) articles. solar writes garbled Korean from English text;
 # exaone3.5 gives clean Korean. Remove this line to use `model` for everything.
 foreign_model = "exaone3.5:7.8b"
@@ -32,7 +37,7 @@ num_ctx = 8192
 [collector]
 interval_minutes = 30
 max_articles_per_run = 30   # per source, newest first
-max_age_days = 60           # ignore older feed items
+max_age_days = 30           # ignore older feed items
 database = "data/news.db"
 
 [wordcloud]
@@ -41,7 +46,7 @@ database = "data/news.db"
 # Applies on the next page load (no restart). Victim/attacker names are never cut, only dropped when
 # they consist solely of these keywords. Beware short keys that occur inside names ("보안" would turn
 # "금융보안원" into "금융원").
-trivial = ["공격", "해킹", "사이버", "해커", "보안", "유출", "개인정보"]
+trivial = ["공격", "해킹", "사이버", "해커", "보안", "유출", "개인정보", "감염"]
 
 [orgs]
 # Incidents whose victim is on these lists get a tag and show up in the "정부공공" tab.

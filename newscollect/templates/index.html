@@ -37,6 +37,8 @@
 </aside>
 {% endblock %}
 {% block content %}
+<div id="live" data-incidents="{{ version.incidents }}" data-articles="{{ version.articles }}" data-refresh="{{ refresh }}" hidden></div>
+<button type="button" class="new-banner" hidden></button>
 <nav class="tabs" aria-label="사고 분류">
   {% for key, label in [("all", "전체"), ("gov", "정부공공")] %}
   <a href="/?{% if q %}q={{ q|urlencode }}&amp;{% endif %}tab={{ key }}"{% if tab == key %} aria-current="page"{% endif %}{% if key == "gov" %} title="피해 대상이 정부기관 또는 공공기관인 사고"{% endif %}>{{ label }} <span class="count">{{ counts[key] }}</span></a>

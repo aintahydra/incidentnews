@@ -1149,3 +1149,35 @@ def test_regenerate_refreshes_hashtags(tmp_path, monkeypatch):
     r = c.post(f"/incidents/{ids[0]}/regenerate")
     assert r.status_code == 200, r.text
     assert c.get("/api/incidents").json()[0]["hashtags"] == ["A사", "랜섬웨어", "서버마비"]
+
+
+def test_version_changes_on_new_or_updated_incident(tmp_path):
+    c, (i,) = make_client(tmp_path, ("A", "A사", "", "2026-10-10", "t"))
+    v0 = c.get("/api/version").json()
+    page = c.get("/").text
+    assert f'data-incidents="{v0["incidents"]}"' in page and 'class="new-banner"' in page
+    assert c.get("/api/version").json() == v0  # stable while nothing changes
+    conn = db.connect(str(tmp_path / "t.db"))
+    conn.execute("UPDATE incidents SET summary='new', updated_at='2999-01-01 00:00:00' WHERE id=?", (i,))
+    conn.commit()
+    v1 = c.get("/api/version").json()
+    assert v1["incidents"] != v0["incidents"] and v1["articles"] == v0["articles"]
+    assert 'id="live"' not in c.get(f"/incidents/{i}").text  # detail pages don't poll
+
+
+def test_refresh_seconds_config(tmp_path):
+    from pathlib import Path
+    p = write_cfg(tmp_path)
+    assert load_config(p).refresh_seconds == 60
+    base = Path(p).read_text()
+    for val, want in (("0", 0), ("2", 5), ("90", 90)):
+        Path(p).write_text(f"[server]\nrefresh_seconds = {val}\n" + base)
+        assert load_config(p).refresh_seconds == want
+    c = TestClient(create_app(p, run_collector=False))
+    assert 'data-refresh="90"' in c.get("/").text
+    Path(p).write_text("[server]\nrefresh_seconds = 15\n" + base)
+    assert 'data-refresh="15"' in c.get("/").text  # applies on the next page load
+    for bad in ("-1", '"fast"', "true"):
+        Path(p).write_text(f"[server]\nrefresh_seconds = {bad}\n" + base)
+        with pytest.raises(ValueError):
+            load_config(p)

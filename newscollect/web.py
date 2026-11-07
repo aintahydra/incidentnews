@@ -93,6 +93,11 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
             r["sources"] = sources_of(r["id"])
         return page, {k: len(v) for k, v in by_tab.items()}
 
+    def version():
+        """Changes whenever an incident is added, merged or rewritten (and articles: the side-pane charts)."""
+        r = q("SELECT COUNT(*) n, MAX(id) m, MAX(updated_at) u, (SELECT COUNT(*) FROM articles) a FROM incidents")[0]
+        return {"incidents": f"{r['n']}-{r['m'] or 0}-{r['u'] or ''}", "articles": r["a"]}
+
     def one(inc_id):
         rows = q("SELECT * FROM incidents WHERE id=?", (inc_id,))
         if not rows:
@@ -103,6 +108,10 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request, q: str = "", tab: str = "all"):
         q = q.strip()[:100]
+        try:  # re-read so a [server].refresh_seconds edit applies on the next page load
+            refresh = load_config(config_path).refresh_seconds
+        except Exception:
+            refresh = cfg.refresh_seconds
         tab = tab if tab in orgs.TAB_TAGS else "all"
         groups: dict[str, list] = {}
         rows, counts = listing(query=q, tab=tab)
@@ -112,7 +121,8 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
                 for d, items in groups.items()]
         return templates.TemplateResponse(request, "index.html",
                                           {"title": cfg.site_title, "days": days, "q": q, "total": counts[tab],
-                                           "tab": tab, "counts": counts})
+                                           "tab": tab, "counts": counts, "version": version(),
+                                           "refresh": refresh})
 
     @app.get("/incidents/{inc_id}", response_class=HTMLResponse)
     def detail(request: Request, inc_id: int):
@@ -170,6 +180,11 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
         with lock:
             series = stats.article_counts(conn, unit)
         return {"unit": unit, "total": sum(x["count"] for x in series), "series": series}
+
+    @app.get("/api/version")
+    def api_version():
+        """Polled by the list page to show new incidents without a manual refresh."""
+        return version()
 
     @app.get("/healthz")
     def healthz():
