@@ -66,7 +66,8 @@ enabled = true
 
 [[sources]]
 name = "데일리시큐"
-url = "https://www.dailysecu.com/rss/S1N2.xml"
+url = "https://www.dailysecu.com/rss/allArticle.xml"
+#url = "https://www.dailysecu.com/rss/S1N2.xml"
 enabled = true
 
 [[sources]]
@@ -88,3 +89,9 @@ enabled = true
 #name = "DataBreaches.Net"
 #url = "https://databreaches.net/feed/"
 #enabled = true
+
+[[sources]]
+name = "Security Week"
+url = "https://www.securityweek.com/feed/"
+enabled = true
+

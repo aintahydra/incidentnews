@@ -1346,3 +1346,27 @@ def test_article_average_skips_empty_lead_in_and_current_period(tmp_path):
     c, _ = make_client(tmp_path, ("A사 해킹", "A사", "", "2026-10-10", "t"))
     d = c.get("/api/article-stats?unit=day").json()
     assert d["average"]["value"] == 1 and d["average"]["periods"] == 1
+
+
+def test_feed_snippet_drops_wordpress_footer():
+    from newscollect import feeds
+    html = ('<p>DigiCert says attackers accessed business customer records.</p> <p>The post '
+            '<a href="https://www.securityweek.com/x">DigiCert Data Breach Impacts Business Customer Information</a> '
+            'appeared first on <a href="https://www.securityweek.com">SecurityWeek</a>.</p>')
+    assert feeds._clean(html) == "DigiCert says attackers accessed business customer records."
+    assert feeds._clean("<p>The post office was hacked, police said.</p>") == "The post office was hacked, police said."
+
+
+def test_prefilter_skips_conference_talks_columns_and_roundups():
+    body = "랜섬웨어 공격으로 제약사 시스템이 마비되고 개인정보가 유출된 사례를 소개했다. hacked breach ransomware"
+    skip = ["[AIS 2026] 에브리존 “공격은 발생해도 업무는 멈추지 않아야”…랜섬웨어 방어 전략",
+            "[RSAC 2026] Panel: lessons from the MOVEit breach", "[인터뷰] 해킹 사고 대응 전문가 홍길동",
+            "[기고] 개인정보 유출 사고, 이제는 달라져야", "In Other News: Trezor Implant, LLMJacking Bills Hit $1M",
+            "Week in Review: Ransomware hits hospitals", "SecurityWeek Ransomware Roundup: LockBit returns"]
+    for t in skip:
+        assert not extractor.looks_like_incident({"title": t, "body": body}), t
+    keep = ["[단독] 랜섬웨어 조직 메타인크립터, 한국 기업 4곳 데이터 탈취 주장", "미래에셋증권 그룹웨어 해킹…3만5,255명 개인정보 유출",
+            "DigiCert Data Breach Impacts Business Customer Information", "Hackers breached 2026 election vendor"]
+    for t in keep:
+        assert extractor.looks_like_incident({"title": t, "body": body}), t
+    assert "주간 요약" in extractor.SYSTEM and "강연" in extractor.SYSTEM

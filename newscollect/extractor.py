@@ -24,7 +24,7 @@ TAG_FIELD = ("- tags: 이 사고의 태그. 아래 다섯 칸을 가진 객체�
 
 SYSTEM = """너는 사이버 보안 뉴스에서 '사고'를 추출하는 분석가다. 반드시 JSON 객체 하나만 출력한다.
 사고란 해킹, 랜섬웨어, 개인정보/데이터 유출, 침해, 디도스, 악성코드 감염 등으로 실제 피해(유출, 서비스 마비, 금전 요구 등)가 발생한 보안 사건이다.
-다음은 사고가 아니므로 is_incident=false: 취약점 발견·권고·패치, 잠재적 위험 경고, 연구 결과, 정책·제도, 제품·행사 소개, 통계·설문, 의견 기사.
+다음은 사고가 아니므로 is_incident=false: 취약점 발견·권고·패치, 잠재적 위험 경고, 연구 결과, 정책·제도, 제품·행사 소개, 통계·설문, 의견 기사, 여러 소식을 묶은 주간 요약. 컨퍼런스·세미나 강연이나 인터뷰·기고에서 사례로 언급된 과거 사고도 사고가 아니다(그 기사가 새 사고를 처음 보도하는 경우만 사고).
 기사는 한국어이거나 영어일 수 있다. 영어 기사여도 title·damage·summary 등 모든 문자열 값은 반드시 한국어(한글)로 작성한다. (Write all values in Korean.)
 단, 기업·기관·공격 그룹·제품·악성코드 이름은 번역하거나 음차하지 말고 기사에 나온 원문 표기 그대로 쓴다(예: Microsoft, LockBit, Binance, 보안뉴스).
 금액·건수는 기사의 숫자와 단위를 정확히 옮긴다(예: $6.3 billion → 63억 달러). 확실하지 않으면 원문 표기 그대로 쓴다.
@@ -480,8 +480,18 @@ def model_for(cfg, korean: bool) -> str:
     return llmmod.model_for(cfg, korean)
 
 
+# Titles that are never incident reports: conference talks ("[AIS 2026] 강연자 '...'"), interviews, columns, and
+# English news roundups. Their bodies cite past breaches as examples, and the LLM took those for new incidents.
+NOT_INCIDENT_TITLE = re.compile(
+    r"^\s*\[[^\]]*(?:19|20)\d{2}[^\]]*\]"                                        # [AIS 2026], [RSAC 2026], [PASCON 2026]
+    r"|\[\s*(?:인터뷰|기고|칼럼|사설|기획|웨비나|세미나|컨퍼런스|포럼|행사|전시|신간|인사|부고)[^\]]*\]"
+    r"|^\s*(?:In Other News|Week in Review|This Week in|Weekly (?:Recap|Roundup)|.{0,40}\bRoundup\b)", re.I)
+
+
 def looks_like_incident(article: dict) -> bool:
     """Cheap keyword gate before the LLM (Korean or English). The LLM still makes the final call."""
+    if NOT_INCIDENT_TITLE.search(article["title"]):
+        return False
     text = article["title"] + " " + article["body"][:1500]
     if not is_korean(article["title"] + " " + article["body"][:600]):
         if not EN_INCIDENT.search(text):

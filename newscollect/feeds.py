@@ -16,8 +16,13 @@ MIN_BODY_CHARS = 200
 RELATED = re.compile(r"(related\s+(articles?|stories|posts?|reading)|read\s+more|also\s+read|you\s+may\s+also\s+like|recommended)\b", re.I)
 
 
+# WordPress feeds end every item with "The post <title> appeared first on <site>." (SecurityWeek and others)
+_WP_FOOTER = re.compile(r"\s*The post .{1,400}? appeared first on [^.]{1,80}\.?\s*$", re.S)
+
+
 def _clean(html: str) -> str:
-    return re.sub(r"\s+", " ", BeautifulSoup(html or "", "lxml").get_text(" ")).strip()
+    text = re.sub(r"\s+", " ", BeautifulSoup(html or "", "lxml").get_text(" ")).strip()
+    return _WP_FOOTER.sub("", text).strip()
 
 
 def _entry_date(e) -> str | None:
