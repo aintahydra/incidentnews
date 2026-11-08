@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS incidents (
   damage TEXT DEFAULT '',
   category TEXT DEFAULT '',
   summary TEXT DEFAULT '',
-  hashtags TEXT NOT NULL DEFAULT '[]',  -- JSON array of up to 3 tags (without '#')
+  hashtags TEXT NOT NULL DEFAULT '[]',  -- JSON array of up to 5 tags: attacker, victim, system, technique, type
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

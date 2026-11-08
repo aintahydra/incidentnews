@@ -27,3 +27,18 @@ def article_counts(conn, unit: str, today: date | None = None, days: int = DAYS_
     counts = {r["k"]: r["c"] for r in rows if r["k"] and r["k"][:4].isdigit()}
     first_year = min((int(k[:4]) for k in counts), default=None)
     return [{"period": p, "count": counts.get(p, 0)} for p in periods(unit, today, first_year, days)]
+
+
+def average(series: list[dict]) -> dict | None:
+    """Mean count per period over the stretch that has data: from the first non-zero period, leaving out the last
+    (current, still incomplete) period unless it is the only one. Dividing by every zero-filled period before
+    collection began made the average look many times smaller than the real rate."""
+    first = next((i for i, x in enumerate(series) if x["count"]), None)
+    if first is None:
+        return None
+    end = len(series) - 1
+    if end > first:
+        end -= 1
+    span = series[first:end + 1]
+    return {"value": sum(x["count"] for x in span) / len(span), "from": span[0]["period"], "to": span[-1]["period"],
+            "periods": len(span)}

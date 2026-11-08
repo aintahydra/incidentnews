@@ -1,6 +1,7 @@
 <article class="incident" id="inc-{{ i.id }}">
   <h3><a href="/incidents/{{ i.id }}">{{ i.title }}</a>{% if i.category %} <span class="tag">{{ i.category }}</span>{% endif %}{% for t in i.org_tags %} <span class="tag org">{{ t }}</span>{% endfor %}</h3>
   <dl>
+    {% if i.posted_at and i.occurred_at and i.occurred_at != i.posted_at %}<dt>발생</dt><dd><time datetime="{{ i.occurred_at }}">{{ i.occurred_at }}</time></dd>{% endif %}
     {% if i.attacker %}<dt>공격자</dt><dd>{{ i.attacker }}</dd>{% endif %}
     {% if i.victim %}<dt>피해</dt><dd>{{ i.victim }}</dd>{% endif %}
     {% if i.damage %}<dt>규모</dt><dd>{{ i.damage }}</dd>{% endif %}

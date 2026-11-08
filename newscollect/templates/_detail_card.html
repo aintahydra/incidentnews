@@ -1,5 +1,5 @@
 <article class="incident detail" id="inc-{{ inc.id }}">
-  <p class="date">{{ inc.occurred_at }}{% if inc.category %} <span class="tag">{{ inc.category }}</span>{% endif %}{% for t in inc.org_tags %} <span class="tag org">{{ t }}</span>{% endfor %}</p>
+  <p class="date">{{ inc.posted_at or inc.occurred_at }}{% if inc.posted_at and inc.occurred_at != inc.posted_at %} <span class="occurred">(발생 {{ inc.occurred_at }})</span>{% endif %}{% if inc.category %} <span class="tag">{{ inc.category }}</span>{% endif %}{% for t in inc.org_tags %} <span class="tag org">{{ t }}</span>{% endfor %}</p>
   <h1>{{ inc.title }}</h1>
   <dl>
     <dt>공격자</dt><dd>{{ inc.attacker or '미확인' }}</dd>

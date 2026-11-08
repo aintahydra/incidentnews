@@ -11,6 +11,17 @@ from . import llm as llmmod
 INCIDENT_WORDS = ["해킹", "랜섬웨어", "유출", "침해", "공격", "탈취", "감염", "피싱", "악성코드",
                   "디도스", "DDoS", "먹통", "사칭", "해커", "데이터 노출", "침투", "크리덴셜"]
 
+TAG_SLOTS = """기사에서 알 수 없는 칸은 ""로 비워 둔다. 추측하거나 '미상', '불명', '알수없음' 같은 말로 채우지 않는다.
+한 칸에는 태그 하나만 쓴다. 해당하는 것이 여럿이면(피해 기업 여러 곳 등) 가장 중요한 하나만 쓴다.
+- attacker: 공격자(공격 그룹·조직·국가 배후 등의 이름). 예: "LockBit", "라자루스"
+- victim: 피해자(피해 기업·기관 이름). 업종이나 '공공기관' 같은 일반 명칭이 아니라 이름을 쓴다. 예: "SK텔레콤", "Norad"
+- system: 취약점이 있었던(또는 뚫린) 시스템·제품·서비스. 예: "MOVEit", "더존비즈온백업서버", "VPN"
+- technique: 공격 기법. 예: "피싱", "SQL인젝션", "공급망공격", "크리덴셜스터핑"
+- type: 사고 유형을 추상화한 말. 예: "랜섬웨어", "개인정보유출", "서비스장애", "금전탈취"
+이름은 기사 표기 그대로(영어 기사는 영어 그대로), 나머지는 한국어로 쓴다."""
+TAG_FIELD = ("- tags: 이 사고의 태그. 아래 다섯 칸을 가진 객체이며, 각 칸에 태그 하나(짧은 명사구, '#' 없이, 띄어쓰기 없이)를 쓴다.\n"
+             + "\n".join("  " + line for line in TAG_SLOTS.split("\n")))
+
 SYSTEM = """너는 사이버 보안 뉴스에서 '사고'를 추출하는 분석가다. 반드시 JSON 객체 하나만 출력한다.
 사고란 해킹, 랜섬웨어, 개인정보/데이터 유출, 침해, 디도스, 악성코드 감염 등으로 실제 피해(유출, 서비스 마비, 금전 요구 등)가 발생한 보안 사건이다.
 다음은 사고가 아니므로 is_incident=false: 취약점 발견·권고·패치, 잠재적 위험 경고, 연구 결과, 정책·제도, 제품·행사 소개, 통계·설문, 의견 기사.
@@ -26,7 +37,7 @@ SYSTEM = """너는 사이버 보안 뉴스에서 '사고'를 추출하는 분석
 - damage: 피해 규모(건수, 금액, 영향 등)를 한국어로 (모르면 "")
 - category: 랜섬웨어|데이터 유출|해킹|악성코드|DDoS|피싱|기타 중 하나
 - summary: 한국어 2~4문장. 언제, 누가 누구를 공격했는지, 피해 규모가 어느 정도인지 반드시 포함. 기사에 없는 내용은 지어내지 않는다. 모든 문장은 '~했다.', '~이다.'처럼 '다.'로 끝나는 평서문으로 쓰고, 존댓말('~습니다', '~입니다', '~해요')은 절대 쓰지 않는다.
-- hashtags: 이 사고를 대표하는 해시태그 3개의 배열. '#' 없이, 띄어쓰기 없이 쓴다. 피해 대상, 공격 유형·수법, 업종·영향처럼 서로 다른 측면을 하나씩 담는다(예: ["SK텔레콤", "유심정보유출", "통신사"], ["LockBit", "랜섬웨어", "제조업"]). 이름은 기사 표기 그대로, 나머지는 한국어로."""
+""" + TAG_FIELD
 
 
 HANGUL = re.compile(r"[가-힣]{2}")
@@ -78,22 +89,56 @@ def parse_llm_json(text: str, published_at: str) -> Extraction:
     occurred = plausible_date(occurred, published_at) if re.fullmatch(r"\d{4}-\d{2}-\d{2}", occurred) else published_at
     return Extraction(bool(data.get("is_incident")), _s(data.get("title")), occurred,
                       _s(data.get("attacker")), _s(data.get("victim")), _s(data.get("damage")),
-                      _s(data.get("category")), clip(plain_form(_s(data.get("summary")))), hashtags=clean_hashtags(data.get("hashtags")))
+                      _s(data.get("category")), clip(plain_form(_s(data.get("summary")))), hashtags=clean_hashtags(data.get("tags", data.get("hashtags"))))
 
 
-MAX_HASHTAGS = 3
+TAG_ROLES = ("attacker", "victim", "system", "technique", "type")  # one tag each, in this order
+MAX_HASHTAGS = len(TAG_ROLES)
+# what a model writes instead of leaving a slot empty
+_NO_TAG = {"", "미상", "불명", "알수없음", "알수없다", "없음", "모름", "미확인", "비공개", "기타", "unknown", "none", "n/a",
+           "na", "null", "-"}
 
 
 def clean_hashtags(raw) -> list[str]:
-    """Up to 3 distinct tags: '#' and spaces removed, 2-20 chars. Accepts a list or a "#a #b, #c" string.
-    Bad tags are dropped rather than failing the extraction (tags are a convenience, not a checked field)."""
-    items = raw if isinstance(raw, list) else re.split(r"[,\s]+(?=#)|,", raw) if isinstance(raw, str) else []
+    """Up to 5 tags: attacker, victim, vulnerable system, technique, incident type, in that order. Slots the article
+    doesn't support (empty, "미상", "unknown") are skipped. Accepts the role object, or a plain list / "#a #b" string
+    (older answers). '#' and spaces removed, 2-25 chars, no duplicates. Bad tags are dropped rather than failing the
+    extraction (tags are a convenience, not a checked field)."""
+    if isinstance(raw, dict):
+        items = [raw.get(role) for role in TAG_ROLES]
+        # one tag per slot: "Microsoft, Google" / "현대건설·우신시스템" -> the first name
+        items = [re.split(r"\s*[,，、/·;]\s*", t.strip())[0] if isinstance(t, str) else t for t in items]
+    elif isinstance(raw, list):
+        items = raw
+    elif isinstance(raw, str):
+        items = re.split(r"[,\s]+(?=#)|,", raw)
+    else:
+        items = []
     out: list[str] = []
     for t in items:
+        if isinstance(t, list):  # {"victim": ["A사", "B사"]}: the first one
+            t = t[0] if t else ""
         t = re.sub(r"[\s#]+", "", _s(t)).strip(".,·'\"“”‘’")
-        if 2 <= len(t) <= 20 and re.search(r"[0-9A-Za-z가-힣]", t) and t.lower() not in {x.lower() for x in out}:
+        if t.lower() in _NO_TAG or not (2 <= len(t) <= 25) or not re.search(r"[0-9A-Za-z가-힣]", t):
+            continue
+        if t.lower() not in {x.lower() for x in out}:
             out.append(t)
     return out[:MAX_HASHTAGS]
+
+
+TAGS_SYSTEM = ("너는 사이버 보안 뉴스의 태그를 다는 분석가다. 반드시 JSON 객체 하나만 출력한다: "
+               '{"tags": {"attacker": "", "victim": "", "system": "", "technique": "", "type": ""}}\n'
+               "각 칸에 태그 하나(짧은 명사구, '#' 없이, 띄어쓰기 없이)를 쓴다.\n" + TAG_SLOTS)
+
+
+def extract_tags(llm, model: str, article: dict, fields: dict | None = None) -> list[str]:
+    """Tags only (used to re-tag stored incidents): the article plus the incident fields already extracted."""
+    info = "\n".join(f"- {k}: {v}" for k, v in (fields or {}).items() if v)
+    user = (f"확인된 정보:\n{info}\n\n" if info else "") + f"제목: {article['title']}\n본문:\n{article['body'][:4000]}"
+    content = llm.chat(model, TAGS_SYSTEM, user, json=True, max_tokens=300)
+    m = re.search(r"\{.*\}", content, re.S)
+    data = json.loads(m.group(0) if m else content)
+    return clean_hashtags(data.get("tags", data) if isinstance(data, dict) else data)
 
 
 TOKEN = re.compile(r"[0-9A-Za-z가-힣]{2,}")

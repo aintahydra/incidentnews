@@ -1,5 +1,6 @@
 import threading
 import json
+import re
 import httpx
 import pytest
 from fastapi.testclient import TestClient
@@ -857,59 +858,104 @@ def test_extract_runs_name_polish_for_english_article_only():
     assert "Claude, Gemini, Kimi" in out.summary and "클로이디" not in out.summary
 
 
-def test_wordcloud_words_strip_particles_tags_numbers_and_stopwords():
-    from newscollect import wordcloud
-    w = wordcloud.words("[단독] 카카오페이, 해킹으로 고객 3만건 개인정보 유출 의혹… LockBit의 공격 태업했다 캐나다")
-    assert {"카카오페이", "해킹", "고객", "개인정보", "유출", "LockBit", "공격", "캐나다"} <= w
-    assert not w & {"단독", "의혹", "3만건", "해킹으로", "LockBit의", "태업했다"}
+def posted_client(tmp_path, *incidents, toml_extra=""):
+    """incidents: (title, occurred_at, published_at of its article, hashtags)."""
+    p = write_cfg(tmp_path)
+    if toml_extra:
+        p.write_text(p.read_text() + toml_extra)
+    conn = db.connect(load_config(p).database)
+    ids = []
+    for n, (title, occurred, published, tags) in enumerate(incidents):
+        a = conn.execute("INSERT INTO articles(source,url,title,published_at) VALUES('S',?,?,?)",
+                         (f"http://p/{n}", title, published)).lastrowid
+        e = ex(title, title.split()[0], d=occurred)
+        e.hashtags = tags
+        ids.append(dedupe.upsert_incident(conn, e, a))
+    conn.commit()
+    return TestClient(create_app(p, run_collector=False)), ids
 
 
-def test_wordcloud_api_periods_and_names_as_single_terms(tmp_path):
+def test_tagcloud_counts_tags_of_incidents_published_in_period(tmp_path):
     from datetime import date, timedelta
-    today = date.today()
-    ago = lambda n: (today - timedelta(days=n)).isoformat()
-    c, _ = make_client(tmp_path,
-                       ("롯데카드 해킹", "롯데카드", "Scattered Spider", ago(0), "t1"),
-                       ("삼성전자 랜섬웨어 해킹", "삼성전자", "", ago(3), "t2"),
-                       ("넥슨 서버 마비", "넥슨", "", ago(20), "t3"),
-                       ("옛날 해킹", "옛회사", "", ago(400), "t4"))
-    get = lambda p: c.get("/api/wordcloud", params={"period": p}).json()
-    words = lambda p: {x["word"]: x["count"] for x in get(p)["words"]}
-    assert get("day")["incidents"] == 1 and words("day")["Scattered Spider"] == 1
-    assert "Scattered" not in words("day")
-    assert get("week")["incidents"] == 2 and words("week")["해킹"] == 2
-    assert "넥슨" in words("month") and "넥슨" not in words("week")
-    assert get("year")["incidents"] == 3 and "옛회사" not in words("year")
-    assert c.get("/api/wordcloud", params={"period": "decade"}).status_code == 400
+    ago = lambda n: (date.today() - timedelta(days=n)).isoformat()
+    c, _ = posted_client(tmp_path,
+                         ("롯데카드 해킹", ago(0), ago(0), ["Scattered Spider", "롯데카드", "개인정보유출"]),
+                         ("삼성전자 랜섬웨어", ago(3), ago(3), ["LockBit", "삼성전자", "랜섬웨어", "개인정보유출"]),
+                         # incident long ago, but the news came out 2 days ago: counts in the week by publication date
+                         ("넥슨 침해", ago(200), ago(2), ["넥슨", "lockbit"]),
+                         ("옛날 해킹", ago(400), ago(400), ["옛회사"]))
+    get = lambda p: c.get("/api/tagcloud", params={"period": p}).json()
+    tags = lambda p: {x["tag"]: x["count"] for x in get(p)["tags"]}
+    assert get("day")["incidents"] == 1 and tags("day") == {"Scattered Spider": 1, "롯데카드": 1, "개인정보유출": 1}
+    week = tags("week")
+    assert get("week")["incidents"] == 3 and week["개인정보유출"] == 2 and week["넥슨"] == 1
+    assert week["LockBit"] == 2 and "lockbit" not in week          # case variants merged under the common spelling
+    assert "옛회사" not in tags("year")
+    assert c.get("/api/tagcloud", params={"period": "decade"}).status_code == 400
+    assert c.get("/api/wordcloud").status_code == 404
     page = c.get("/").text
-    assert 'data-period="day"' in page and 'data-period="year"' in page
+    assert "태그 클라우드" in page and 'data-period="day"' in page and 'data-period="year"' in page
     assert 'data-period="day"' in c.get("/", params={"q": "해킹"}).text   # the side pane stays on search results
 
 
-def test_wordcloud_trivial_keywords_are_cut_out_of_compounds():
-    from newscollect import wordcloud
-    pat = wordcloud.trivial_pattern(["해킹", "공격", "사이버", "ddos"])
-    w = wordcloud.words("금융권해킹으로 사이버공격 해킹 공격을 DDoS공격에 랜섬웨어공격", pat)
-    assert w == {"금융권", "랜섬웨어"}          # compounds keep their informative part; pure trivial words vanish
-    assert wordcloud.trivial_pattern([]) is None and wordcloud.trivial_pattern(["", " "]) is None
-    rows = [{"title": "금융권해킹 피해", "victim": "사이버작전사령부", "attacker": "해커"},
-            {"title": "금융권 해킹", "victim": "", "attacker": ""}]
-    got = {x["word"]: x["count"] for x in wordcloud.cloud(rows, trivial=["해킹", "사이버", "해커"])}
-    assert got == {"금융권": 2, "사이버작전사령부": 1}  # names kept whole; a name made only of trivial words dropped
-
-
-def test_wordcloud_trivial_from_config_applies_without_restart(tmp_path):
+def test_tagcloud_exclude_whole_tags_from_config(tmp_path):
     from datetime import date
-    c, _ = make_client(tmp_path, ("금융권해킹 확산", "", "", date.today().isoformat(), "t"))
-    words = lambda: {x["word"] for x in c.get("/api/wordcloud", params={"period": "day"}).json()["words"]}
-    assert words() == {"금융권해킹", "확산"}             # test config has no [wordcloud] section
+    from newscollect import tagcloud
+    rows = [{"hashtags": '["해킹", "금융권해킹", "Ransomware"]'}, {"hashtags": ["ransomware", "해킹"]}, {"hashtags": "oops"}]
+    got = {x["tag"]: x["count"] for x in tagcloud.cloud(rows, exclude=["해킹", " RANSOMWARE "])}
+    assert got == {"금융권해킹": 1}                                   # whole tags only, case-insensitive
+    today = date.today().isoformat()
+    c, _ = posted_client(tmp_path, ("A사 해킹", today, today, ["A사", "해킹"]))
+    tags = lambda: {x["tag"] for x in c.get("/api/tagcloud", params={"period": "day"}).json()["tags"]}
+    assert tags() == {"A사", "해킹"}                                   # test config has no [tagcloud] section
     p = tmp_path / "config.toml"
-    p.write_text(p.read_text() + '\n[wordcloud]\ntrivial = ["해킹"]\n')
-    assert words() == {"금융권", "확산"}
-    p.write_text(p.read_text().replace('trivial = ["해킹"]', 'trivial = "해킹"'))  # invalid: keep startup list
-    assert words() == {"금융권해킹", "확산"}
+    p.write_text(p.read_text() + '\n[wordcloud]\ntrivial = ["해킹"]\n')  # the old section still works
+    assert tags() == {"A사"}
+    p.write_text(p.read_text().replace('[wordcloud]\ntrivial = ["해킹"]', '[tagcloud]\nexclude = ["A사"]'))
+    assert tags() == {"해킹"}                                          # applies without a restart
+    p.write_text(p.read_text().replace('exclude = ["A사"]', 'exclude = "A사"'))  # invalid: keep the startup list
+    assert tags() == {"A사", "해킹"}
 
 
+def test_timeline_groups_by_publication_date_and_shows_incident_date(tmp_path):
+    c, (old, new) = posted_client(tmp_path,
+                                  ("Sussex 유출", "2026-08-10", "2026-11-08", ["SCPO"]),
+                                  ("Norad 해킹", "2026-11-03", "2026-11-03", ["Norad"]))
+    page = c.get("/").text
+    assert page.index("2026-11-08") < page.index(f'id="inc-{old}"') < page.index("2026-11-03") < page.index(f'id="inc-{new}"')
+    card = re.search(rf'<article class="incident" id="inc-{old}">.*?</article>', page, re.S).group(0)
+    assert "<dt>발생</dt>" in card and "2026-08-10" in card
+    other = re.search(rf'<article class="incident" id="inc-{new}">.*?</article>', page, re.S).group(0)
+    assert "<dt>발생</dt>" not in other                                # same day: no separate incident date
+    assert "2026-08-10" not in page.split(f'id="inc-{old}"')[0]        # no 08-10 date heading
+    det = c.get(f"/incidents/{old}").text
+    assert "2026-11-08" in det and "발생 2026-08-10" in det
+    assert c.get("/api/incidents").json()[0]["posted_at"] == "2026-11-08"
+
+
+def test_retag_rewrites_hashtags_with_five_roles(tmp_path):
+    from newscollect import retag
+    c, (i, j) = posted_client(tmp_path, ("A사 랜섬웨어", "2026-11-01", "2026-11-01", ["옛태그"]),
+                              ("B사 유출", "2026-11-02", "2026-11-02", ["B사"]))
+    answers = {"A사 랜섬웨어": {"tags": {"attacker": "LockBit", "victim": "A사", "system": "VPN", "technique": "",
+                                     "type": "랜섬웨어"}},
+               "B사 유출": "not json"}
+    def handler(req):
+        body = json.loads(req.content)
+        assert body["format"] == "json" and "attacker" in body["messages"][0]["content"]
+        title = re.search(r"제목: (.+)", body["messages"][1]["content"]).group(1)
+        a = answers[title]
+        return httpx.Response(200, json={"message": {"content": a if isinstance(a, str) else json.dumps(a, ensure_ascii=False)}})
+    cfg = load_config(tmp_path / "config.toml")
+    conn = db.connect(cfg.database)
+    real = llm.from_config
+    llm.from_config = lambda cfg, http: llm.Ollama(httpx.Client(transport=httpx.MockTransport(handler)), "http://x")
+    try:
+        assert retag.retag(conn, cfg) == {"updated": 1, "unchanged": 0, "failed": 1}
+    finally:
+        llm.from_config = real
+    tags = lambda k: json.loads(conn.execute("SELECT hashtags FROM incidents WHERE id=?", (k,)).fetchone()[0])
+    assert tags(i) == ["LockBit", "A사", "VPN", "랜섬웨어"] and tags(j) == ["B사"]   # failure keeps the old tags
 def test_article_stats_zero_filled_per_unit(tmp_path):
     from datetime import date
     from newscollect import stats
@@ -1089,13 +1135,24 @@ def test_collector_with_claude_and_no_key_leaves_articles_untouched(tmp_path, mo
 
 def test_hashtags_cleaned_from_llm_answer():
     c = extractor.clean_hashtags
-    assert c(["#랜섬웨어", "Lock Bit", "제조업", "extra"]) == ["랜섬웨어", "LockBit", "제조업"]   # '#'/spaces gone, max 3
+    # role object -> attacker, victim, system, technique, type; unknown slots skipped
+    assert c({"type": "랜섬웨어", "attacker": "Lock Bit", "victim": "A사", "system": "#VPN", "technique": "크리덴셜 스터핑"}) == \
+        ["LockBit", "A사", "VPN", "크리덴셜스터핑", "랜섬웨어"]
+    assert c({"attacker": "미상", "victim": "Norad", "system": "", "technique": "unknown", "type": "개인정보유출"}) == \
+        ["Norad", "개인정보유출"]
+    assert c({"attacker": "", "victim": ["A사", "B사"]}) == ["A사"]
+    assert c({"victim": "현대건설,우신시스템, 대원화성", "system": "Microsoft·Google"}) == ["현대건설", "Microsoft"]  # one per slot
+    assert c(["#랜섬웨어", "Lock Bit", "제조업", "a4", "a5", "extra"]) == ["랜섬웨어", "LockBit", "제조업", "a4", "a5"]  # max 5
     assert c("#빗썸 #해킹, #거래소") == ["빗썸", "해킹", "거래소"]                              # string form accepted
-    assert c(["해킹", "해킹", "x", "#", "아주아주아주아주아주아주아주긴해시태그입니다", 5]) == ["해킹"]  # dupes/too short/long/non-str
+    assert c(["해킹", "해킹", "x", "#", "아주아주아주아주아주아주아주아주아주긴해시태그입니다", 5]) == ["해킹"]  # dupes/short/long/non-str
     assert c(None) == [] and c({"a": 1}) == []
-    ex_ = extractor.parse_llm_json(json.dumps({**GOOD, "hashtags": ["#빗썸", "가상자산거래소", "해킹"]}), "2026-10-01")
-    assert ex_.hashtags == ["빗썸", "가상자산거래소", "해킹"]
+    tags = {"attacker": "", "victim": "빗썸", "system": "핫월렛", "technique": "", "type": "가상자산탈취"}
+    ex_ = extractor.parse_llm_json(json.dumps({**GOOD, "tags": tags}), "2026-10-01")
+    assert ex_.hashtags == ["빗썸", "핫월렛", "가상자산탈취"]
+    ex_ = extractor.parse_llm_json(json.dumps({**GOOD, "hashtags": ["#빗썸", "해킹"]}), "2026-10-01")  # older answer shape
+    assert ex_.hashtags == ["빗썸", "해킹"]
     assert extractor.parse_llm_json(json.dumps(GOOD), "2026-10-01").hashtags == []        # missing: no failure
+    assert all(f'"{r}"' in extractor.TAGS_SYSTEM for r in extractor.TAG_ROLES) and "- tags:" in extractor.SYSTEM
 
 
 def test_hashtags_column_added_to_existing_database(tmp_path):
@@ -1275,3 +1332,17 @@ def test_daily_article_span_follows_max_age_days(tmp_path):
     p.write_text(p.read_text().replace("[collector]", "[collector]\nmax_age_days = 90", 1))
     assert len(c.get("/api/article-stats?unit=day").json()["series"]) == 90   # re-read: no restart
     assert len(c.get("/api/article-stats?unit=month").json()["series"]) == 12  # month/year views unchanged
+
+
+def test_article_average_skips_empty_lead_in_and_current_period(tmp_path):
+    from newscollect import stats
+    s = lambda counts: [{"period": f"2026-11-{i + 1:02d}", "count": c} for i, c in enumerate(counts)]
+    # nothing before 11-04, today (11-08) only partly over: (10+24+37+16)/4, not 90/8
+    a = stats.average(s([0, 0, 0, 10, 24, 37, 16, 3]))
+    assert (a["value"], a["from"], a["to"], a["periods"]) == (87 / 4, "2026-11-04", "2026-11-07", 4)
+    assert stats.average(s([0, 0, 5]))["value"] == 5            # only the current period has data: use it
+    assert stats.average(s([0, 4, 0, 0]))["value"] == 4 / 2     # zero days after collection began do count
+    assert stats.average(s([0, 0, 0])) is None
+    c, _ = make_client(tmp_path, ("A사 해킹", "A사", "", "2026-10-10", "t"))
+    d = c.get("/api/article-stats?unit=day").json()
+    assert d["average"]["value"] == 1 and d["average"]["periods"] == 1

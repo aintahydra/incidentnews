@@ -12,13 +12,17 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import collector, db, orgs, regen, stats, wordcloud
+from . import collector, db, orgs, regen, stats, tagcloud
 from .config import load_config
 
 BASE = Path(__file__).parent
 WEEKDAYS = "월화수목금토일"
 REGEN_COOLDOWN = 20  # seconds, per incident
 SEARCH_FIELDS = ("title", "summary", "attacker", "victim", "damage", "category", "hashtags")
+# when the news came out: the earliest linked article's publication date (feed date; collection date if missing).
+# The timeline and the tag cloud use this; occurred_at (the incident date the LLM extracted) is shown on the card.
+POSTED = ("COALESCE((SELECT MIN(COALESCE(NULLIF(a.published_at,''), date(a.fetched_at,'localtime'))) "
+          "FROM incident_articles ia JOIN articles a ON a.id=ia.article_id WHERE ia.incident_id=incidents.id), occurred_at)")
 
 
 class NoCacheStatic(StaticFiles):
@@ -84,7 +88,8 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
                            "WHERE ia.incident_id=incidents.id AND a.title LIKE ? ESCAPE '\\'))")
             args += [like] * (len(SEARCH_FIELDS) + 1)
         where = "WHERE " + " AND ".join(clauses) if clauses else ""
-        rows = [tagged(r) for r in q(f"SELECT * FROM incidents {where} ORDER BY occurred_at DESC, id DESC", args)]
+        rows = [tagged(r) for r in q(f"SELECT *, {POSTED} AS posted_at FROM incidents {where} "
+                                     "ORDER BY posted_at DESC, occurred_at DESC, id DESC", args)]
         by_tab = {"all": rows}
         for name, tags in orgs.TAB_TAGS.items():
             by_tab[name] = [r for r in rows if set(r["org_tags"]) & set(tags)]
@@ -99,7 +104,7 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
         return {"incidents": f"{r['n']}-{r['m'] or 0}-{r['u'] or ''}", "articles": r["a"]}
 
     def one(inc_id):
-        rows = q("SELECT * FROM incidents WHERE id=?", (inc_id,))
+        rows = q(f"SELECT *, {POSTED} AS posted_at FROM incidents WHERE id=?", (inc_id,))
         if not rows:
             raise HTTPException(404, "사고를 찾을 수 없습니다")
         rows[0]["sources"] = sources_of(inc_id)
@@ -116,7 +121,7 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
         groups: dict[str, list] = {}
         rows, counts = listing(query=q, tab=tab)
         for r in rows:
-            groups.setdefault(r["occurred_at"], []).append(r)
+            groups.setdefault(r["posted_at"], []).append(r)
         days = [{"date": d, "weekday": WEEKDAYS[date.fromisoformat(d).weekday()], "items": items}
                 for d, items in groups.items()]
         return templates.TemplateResponse(request, "index.html",
@@ -160,18 +165,18 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
             raise HTTPException(400, "tab은 all 또는 gov여야 합니다")
         return listing(max(1, min(limit, 500)), max(0, offset), q.strip()[:100], tab)[0]
 
-    @app.get("/api/wordcloud")
-    def api_wordcloud(period: str = "week", limit: int = 60):
-        if period not in wordcloud.PERIODS:
+    @app.get("/api/tagcloud")
+    def api_tagcloud(period: str = "week", limit: int = 60):
+        if period not in tagcloud.PERIODS:
             raise HTTPException(400, "period는 day, week, month, year 중 하나여야 합니다")
-        try:  # re-read so [wordcloud].trivial edits apply on the next page load, like the other live settings
-            trivial = load_config(config_path).wordcloud_trivial
+        try:  # re-read so [tagcloud].exclude edits apply on the next page load, like the other live settings
+            exclude = load_config(config_path).tagcloud_exclude
         except Exception:  # file mid-edit / invalid: keep the list from startup
-            trivial = cfg.wordcloud_trivial
-        start = wordcloud.since(period)
-        rows = q("SELECT title, victim, attacker FROM incidents WHERE occurred_at >= ?", (start,))
+            exclude = cfg.tagcloud_exclude
+        start = tagcloud.since(period)
+        rows = q(f"SELECT hashtags FROM incidents WHERE {POSTED} >= ?", (start,))
         return {"period": period, "since": start, "incidents": len(rows),
-                "words": wordcloud.cloud(rows, max(1, min(limit, 150)), trivial)}
+                "tags": tagcloud.cloud(rows, max(1, min(limit, 150)), exclude)}
 
     @app.get("/api/article-stats")
     def api_article_stats(unit: str = "day"):
@@ -184,7 +189,8 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
         days = max(1, min(int(days), 3660))
         with lock:
             series = stats.article_counts(conn, unit, days=days)
-        return {"unit": unit, "total": sum(x["count"] for x in series), "series": series}
+        return {"unit": unit, "total": sum(x["count"] for x in series), "series": series,
+                "average": stats.average(series)}
 
     @app.get("/api/version")
     def api_version():

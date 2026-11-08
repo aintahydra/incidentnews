@@ -35,7 +35,7 @@ class Config:
     max_articles_per_run: int = 30
     max_age_days: int = 30
     database: str = "data/news.db"
-    wordcloud_trivial: list[str] = field(default_factory=list)
+    tagcloud_exclude: list[str] = field(default_factory=list)  # tags left out of the tag cloud
     gov_list: str = ""     # CSV of government bodies (name in column 2) -> "정부기관" tag
     public_list: str = ""  # CSV of public institutions (name in column 1) -> "공공기관" tag
     sources: list[Source] = field(default_factory=list)
@@ -55,9 +55,12 @@ def load_config(path: Path | str | None = None) -> Config:
     with open(path, "rb") as f:
         raw = tomllib.load(f)
     server, llm, col = raw.get("server", {}), raw.get("llm", {}), raw.get("collector", {})
-    trivial = raw.get("wordcloud", {}).get("trivial", [])
-    if not isinstance(trivial, list) or not all(isinstance(t, str) for t in trivial):
-        raise ValueError("[wordcloud].trivial must be a list of strings")
+    if "tagcloud" in raw:
+        exclude, where = raw["tagcloud"].get("exclude", []), "[tagcloud].exclude"
+    else:  # the word cloud's old setting, so an unedited config.toml keeps working
+        exclude, where = raw.get("wordcloud", {}).get("trivial", []), "[wordcloud].trivial"
+    if not isinstance(exclude, list) or not all(isinstance(t, str) for t in exclude):
+        raise ValueError(f"{where} must be a list of strings")
     refresh = server.get("refresh_seconds", 60)
     if isinstance(refresh, bool) or not isinstance(refresh, (int, float)) or refresh < 0:
         raise ValueError(f"[server].refresh_seconds must be a number >= 0 (0 = off), not {refresh!r}")
@@ -86,7 +89,7 @@ def load_config(path: Path | str | None = None) -> Config:
         max_articles_per_run=int(col.get("max_articles_per_run", 30)),
         max_age_days=int(col.get("max_age_days", 30)),
         database=col.get("database", "data/news.db"),
-        wordcloud_trivial=trivial,
+        tagcloud_exclude=exclude,
         gov_list=raw.get("orgs", {}).get("government_list", ""),
         public_list=raw.get("orgs", {}).get("public_list", ""),
     )

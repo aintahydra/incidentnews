@@ -36,7 +36,7 @@ Single process, single SQLite file: simple to run (`python -m newscollect`).
 
 - `articles(id, source, url UNIQUE, title, published_at, body, status, error, fetched_at)`
   status: `new` → `done` | `skipped` (not an incident) | `failed` (retried, max attempts)
-- `incidents(id, title, occurred_at, attacker, victim, damage, summary, category, created_at, updated_at)`
+- `incidents(id, title, occurred_at, attacker, victim, damage, summary, category, hashtags, created_at, updated_at)`
 - `incident_articles(incident_id, article_id)` — many articles per incident
 
 ## 4. Extraction
@@ -96,14 +96,11 @@ On a match: link the article, fill empty fields, keep the longer summary.
   article text; up to 3 attempts at temperatures (t, 0.3, 0.6) with a hint naming the bad tokens;
   transient Ollama 5xx counts as a failed attempt. `num_ctx` is sent explicitly.
 
-- Word cloud (`wordcloud.py`, `GET /api/wordcloud?period=`): incidents with `occurred_at` in the last 1/7/30/365 days
-  (today included). Terms = title words (bracket tags, numbers, trailing particles, predicates and a stopword list removed)
-  plus victim/attacker as whole names; each counted once per incident; top 60. Laid out client-side (spiral placement,
-  log-scaled font size, no external library); words link to `/?q=`.
-- `[wordcloud].trivial` (config, re-read per request): each keyword is removed as a substring from every title word
-  after particle stripping (longest first, case-insensitive), so compounds keep their informative part
-  (금융권해킹 -> 금융권) and words left empty are dropped. Victim/attacker names are never cut, only dropped when they
-  consist solely of trivial keywords.
+- Tag cloud (`tagcloud.py`, `GET /api/tagcloud?period=`): incidents *published* in the last 1/7/30/365 days (today
+  included; see Timeline dates); each incident's tags counted once, case variants merged under the most common spelling;
+  top 60. Laid out client-side (spiral placement, log-scaled font size, no external library); tags link to `/?q=`.
+- `[tagcloud].exclude` (config, re-read per request; the old `[wordcloud].trivial` is read when `[tagcloud]` is absent):
+  whole tags left out of the cloud, case-insensitive. Cards and search are unaffected.
 
 - Collected-article chart (`stats.py`, `GET /api/article-stats?unit=`): `articles` counted by
   published_at (feed date, YYYY-MM-DD; falls back to the local date of fetched_at, which is UTC), zero-filled: last max_age_days days / last 12 months / every
@@ -130,10 +127,17 @@ On a match: link the article, fill empty fields, keep the longer summary.
   article: bad status, refusal, empty answer) and `LLMUnavailable` (transport, auth, rate limit, missing key: the collector
   stops for the cycle without burning attempts). `.env` loaded at startup with python-dotenv.
 
-- Hashtags: the extraction JSON gains `hashtags` (3 tags, different aspects: victim / attack type / sector). Cleaned in
-  `extractor.clean_hashtags` (strip `#` and spaces, 2-20 chars, dedupe, max 3; never fails the extraction). Stored as a
-  JSON array in `incidents.hashtags` (added to old databases by `db._migrate`); merge keeps the first non-empty set;
-  regenerate replaces it; searchable; rendered as links to `/?q=<tag>`.
+- Tags: the extraction JSON has `tags`, an object with five slots: `attacker`, `victim`, `system` (the vulnerable or
+  breached system), `technique`, `type` (abstract incident type), one short tag each, "" when the article doesn't say.
+  `extractor.clean_hashtags` turns it into a list in that order, skipping empty / placeholder slots ("미상", "unknown"),
+  keeping one name per slot ("A, B" -> "A"), stripping `#` and spaces (2-25 chars), deduping; never fails the
+  extraction; also accepts the older plain list. Stored as a JSON array in `incidents.hashtags` (max 5); merge keeps the
+  first non-empty set; regenerate replaces it; searchable; rendered as links to `/?q=<tag>`.
+  `python -m newscollect retag [id ...]` (`retag.py`) re-tags stored incidents with a tags-only prompt
+  (`extractor.extract_tags`, `TAGS_SYSTEM`), from the stored article text plus the incident's fields.
+- Timeline dates: the list groups by `posted_at` = earliest linked article's `published_at` (collection date if
+  missing), computed in SQL (`web.POSTED`), so new stories land on top even when the incident is older. `occurred_at`
+  (LLM-extracted incident date) is shown on the card as "발생" when it differs, and is still what dedupe compares.
 
 ## 9. Non-Korean (English) sources
 

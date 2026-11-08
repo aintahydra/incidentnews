@@ -73,7 +73,7 @@
       msg.className = "regen-msg err"; msg.textContent = err.message;
     }
   });
-  // --- keyword cloud (list page only) ---
+  // --- tag cloud (list page only) ---
   var box = document.querySelector(".cloud-box");
   if (box) {
     var note = document.querySelector(".cloud-note"), cache = {}, current = null, seq = 0;
@@ -81,7 +81,7 @@
 
     var layout = function (data) {
       box.innerHTML = "";
-      var words = data.words;
+      var words = data.tags;
       if (!words.length) { box.classList.add("empty-cloud"); return; }
       box.classList.remove("empty-cloud");
       var W = box.clientWidth, H = box.clientHeight;
@@ -91,9 +91,9 @@
       words.forEach(function (w) {
         var t = max === min ? 0.6 : Math.log(w.count / min) / Math.log(max / min);
         var a = document.createElement("a");
-        a.href = "/?q=" + encodeURIComponent(w.word);
-        a.textContent = w.word;
-        a.title = w.word + " · 사고 " + w.count + "건";
+        a.href = "/?q=" + encodeURIComponent(w.tag);
+        a.textContent = "#" + w.tag;
+        a.title = "#" + w.tag + " · 사고 " + w.count + "건";
         a.style.fontSize = (small + (big - small) * t).toFixed(1) + "px";
         a.className = "w" + (t > 0.8 ? 3 : t > 0.4 ? 2 : 1); // red only near the top
         box.appendChild(a);
@@ -127,15 +127,15 @@
       try {
         if (!cache[period]) {
           note.textContent = "불러오는 중…";
-          var r = await fetch("/api/wordcloud?period=" + period, { cache: "no-store" });
-          if (!r.ok) throw new Error("키워드를 불러오지 못했습니다 (" + r.status + ")");
+          var r = await fetch("/api/tagcloud?period=" + period, { cache: "no-store" });
+          if (!r.ok) throw new Error("태그를 불러오지 못했습니다 (" + r.status + ")");
           cache[period] = await r.json();
         }
         if (my !== seq) return; // a newer click won
         var d = cache[period];
         layout(d);
         note.textContent = d.incidents
-          ? NAMES[period] + " 사고 " + d.incidents + "건 기준 · 단어를 누르면 검색합니다"
+          ? NAMES[period] + " 사고 " + d.incidents + "건의 태그 · 누르면 검색합니다"
           : NAMES[period] + " 동안 수집된 사고가 없습니다";
       } catch (err) {
         if (my === seq) { box.innerHTML = ""; note.textContent = err.message; }
@@ -235,10 +235,15 @@
     };
 
     var fill = function (d) {
-      var avg = d.series.length ? d.total / d.series.length : 0;
-      tnote.textContent = d.unit === "day" ? "최근 " + d.series.length + "일 " + fmt(d.total) + "건 · 하루 평균 " + avg.toFixed(1) + "건 (기사 발행일 기준)"
-        : d.unit === "month" ? "최근 12개월 " + fmt(d.total) + "건 · 월평균 " + fmt(Math.round(avg)) + "건 (기사 발행일 기준)"
-        : "전체 " + fmt(d.total) + "건 (기사 발행일 기준)";
+      // average over the periods that have data (server: stats.average), with the range it covers
+      var a = d.average, avgText = "";
+      if (a && d.unit !== "year") {
+        var range = a.from === a.to ? label(d.unit, a.from) : label(d.unit, a.from) + "~" + label(d.unit, a.to);
+        avgText = " · " + (d.unit === "day" ? "하루 평균 " + a.value.toFixed(1) : "월평균 " + fmt(Math.round(a.value)))
+          + "건(" + range + ")";
+      }
+      tnote.textContent = (d.unit === "day" ? "최근 " + d.series.length + "일 " : d.unit === "month" ? "최근 12개월 " : "전체 ")
+        + fmt(d.total) + "건" + avgText + " · 기사 발행일 기준";
       tbody.innerHTML = "";
       d.series.slice().reverse().forEach(function (x) {
         var tr = document.createElement("tr");
