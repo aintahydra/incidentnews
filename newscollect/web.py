@@ -177,8 +177,13 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
     def api_article_stats(unit: str = "day"):
         if unit not in stats.UNITS:
             raise HTTPException(400, "unit은 day, month, year 중 하나여야 합니다")
+        try:  # daily span = [collector].max_age_days (older feed items are never collected); re-read per request
+            days = load_config(config_path).max_age_days
+        except Exception:
+            days = cfg.max_age_days
+        days = max(1, min(int(days), 3660))
         with lock:
-            series = stats.article_counts(conn, unit)
+            series = stats.article_counts(conn, unit, days=days)
         return {"unit": unit, "total": sum(x["count"] for x in series), "series": series}
 
     @app.get("/api/version")

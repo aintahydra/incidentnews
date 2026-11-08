@@ -1262,3 +1262,16 @@ def test_polite_summary_is_converted_or_rewritten():
     assert ex_.summary == ("2026년 10월 1일 Acme가 랜섬웨어 공격을 받았다. 이 사고로 고객 3만 명의 정보가 유출되었다. "
                            "Acme는 외부 전문가와 함께 원인을 조사하고 있다.")
     assert len(calls) == 2 and "존댓말" in calls[1]["messages"][0]["content"]  # rewritten by the prose step
+
+
+def test_daily_article_span_follows_max_age_days(tmp_path):
+    from datetime import date
+    from newscollect import stats
+    days = stats.article_counts(db.connect(":memory:"), "day", date(2026, 11, 8), days=60)
+    assert len(days) == 60 and days[0]["period"] == "2026-09-10" and days[-1]["period"] == "2026-11-08"
+    c, _ = make_client(tmp_path, ("A사 해킹", "A사", "", "2026-10-10", "t"))
+    assert len(c.get("/api/article-stats?unit=day").json()["series"]) == 30   # test config has no max_age_days
+    p = tmp_path / "config.toml"
+    p.write_text(p.read_text().replace("[collector]", "[collector]\nmax_age_days = 90", 1))
+    assert len(c.get("/api/article-stats?unit=day").json()["series"]) == 90   # re-read: no restart
+    assert len(c.get("/api/article-stats?unit=month").json()["series"]) == 12  # month/year views unchanged
