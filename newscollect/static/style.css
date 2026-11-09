@@ -118,3 +118,47 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
   .search{order:4;flex:1 1 100%;max-width:none;margin-left:0}
   .themes{order:2;margin-left:auto}
 }
+
+/* 태그간 관계 그래프 page: no side pane, a wider column for the network */
+[data-section=graph] .layout{display:block}
+[data-section=graph] main{max-width:960px}
+.net .empty-txt{fill:var(--mut);font-size:12px}
+.graph-block{margin:28px 0 0}
+.graph-block:first-child{margin-top:12px}
+.graph-block h2{margin:0 0 6px;font-size:17px;border-left:4px solid var(--acc);padding-left:10px}
+.graph-note{color:var(--mut);font-size:13.5px;margin:4px 0 10px}
+.graph-legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--mut);margin-bottom:8px}
+.graph-legend i{display:inline-block;width:22px;height:0;border-top:3px solid var(--series-1);vertical-align:middle;margin-right:6px}
+.graph-legend i.ns{border-top-color:var(--mut);opacity:.6}
+.graph-legend i.dash{border-top-style:dashed;border-top-color:var(--mut)}
+.graph-legend i.dot{width:12px;height:12px;border:1.5px solid var(--series-1);background:color-mix(in srgb,var(--series-1) 20%,var(--card));border-radius:50%}
+.graph-panel{position:relative;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px}
+.graph-panel svg{display:block;width:100%;height:auto}
+.net .edge{stroke:var(--mut);stroke-opacity:.45;stroke-linecap:round}
+.net .edge.sig{stroke:var(--series-1);stroke-opacity:.9}
+.net .edge-hit{stroke:transparent;stroke-width:16;cursor:pointer}
+.net .node circle{fill:color-mix(in srgb,var(--series-1) 20%,var(--card));stroke:var(--series-1);stroke-width:1.5}
+.net .node:hover circle,.net .node:focus-visible circle{fill:var(--series-1)}
+.net .node text{fill:var(--fg);font-size:12px;paint-order:stroke;stroke:var(--card);stroke-width:3px;pointer-events:none}
+.net .node text.big{font-size:13.5px;font-weight:700}
+.graph-tip{position:absolute;z-index:5;pointer-events:none;max-width:280px;background:var(--fg);color:var(--bg);font-size:12.5px;line-height:1.45;padding:7px 10px;border-radius:6px}
+.graph-tip[hidden]{display:none}
+.graph-table{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:10px}
+.graph-table table{border-collapse:collapse;width:100%;font-size:13.5px}
+.graph-table th,.graph-table td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.graph-table th{color:var(--mut);font-weight:500;font-size:12px;white-space:nowrap}
+.graph-table .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.graph-table tbody tr:last-child td{border-bottom:0}
+.graph-table tr.hl td{background:color-mix(in srgb,var(--series-1) 12%,transparent)}
+.graph-table .pair{font-weight:600;white-space:nowrap}
+.graph-table .pair em{font-style:normal;color:var(--mut);padding:0 4px}
+.graph-table details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
+.graph-table details ul{margin:4px 0 0;padding-left:16px;font-size:12.5px}
+.graph-table details a{color:var(--fg)}
+.graph-table .sec{color:var(--mut);font-size:11.5px}
+.graph-table .empty-row{color:var(--mut);text-align:center}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap}
+.pill.yes{color:var(--series-1);background:color-mix(in srgb,var(--series-1) 14%,transparent)}
+.pill.no{color:var(--mut);border:1px solid var(--line)}
+.graph-notes{display:grid;gap:8px;padding-left:20px;margin:6px 0 12px;color:var(--mut);font-size:13.5px}
+.graph-notes b{color:var(--fg)}

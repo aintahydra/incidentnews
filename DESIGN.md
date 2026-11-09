@@ -179,3 +179,20 @@ On a match: link the article, fill empty fields, keep the longer summary.
   date; `_intel_card.html` links to the original. `/api/intel`, and `section=` on `/api/tagcloud` and
   `/api/article-stats`. `/api/version` includes intel so live updates cover both tabs. `body[data-section]` tells
   app.js which section the side pane serves.
+
+## Tag link graph (태그간 관계 그래프)
+
+- `taggraph.py` ports `scripts/tag_link_test.py` into the app. Each incident card (title + bodies of all linked
+  articles) and each intel card (글타래 in the UI) is a document with its `hashtags` as the tag set. The API's `scope`
+  picks all / incident / intel; the page shows only `all` for now.
+- Pairs on >= 2 cards get a one-sided Fisher exact test, computed exactly as a hypergeometric tail with
+  `math.comb` (no scipy), then Benjamini-Hochberg q-values. A permutation test (1,000 shuffles, seed 7, card tag
+  counts kept) compares the number of repeated pairs with chance. A literal text check (with the `ALIAS` table) marks
+  links whose tags don't appear in every source article.
+- `/api/tag-graph?scope=` caches each scope's result keyed on `/api/version`'s card version, so it is recomputed
+  only when cards are added, merged or rewritten (about 0.2 s for ~170 cards).
+- `/?section=graph` renders `graph.html` (no side pane; the header switch lives in `_sections.html`, shared with
+  `index.html`). app.js draws the network with a small deterministic force layout (no d3), sized to the panel width
+  (taller on phones) and the pair table, and re-fetches when `/api/version` changes. The permutation test is still
+  computed and returned by the API (`obs`, `nullmean`, `hist`, `permp`) but the page doesn't show it.
+

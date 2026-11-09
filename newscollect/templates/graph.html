@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block page %}graph{% endblock %}
+{% block header_nav %}{% include "_sections.html" %}{% endblock %}
+{% block content %}
+<div id="tag-graph" data-refresh="{{ refresh }}">
+
+<section class="graph-block">
+  <h2>태그 연결망</h2>
+  <p class="graph-note">같은 글타래에 <span class="minsup">2</span>개 이상 함께 붙은 태그 쌍입니다. 선이 굵을수록 함께 붙은 글타래가 많습니다. 선에 마우스를 올리면 해당 기사가, 태그를 누르면 그 태그의 글타래 목록이 나옵니다.</p>
+  <div class="graph-legend">
+    <span><i></i>유의함 (q &lt; 0.05)</span>
+    <span><i class="ns"></i>유의하지 않음</span>
+    <span><i class="dash"></i>일부 원문에서 태그를 찾지 못함</span>
+    <span><i class="dot"></i>태그 (크기 = 글타래 수)</span>
+  </div>
+  <div class="graph-panel net-panel"><svg class="net" viewBox="0 0 900 560" role="img" aria-label="태그 동시 출현 연결망"></svg><div class="graph-tip" hidden></div></div>
+</section>
+
+<section class="graph-block">
+  <h2>검정한 태그 쌍</h2>
+  <p class="graph-note">k = 두 태그가 함께 붙은 글타래 수, n(A)·n(B) = 각 태그가 붙은 글타래 수, 향상도 = 우연히 기대되는 것보다 몇 배 자주 함께 나왔는지, 원문 = 두 태그가 모두 원문 기사에서 확인된 글타래 수.</p>
+  <div class="graph-table">
+    <table>
+      <thead><tr><th>태그 쌍</th><th class="num">k</th><th class="num">n(A)</th><th class="num">n(B)</th><th class="num">향상도</th><th class="num">p</th><th class="num">q</th><th>판정</th><th class="num">원문</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="graph-block">
+  <h2>해석할 때 주의할 점</h2>
+  <ol class="graph-notes"></ol>
+  <p class="graph-note">방법: 보안 사고 글타래(연결된 기사 전체)와 인텔·권고 글타래를 각각 한 문서로 보고, 두 태그가 같은 글타래에 붙으면 연결된 것으로 본다. 쌍마다 전체 글타래에 대한 단측 피셔 정확 검정을 하고 벤야미니–호흐베르크 보정(q)을 적용한다.</p>
+</section>
+</div>
+{% endblock %}

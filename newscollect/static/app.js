@@ -348,4 +348,187 @@
       if (pending && window.scrollY < 120 && !busy()) apply();
     }, { passive: true });
   }
+
+  // --- 태그간 관계 그래프 page: tag co-occurrence network and pair table (/api/tag-graph) ---
+  var graph = document.getElementById("tag-graph");
+  if (graph) {
+    var SVGNS = "http://www.w3.org/2000/svg";
+    var gseq = 0, gcache = {}, gver = null;
+    var esc = function (s) {
+      return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; });
+    };
+    var el = function (name, attrs, parent) {
+      var e = document.createElementNS(SVGNS, name);
+      for (var k in attrs) e.setAttribute(k, attrs[k]);
+      if (parent) parent.appendChild(e);
+      return e;
+    };
+    var fmtP = function (p) { return p < 0.001 ? p.toExponential(1) : p.toFixed(3); };
+    var isSig = function (e) { return e.q < 0.05; };
+    var tagHref = function (n) { return "/?" + (n.ni === 0 ? "section=intel&" : "") + "q=" + encodeURIComponent(n.id); };
+    var cardHref = function (c) { return c.link; };
+
+    // a small deterministic force layout: nodes repel, links pull to a rest length, gravity keeps them centred
+    var place = function (nodes, links, W, H, rad) {
+      var n = nodes.length;
+      nodes.forEach(function (d, i) {
+        var a = 2 * Math.PI * i / Math.max(n, 1);
+        d.x = W / 2 + W * 0.3 * Math.cos(a); d.y = H / 2 + H * 0.3 * Math.sin(a); d.vx = 0; d.vy = 0;
+      });
+      var gx = 0.032 * H / (W + H), gy = 0.032 * W / (W + H); // pull harder along the short side of the box
+      for (var it = 0, N = 450; it < N; it++) {
+        var alpha = 1 - it / N;
+        for (var i = 0; i < n; i++) for (var j = i + 1; j < n; j++) {
+          var a = nodes[i], b = nodes[j], dx = b.x - a.x, dy = b.y - a.y, d2 = Math.max(dx * dx + dy * dy, 1), d = Math.sqrt(d2);
+          var f = 3200 / d2, gap = rad(a) + rad(b) + 34; // charge, plus a hard push when labels would touch
+          if (d < gap) f += (gap - d) * 0.5 / d;
+          f *= alpha; a.vx -= dx * f / d; a.vy -= dy * f / d; b.vx += dx * f / d; b.vy += dy * f / d;
+        }
+        links.forEach(function (l) {
+          var dx = l.t.x - l.s.x, dy = l.t.y - l.s.y, d = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
+          var f = (d - (W < 600 ? 50 : 70) - 30 / l.e.k) * 0.06 * alpha;
+          l.s.vx += dx / d * f; l.s.vy += dy / d * f; l.t.vx -= dx / d * f; l.t.vy -= dy / d * f;
+        });
+        nodes.forEach(function (d) {
+          d.vx += (W / 2 - d.x) * gx * alpha; d.vy += (H / 2 - d.y) * gy * alpha;
+          d.x += d.vx; d.y += d.vy; d.vx *= 0.55; d.vy *= 0.55;
+        });
+      }
+      // fit the result into the box (labels need room below each circle)
+      var x0 = Math.min.apply(null, nodes.map(function (d) { return d.x; })), x1 = Math.max.apply(null, nodes.map(function (d) { return d.x; }));
+      var y0 = Math.min.apply(null, nodes.map(function (d) { return d.y; })), y1 = Math.max.apply(null, nodes.map(function (d) { return d.y; }));
+      var pad = W < 600 ? 90 : 140, s = Math.min((W - pad) / Math.max(x1 - x0, 1), (H - 80) / Math.max(y1 - y0, 1), 1.6);
+      nodes.forEach(function (d) {
+        d.x = W / 2 + (d.x - (x0 + x1) / 2) * s; d.y = H / 2 - 8 + (d.y - (y0 + y1) / 2) * s;
+      });
+    };
+
+    var tip = graph.querySelector(".graph-tip"), netPanel = graph.querySelector(".net-panel");
+    var showTip = function (ev, html) {
+      tip.innerHTML = html; tip.hidden = false;
+      var b = netPanel.getBoundingClientRect(), x = ev.clientX - b.left + 12, y = ev.clientY - b.top + 12;
+      if (x > b.width - 290) x = Math.max(4, ev.clientX - b.left - 290);
+      tip.style.left = x + "px"; tip.style.top = y + "px";
+    };
+    var hideTip = function () {
+      tip.hidden = true;
+      graph.querySelectorAll("tr.hl").forEach(function (t) { t.classList.remove("hl"); });
+    };
+
+    var drawNet = function (D) {
+      // draw at the panel's real width so labels keep their size; phones get a taller box
+      var svg = graph.querySelector("svg.net"), W = Math.round(Math.min(900, Math.max(320, svg.clientWidth || 900)));
+      var H = W < 600 ? Math.round(W * 1.35) : 560;
+      svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+      svg.innerHTML = "";
+      if (!D.nodes.length) {
+        el("text", { x: W / 2, y: H / 2, "text-anchor": "middle", class: "empty-txt" }, svg).textContent =
+          D.minsup + "개 이상의 글타래에 함께 붙은 태그 쌍이 아직 없습니다";
+        return;
+      }
+      var byId = {}, maxN = 1, maxK = 2;
+      var nodes = D.nodes.map(function (n) { var d = Object.assign({}, n); byId[d.id] = d; maxN = Math.max(maxN, d.n); return d; });
+      var links = D.edges.map(function (e, i) { maxK = Math.max(maxK, e.k); return { s: byId[e.a], t: byId[e.b], e: e, i: i }; });
+      var rad = function (d) { return 6 + 16 * Math.sqrt((d.n - 1) / Math.max(maxN - 1, 1)); };
+      var wid = function (k) { return 1.5 + 5.5 * (k - 2) / Math.max(maxK - 2, 1); };
+      place(nodes, links, W, H, rad);
+      var g = el("g", {}, svg);
+      links.forEach(function (l) {
+        el("line", { x1: l.s.x, y1: l.s.y, x2: l.t.x, y2: l.t.y, class: "edge" + (isSig(l.e) ? " sig" : ""),
+                     "stroke-width": wid(l.e.k), "stroke-dasharray": l.e.g < l.e.k ? "5 4" : "none" }, g);
+      });
+      links.forEach(function (l) { // wide invisible hit targets
+        var hit = el("line", { x1: l.s.x, y1: l.s.y, x2: l.t.x, y2: l.t.y, class: "edge-hit" }, g);
+        hit.addEventListener("mousemove", function (ev) {
+          var row = document.getElementById("gp-" + l.i);
+          if (row) row.classList.add("hl");
+          showTip(ev, "<b>" + esc(l.e.a) + " ↔ " + esc(l.e.b) + "</b><br>함께 " + l.e.k + "건 · 향상도 " + l.e.lift.toFixed(1) +
+            " · q " + fmtP(l.e.q) + "<br>" + l.e.cards.slice(0, 3).map(function (c) { return "· " + esc(c.title); }).join("<br>") +
+            (l.e.cards.length > 3 ? "<br>· 외 " + (l.e.cards.length - 3) + "건" : ""));
+        });
+        hit.addEventListener("mouseleave", hideTip);
+        hit.addEventListener("click", function () {
+          var row = document.getElementById("gp-" + l.i);
+          if (row) { row.scrollIntoView({ behavior: "smooth", block: "center" }); row.classList.add("flash"); }
+        });
+      });
+      nodes.forEach(function (d) {
+        var a = el("a", { href: tagHref(d), class: "node", transform: "translate(" + d.x.toFixed(1) + "," + d.y.toFixed(1) + ")" }, g);
+        el("circle", { r: rad(d) }, a);
+        var t = el("text", { y: rad(d) + 14, "text-anchor": "middle", class: d.n >= maxN * 0.5 ? "big" : "" }, a);
+        t.textContent = "#" + d.id;
+        a.addEventListener("mousemove", function (ev) { showTip(ev, "<b>#" + esc(d.id) + "</b><br>글타래 " + d.n + "개 · 누르면 목록 보기"); });
+        a.addEventListener("mouseleave", hideTip);
+      });
+    };
+
+    var fillText = function (D) {
+      graph.querySelectorAll(".minsup").forEach(function (e) { e.textContent = D.minsup; });
+      var tbody = graph.querySelector(".graph-table tbody");
+      tbody.innerHTML = D.edges.map(function (e, i) {
+        return '<tr id="gp-' + i + '"><td><div class="pair">' + esc(e.a) + "<em>↔</em>" + esc(e.b) + "</div>" +
+          "<details><summary>글타래 " + e.cards.length + "개</summary><ul>" + e.cards.map(function (c) {
+            return '<li><a href="' + esc(cardHref(c)) + '"' + (c.sec === "intel" ? ' target="_blank" rel="noopener"' : "") + ">" + esc(c.title) +
+              '</a> <span class="sec">' + (c.sec === "intel" ? "인텔" : "사고") + "</span></li>";
+          }).join("") + "</ul></details></td>" +
+          '<td class="num">' + e.k + '</td><td class="num">' + e.fa + '</td><td class="num">' + e.fb + '</td><td class="num">' + e.lift.toFixed(1) +
+          '</td><td class="num">' + fmtP(e.p) + '</td><td class="num">' + fmtP(e.q) + "</td><td>" +
+          (isSig(e) ? '<span class="pill yes">✓ 연결</span>' : '<span class="pill no">– 불충분</span>') +
+          '</td><td class="num">' + e.g + "/" + e.k + "</td></tr>";
+      }).join("") || '<tr><td colspan="9" class="empty-row">검정할 태그 쌍이 아직 없습니다</td></tr>';
+      var notes = [
+        "<b>" + D.npairs + "쌍 중 " + D.single + "쌍은 글타래 하나에만 함께 나온다.</b> 한 번 겹친 것은 연결의 근거가 되지 않아 검정하지 않았다. 태그 " + D.ntags + "개 중 " +
+          (D.ntags - D.reused) + "개는 한 번만 쓰였으며, 대부분 피해 기관·공격 그룹·CVE 이름이다.",
+        "<b>같은 사건의 중복 보도가 연결을 부풀릴 수 있다.</b> 여러 매체가 같은 사건을 다루면 글타래가 따로 생길 수 있어, 강한 연결이 일반적인 관계보다 한 사건의 보도량을 반영할 수 있다. 표에서 글타래 목록을 열어 확인할 것.",
+        "<b>점선 연결은 원문 근거가 부족하다.</b> 어떤 원문에서 태그를 찾지 못했다는 뜻이다. 본문이 잘려 수집됐을 수도 있지만 모델의 추론일 수도 있다.",
+        "<b>원문 확인은 글자 그대로 찾는다.</b> 태그 사용 " + D.tt + "건 중 " + D.tg + "건(" + (D.tt ? Math.round(D.tg / D.tt * 100) : 0) +
+          "%)이 원문 또는 별칭 목록과 일치했다. 패치관리·AI보안 같은 추상적 태그는 \"patch\", \"AI\" 같은 별칭으로만 통과해 이 확인이 관대하다.",
+        "<b>글타래 " + D.N + "개로는 검정력이 낮다.</b> 드문 태그끼리는 2개만 겹쳐도 유의하지만, 흔한 태그끼리는 훨씬 많이 겹쳐야 한다. 데이터가 쌓일수록 결과가 달라질 수 있다.",
+      ];
+      graph.querySelector(".graph-notes").innerHTML = notes.map(function (n) { return "<li>" + n + "</li>"; }).join("");
+    };
+
+    var gscope = "all"; // one graph over every 글타래 (incident and intel); /api/tag-graph also takes scope=incident|intel
+    var load = async function (force) {
+      var my = ++gseq;
+      try {
+        if (force || !gcache[gscope]) {
+          var r = await fetch("/api/tag-graph?scope=" + gscope, { cache: "no-store" });
+          if (!r.ok) throw new Error("태그간 관계를 불러오지 못했습니다 (" + r.status + ")");
+          gcache[gscope] = await r.json();
+        }
+        if (my !== gseq) return;
+        fillText(gcache[gscope]); drawNet(gcache[gscope]);
+      } catch (err) {
+        if (my !== gseq) return;
+        var svg = graph.querySelector("svg.net");
+        svg.innerHTML = "";
+        el("text", { x: 450, y: 280, "text-anchor": "middle", class: "empty-txt" }, svg).textContent = err.message;
+      }
+    };
+    load();
+    var gtimer, gwidth = window.innerWidth;
+    window.addEventListener("resize", function () { // phone rotation or window resize: lay the network out again
+      clearTimeout(gtimer);
+      gtimer = setTimeout(function () {
+        if (window.innerWidth !== gwidth && gcache[gscope]) { gwidth = window.innerWidth; drawNet(gcache[gscope]); }
+      }, 200);
+    });
+
+    // new 글타래 change the graph: re-fetch when /api/version moves ([server].refresh_seconds; 0 = off)
+    var gsec = Number(graph.dataset.refresh);
+    if (gsec > 0) {
+      var gcheck = async function () {
+        try {
+          var r = await fetch("/api/version", { cache: "no-store" });
+          if (!r.ok) return;
+          var v = (await r.json()).incidents;
+          if (gver !== null && v !== gver) { gcache = {}; load(true); }
+          gver = v;
+        } catch (err) { /* offline: try next round */ }
+      };
+      gcheck();
+      setInterval(function () { if (!document.hidden) gcheck(); }, gsec * 1000);
+    }
+  }
 })();

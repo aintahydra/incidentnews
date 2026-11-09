@@ -48,6 +48,10 @@ python3 -m pytest                   # 테스트
   - 종류별 하위 탭, 검색(제목·요약·조치·태그·원문 제목·출처), 날짜별 목록(글 발행일 기준), 자동 갱신이 사고 탭과 똑같이 동작한다. 카드 제목과 출처는 원문으로 연결된다.
   - 왼쪽 패널의 태그 클라우드와 수집 기사 수 그래프도 현재 탭의 글만 센다.
   - 수집은 사고 소스와 같은 주기·같은 `max_age_days`/`max_articles_per_run`으로 하며, 사고 기사를 먼저 처리한 뒤 인텔 글을 처리한다. 글 하나에 LLM 호출 한 번(gemma4 기준 약 15초).
+- **태그간 관계 그래프 탭**: 헤더 전환 버튼의 세 번째 탭(`/?section=graph`). 같은 글타래에 함께 붙은 태그를 선으로 이은 연결망으로, 보안 사고 글타래(연결된 기사 전체)와 인텔·권고 글타래를 모두 합쳐 하나의 그래프로 그린다.
+  - 2개 이상의 글타래에 함께 붙은 쌍만 그린다. 쌍마다 단측 피셔 정확 검정과 벤야미니–호흐베르크 보정(q)을 하고, q < 0.05인 연결은 파란 실선, 아닌 것은 회색이다. 두 태그가 모든 원문 기사에서 확인되지 않은 연결(별칭 포함, 예: `원격코드실행` ↔ "remote code execution")은 점선이다.
+  - 선에 마우스를 올리면 그 쌍의 글타래가, 선을 누르면 아래 표의 해당 행이 나온다. 태그를 누르면 그 태그로 검색한다. 표에서 쌍마다 글타래 목록을 펼쳐 사고 상세나 원문으로 갈 수 있다.
+  - 서버에서 계산하며(`newscollect/taggraph.py`, scipy 불필요) 글타래가 바뀔 때만 다시 계산한다. 자동 갱신 주기에 맞춰 새 글타래가 생기면 다시 그린다. `/api/tag-graph?scope=all|incident|intel`도 동일(페이지는 `all`만 쓴다). 같은 분석의 독립 실행판은 `scripts/tag_link_test.py`.
   - CISA(`cybersecurity-advisories/all.xml`)는 자동 수집 클라이언트를 거부(HTTP 403)해 `enabled = false`로 넣어 두었다.
 - **날짜**: 목록은 뉴스가 **나온 날**(사고에 연결된 기사 중 가장 이른 발행일) 기준으로 날짜별로 묶는다. 그래서 새 기사는 항상 맨 위에 온다. LLM이 기사에서 뽑은 사고 발생일이 이와 다르면 카드에 `발생 2026-08-10`처럼 따로 표시한다(중복 판단은 계속 발생일을 쓴다).
 - **헤더 고정**: 기사 목록을 스크롤해도 헤더(검색·테마·패널 버튼)는 화면 위에 남는다.
@@ -66,4 +70,4 @@ python3 -m pytest                   # 테스트
 
 ## 엔드포인트
 
-`/` 사고 목록(날짜별, `?q=` 검색) · `/incidents/{id}` 상세 · `/incidents/{id}/card` 카드 조각 · `POST /incidents/{id}/regenerate` · `/api/incidents` JSON · `/api/intel?tab=advisory|threat|guide|policy&q=` · `/api/tagcloud?period=day|week|month|year&section=incident|intel` · `/api/article-stats?unit=day|month|year` · `/api/version` 변경 감지용 · `/healthz`
+`/` 사고 목록(날짜별, `?q=` 검색) · `/incidents/{id}` 상세 · `/incidents/{id}/card` 카드 조각 · `POST /incidents/{id}/regenerate` · `/api/incidents` JSON · `/api/intel?tab=advisory|threat|guide|policy&q=` · `/api/tagcloud?period=day|week|month|year&section=incident|intel` · `/api/article-stats?unit=day|month|year` · `/api/tag-graph?scope=all|incident|intel` 태그간 관계 · `/?section=graph` 태그간 관계 그래프 페이지 · `/api/version` 변경 감지용 · `/healthz`

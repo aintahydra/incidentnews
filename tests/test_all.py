@@ -1499,3 +1499,40 @@ def test_intel_skips_podcast_stubs_without_llm_call():
     art = {"title": "ISC Stormcast For Monday, November 9th, 2026 https://isc.sans.edu/podcastdetail/9700",
            "body": "podcast", "published_at": "2026-11-09"}
     assert intel.extract(NoLLM(), "m", art) is None
+
+
+# ---- 태그간 관계 그래프 (tag link graph) ----
+def test_fisher_greater_matches_hypergeometric_tail():
+    from math import comb
+    from newscollect import taggraph
+    # two tags each on 2 of 10 cards, together on both: P = 1 / C(10,2)
+    assert taggraph.fisher_greater(2, 2, 2, 10) == pytest.approx(1 / comb(10, 2))
+    assert taggraph.fisher_greater(0, 3, 4, 20) == pytest.approx(1.0)
+    # 20 cards, tags on 5 and 4, together on 3: (C(5,3)C(15,1) + C(5,4)C(15,0)) / C(20,4) = 155/4845
+    assert taggraph.fisher_greater(3, 5, 4, 20) == pytest.approx(155 / 4845)
+    assert taggraph.bh([0.01, 0.04, 0.03]) == pytest.approx([0.03, 0.04, 0.04])
+
+
+def test_tag_graph_links_repeated_pairs(tmp_path):
+    from datetime import date
+    today = date.today().isoformat()
+    # distinct titles and victims, so dedupe keeps them as separate cards
+    names = ["롯데카드 서버 마비", "삼성전자 협력사 감염", "넥슨 게임 중단", "카카오 고객정보 노출", "국세청 민원 오류",
+             "쿠팡 계정 탈취", "SK텔레콤 유심 정보", "하나은행 접속 장애"]
+    rows = [(names[n], today, today, ["LockBit", "랜섬웨어"]) for n in range(3)]
+    rows += [(names[n], today, today, [f"기관{n}", "개인정보유출"]) for n in range(3, 8)]
+    c, _ = posted_client(tmp_path, *rows)
+    g = c.get("/api/tag-graph").json()
+    assert g["N"] == 8 and g["ninc"] == 8 and g["nint"] == 0
+    assert [(e["a"], e["b"], e["k"]) for e in g["edges"]] == [("LockBit", "랜섬웨어", 3)]
+    assert g["edges"][0]["q"] < 0.05 and len(g["edges"][0]["cards"]) == 3
+    assert g["edges"][0]["cards"][0]["link"].startswith("/incidents/")
+    assert {n["id"] for n in g["nodes"]} == {"LockBit", "랜섬웨어"} and g["nodes"][0]["ni"] == 3
+    assert g["nperm"] > 0 and sum(n for _, n in g["hist"]) == g["nperm"]
+    assert c.get("/api/tag-graph", params={"scope": "intel"}).json()["N"] == 0
+    assert c.get("/api/tag-graph", params={"scope": "x"}).status_code == 400
+    page = c.get("/", params={"section": "graph"}).text
+    assert 'id="tag-graph"' in page and "태그간 관계 그래프" in page and 'class="cloud-box"' not in page
+    assert 'class="graph-lede"' not in page and 'class="hist"' not in page and 'data-scope=' not in page
+    assert 'class="graph-stats"' not in page
+    assert 'href="/?section=graph"' in c.get("/").text   # the header switch links to it from every section

@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import collector, db, intel, orgs, regen, stats, tagcloud
+from . import collector, db, intel, orgs, regen, stats, tagcloud, taggraph
 from .config import load_config
 
 BASE = Path(__file__).parent
@@ -20,7 +20,7 @@ WEEKDAYS = "월화수목금토일"
 REGEN_COOLDOWN = 20  # seconds, per incident
 SEARCH_FIELDS = ("title", "summary", "attacker", "victim", "damage", "category", "hashtags")
 INTEL_SEARCH_FIELDS = ("i.title", "i.summary", "i.action", "i.kind", "i.hashtags", "a.title", "a.source")
-SECTIONS = ("incident", "intel")
+SECTIONS = ("incident", "intel")  # card sections; the header also has the "graph" page (태그간 관계 그래프)
 INTEL_TABS = {"advisory": "권고", "threat": "위협 분석", "guide": "가이드", "policy": "정책"}  # tab key -> intel.kind
 # when the news came out: the earliest linked article's publication date (feed date; collection date if missing).
 # The timeline and the tag cloud use this; occurred_at (the incident date the LLM extracted) is shown on the card.
@@ -46,6 +46,7 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
     lock = threading.Lock()
     regen_busy = threading.Lock()  # one LLM regeneration at a time
     last_regen: dict[int, float] = {}
+    graph_cache: dict[str, tuple] = {}  # scope -> (version, result); recomputed when cards change
     classifier = orgs.Classifier(cfg.gov_list, cfg.public_list)
 
     @asynccontextmanager
@@ -139,10 +140,13 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
             refresh = load_config(config_path).refresh_seconds
         except Exception:
             refresh = cfg.refresh_seconds
-        section = section if section in SECTIONS else "incident"
+        section = section if section in SECTIONS + ("graph",) else "incident"
         inc_rows, inc_counts = listing(query=q, tab=tab if tab in orgs.TAB_TAGS else "all")
         intel_rows, intel_counts = intel_listing(query=q, tab=tab if tab in INTEL_TABS else "all")
-        if section == "intel":
+        if section == "graph":  # one graph over all 글타래 for now (the API also takes scope=incident|intel)
+            tab = "all"
+            rows, counts, date_key = [], {k: 0 for k in taggraph.SCOPES}, "posted_at"
+        elif section == "intel":
             tab = tab if tab in INTEL_TABS else "all"
             rows, counts, date_key = intel_rows, intel_counts, "published_at"
         else:
@@ -153,7 +157,7 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
             groups.setdefault(r[date_key], []).append(r)
         days = [{"date": d, "weekday": WEEKDAYS[date.fromisoformat(d).weekday()], "items": items}
                 for d, items in groups.items()]
-        return templates.TemplateResponse(request, "index.html",
+        return templates.TemplateResponse(request, "graph.html" if section == "graph" else "index.html",
                                           {"title": cfg.site_title, "days": days, "q": q, "total": counts[tab],
                                            "tab": tab, "counts": counts, "version": version(), "refresh": refresh,
                                            "section": section, "intel_tabs": INTEL_TABS,
@@ -233,6 +237,21 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
             series = stats.article_counts(conn, unit, days=days, section=section or None)
         return {"unit": unit, "total": sum(x["count"] for x in series), "series": series,
                 "average": stats.average(series)}
+
+    @app.get("/api/tag-graph")
+    def api_tag_graph(scope: str = "all"):
+        """Tag co-occurrence network with its significance tests (the 태그간 관계 그래프 page)."""
+        if scope not in taggraph.SCOPES:
+            raise HTTPException(400, "scope는 all, incident, intel 중 하나여야 합니다")
+        ver = version()["incidents"]
+        hit = graph_cache.get(scope)
+        if hit and hit[0] == ver:
+            return hit[1]
+        with lock:
+            cards = taggraph.load_cards(conn, scope)
+        result = taggraph.analyze(cards)
+        graph_cache[scope] = (ver, result)
+        return result
 
     @app.get("/api/version")
     def api_version():
