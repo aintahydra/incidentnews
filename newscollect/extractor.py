@@ -99,13 +99,13 @@ _NO_TAG = {"", "미상", "불명", "알수없음", "알수없다", "없음", "�
            "na", "null", "-"}
 
 
-def clean_hashtags(raw) -> list[str]:
+def clean_hashtags(raw, roles: tuple[str, ...] = TAG_ROLES) -> list[str]:
     """Up to 5 tags: attacker, victim, vulnerable system, technique, incident type, in that order. Slots the article
     doesn't support (empty, "미상", "unknown") are skipped. Accepts the role object, or a plain list / "#a #b" string
     (older answers). '#' and spaces removed, 2-25 chars, no duplicates. Bad tags are dropped rather than failing the
     extraction (tags are a convenience, not a checked field)."""
     if isinstance(raw, dict):
-        items = [raw.get(role) for role in TAG_ROLES]
+        items = [raw.get(role) for role in roles]
         # one tag per slot: "Microsoft, Google" / "현대건설·우신시스템" -> the first name
         items = [re.split(r"\s*[,，、/·;]\s*", t.strip())[0] if isinstance(t, str) else t for t in items]
     elif isinstance(raw, list):
@@ -123,7 +123,7 @@ def clean_hashtags(raw) -> list[str]:
             continue
         if t.lower() not in {x.lower() for x in out}:
             out.append(t)
-    return out[:MAX_HASHTAGS]
+    return out[:len(roles)]
 
 
 TAGS_SYSTEM = ("너는 사이버 보안 뉴스의 태그를 다는 분석가다. 반드시 JSON 객체 하나만 출력한다: "

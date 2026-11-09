@@ -12,13 +12,16 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import collector, db, orgs, regen, stats, tagcloud
+from . import collector, db, intel, orgs, regen, stats, tagcloud
 from .config import load_config
 
 BASE = Path(__file__).parent
 WEEKDAYS = "월화수목금토일"
 REGEN_COOLDOWN = 20  # seconds, per incident
 SEARCH_FIELDS = ("title", "summary", "attacker", "victim", "damage", "category", "hashtags")
+INTEL_SEARCH_FIELDS = ("i.title", "i.summary", "i.action", "i.kind", "i.hashtags", "a.title", "a.source")
+SECTIONS = ("incident", "intel")
+INTEL_TABS = {"advisory": "권고", "threat": "위협 분석", "guide": "가이드", "policy": "정책"}  # tab key -> intel.kind
 # when the news came out: the earliest linked article's publication date (feed date; collection date if missing).
 # The timeline and the tag cloud use this; occurred_at (the incident date the LLM extracted) is shown on the card.
 POSTED = ("COALESCE((SELECT MIN(COALESCE(NULLIF(a.published_at,''), date(a.fetched_at,'localtime'))) "
@@ -98,10 +101,29 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
             r["sources"] = sources_of(r["id"])
         return page, {k: len(v) for k, v in by_tab.items()}
 
+    def intel_listing(query="", tab="all", limit=300, offset=0):
+        """(page of intel entries for the kind tab, {tab: count}), newest publication first."""
+        clauses, args = [], []
+        for term in query.split()[:5]:
+            clauses.append("(" + " OR ".join(f"{f} LIKE ? ESCAPE '\\'" for f in INTEL_SEARCH_FIELDS) + ")")
+            args += [_like(term)] * len(INTEL_SEARCH_FIELDS)
+        where = "WHERE " + " AND ".join(clauses) if clauses else ""
+        rows = q("SELECT i.*, a.source, a.url, a.title AS article_title FROM intel i JOIN articles a ON a.id=i.article_id "
+                 f"{where} ORDER BY i.published_at DESC, i.id DESC", args)
+        for r in rows:
+            try:
+                r["hashtags"] = [t for t in json.loads(r.get("hashtags") or "[]") if isinstance(t, str)]
+            except ValueError:
+                r["hashtags"] = []
+        by_tab = {"all": rows, **{k: [r for r in rows if r["kind"] == kind] for k, kind in INTEL_TABS.items()}}
+        return by_tab.get(tab, rows)[offset:offset + limit], {k: len(v) for k, v in by_tab.items()}
+
     def version():
-        """Changes whenever an incident is added, merged or rewritten (and articles: the side-pane charts)."""
+        """Changes whenever an incident or intel entry is added, merged or rewritten (and articles: the charts)."""
         r = q("SELECT COUNT(*) n, MAX(id) m, MAX(updated_at) u, (SELECT COUNT(*) FROM articles) a FROM incidents")[0]
-        return {"incidents": f"{r['n']}-{r['m'] or 0}-{r['u'] or ''}", "articles": r["a"]}
+        i = q("SELECT COUNT(*) n, MAX(id) m, MAX(updated_at) u FROM intel")[0]
+        return {"incidents": f"{r['n']}-{r['m'] or 0}-{r['u'] or ''}|{i['n']}-{i['m'] or 0}-{i['u'] or ''}",
+                "articles": r["a"]}
 
     def one(inc_id):
         rows = q(f"SELECT *, {POSTED} AS posted_at FROM incidents WHERE id=?", (inc_id,))
@@ -111,23 +133,32 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
         return tagged(rows[0])
 
     @app.get("/", response_class=HTMLResponse)
-    def index(request: Request, q: str = "", tab: str = "all"):
+    def index(request: Request, q: str = "", tab: str = "all", section: str = "incident"):
         q = q.strip()[:100]
         try:  # re-read so a [server].refresh_seconds edit applies on the next page load
             refresh = load_config(config_path).refresh_seconds
         except Exception:
             refresh = cfg.refresh_seconds
-        tab = tab if tab in orgs.TAB_TAGS else "all"
+        section = section if section in SECTIONS else "incident"
+        inc_rows, inc_counts = listing(query=q, tab=tab if tab in orgs.TAB_TAGS else "all")
+        intel_rows, intel_counts = intel_listing(query=q, tab=tab if tab in INTEL_TABS else "all")
+        if section == "intel":
+            tab = tab if tab in INTEL_TABS else "all"
+            rows, counts, date_key = intel_rows, intel_counts, "published_at"
+        else:
+            tab = tab if tab in orgs.TAB_TAGS else "all"
+            rows, counts, date_key = inc_rows, inc_counts, "posted_at"
         groups: dict[str, list] = {}
-        rows, counts = listing(query=q, tab=tab)
         for r in rows:
-            groups.setdefault(r["posted_at"], []).append(r)
+            groups.setdefault(r[date_key], []).append(r)
         days = [{"date": d, "weekday": WEEKDAYS[date.fromisoformat(d).weekday()], "items": items}
                 for d, items in groups.items()]
         return templates.TemplateResponse(request, "index.html",
                                           {"title": cfg.site_title, "days": days, "q": q, "total": counts[tab],
-                                           "tab": tab, "counts": counts, "version": version(),
-                                           "refresh": refresh})
+                                           "tab": tab, "counts": counts, "version": version(), "refresh": refresh,
+                                           "section": section, "intel_tabs": INTEL_TABS,
+                                           "section_counts": {"incident": inc_counts["all"],
+                                                              "intel": intel_counts["all"]}})
 
     @app.get("/incidents/{inc_id}", response_class=HTMLResponse)
     def detail(request: Request, inc_id: int):
@@ -165,30 +196,41 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
             raise HTTPException(400, "tab은 all 또는 gov여야 합니다")
         return listing(max(1, min(limit, 500)), max(0, offset), q.strip()[:100], tab)[0]
 
+    @app.get("/api/intel")
+    def api_intel(limit: int = 100, offset: int = 0, q: str = "", tab: str = "all"):
+        if tab != "all" and tab not in INTEL_TABS:
+            raise HTTPException(400, "tab은 all, " + ", ".join(INTEL_TABS) + " 중 하나여야 합니다")
+        return intel_listing(q.strip()[:100], tab, max(1, min(limit, 500)), max(0, offset))[0]
+
     @app.get("/api/tagcloud")
-    def api_tagcloud(period: str = "week", limit: int = 60):
+    def api_tagcloud(period: str = "week", limit: int = 60, section: str = "incident"):
         if period not in tagcloud.PERIODS:
             raise HTTPException(400, "period는 day, week, month, year 중 하나여야 합니다")
+        if section not in SECTIONS:
+            raise HTTPException(400, "section은 incident 또는 intel이어야 합니다")
         try:  # re-read so [tagcloud].exclude edits apply on the next page load, like the other live settings
             exclude = load_config(config_path).tagcloud_exclude
         except Exception:  # file mid-edit / invalid: keep the list from startup
             exclude = cfg.tagcloud_exclude
         start = tagcloud.since(period)
-        rows = q(f"SELECT hashtags FROM incidents WHERE {POSTED} >= ?", (start,))
+        rows = (q("SELECT hashtags FROM intel WHERE published_at >= ?", (start,)) if section == "intel"
+                else q(f"SELECT hashtags FROM incidents WHERE {POSTED} >= ?", (start,)))
         return {"period": period, "since": start, "incidents": len(rows),
                 "tags": tagcloud.cloud(rows, max(1, min(limit, 150)), exclude)}
 
     @app.get("/api/article-stats")
-    def api_article_stats(unit: str = "day"):
+    def api_article_stats(unit: str = "day", section: str = ""):
         if unit not in stats.UNITS:
             raise HTTPException(400, "unit은 day, month, year 중 하나여야 합니다")
+        if section and section not in SECTIONS:
+            raise HTTPException(400, "section은 incident 또는 intel이어야 합니다")
         try:  # daily span = [collector].max_age_days (older feed items are never collected); re-read per request
             days = load_config(config_path).max_age_days
         except Exception:
             days = cfg.max_age_days
         days = max(1, min(int(days), 3660))
         with lock:
-            series = stats.article_counts(conn, unit, days=days)
+            series = stats.article_counts(conn, unit, days=days, section=section or None)
         return {"unit": unit, "total": sum(x["count"] for x in series), "series": series,
                 "average": stats.average(series)}
 

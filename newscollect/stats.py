@@ -19,11 +19,14 @@ def periods(unit: str, today: date, first_year: int | None = None, days: int = D
     return [str(y) for y in range(min(first_year or today.year, today.year), today.year + 1)]
 
 
-def article_counts(conn, unit: str, today: date | None = None, days: int = DAYS_SHOWN) -> list[dict]:
+def article_counts(conn, unit: str, today: date | None = None, days: int = DAYS_SHOWN,
+                   section: str | None = None) -> list[dict]:
+    """section: 'incident' / 'intel' articles only; None = all."""
     today = today or date.today()
     n = UNITS[unit]
     rows = conn.execute(
-        f"SELECT substr({DATE},1,{n}) k, COUNT(*) c FROM articles GROUP BY k").fetchall()
+        f"SELECT substr({DATE},1,{n}) k, COUNT(*) c FROM articles {'WHERE section=?' if section else ''} GROUP BY k",
+        (section,) if section else ()).fetchall()
     counts = {r["k"]: r["c"] for r in rows if r["k"] and r["k"][:4].isdigit()}
     first_year = min((int(k[:4]) for k in counts), default=None)
     return [{"period": p, "count": counts.get(p, 0)} for p in periods(unit, today, first_year, days)]

@@ -5,6 +5,13 @@
   <line x1="9" y1="4" x2="9" y2="20" stroke="currentColor" stroke-width="1.8"/>
   <path d="M12.5 16.5v-3M15.5 16.5v-6M18.5 16.5v-4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
 </svg></button>{% endblock %}
+{% block header_nav %}{% set hq = ("q=" ~ (q|urlencode) ~ "&amp;") if q else "" %}
+<nav class="sections" aria-label="정보 종류">
+  {% for key, label in [("incident", "보안 사고"), ("intel", "인텔·권고")] %}
+  <a href="/?{{ hq }}section={{ key }}"{% if section == key %} aria-current="page"{% endif %}>{{ label }} <span class="count">{{ section_counts[key] }}</span></a>
+  {% endfor %}
+</nav>
+{% endblock %}
 {% block side %}
 <aside id="side" class="side" aria-label="태그와 통계">
 <button type="button" class="pane-close" aria-label="패널 닫기">✕ 닫기</button>
@@ -39,18 +46,25 @@
 {% block content %}
 <div id="live" data-incidents="{{ version.incidents }}" data-articles="{{ version.articles }}" data-refresh="{{ refresh }}" hidden></div>
 <button type="button" class="new-banner" hidden></button>
-<nav class="tabs" aria-label="사고 분류">
-  {% for key, label in [("all", "전체"), ("gov", "정부공공")] %}
-  <a href="/?{% if q %}q={{ q|urlencode }}&amp;{% endif %}tab={{ key }}"{% if tab == key %} aria-current="page"{% endif %}{% if key == "gov" %} title="피해 대상이 정부기관 또는 공공기관인 사고"{% endif %}>{{ label }} <span class="count">{{ counts[key] }}</span></a>
+{% set sq = ("q=" ~ (q|urlencode) ~ "&amp;") if q else "" %}
+<nav class="tabs" aria-label="{% if section == 'intel' %}인텔·권고 종류{% else %}사고 분류{% endif %}">
+  {% if section == "intel" %}
+  {% for key, label in [("all", "전체")] + intel_tabs.items()|list %}
+  <a href="/?{{ sq }}section=intel&amp;tab={{ key }}"{% if tab == key %} aria-current="page"{% endif %}>{{ label }} <span class="count">{{ counts[key] }}</span></a>
   {% endfor %}
+  {% else %}
+  {% for key, label in [("all", "전체"), ("gov", "정부공공")] %}
+  <a href="/?{{ sq }}tab={{ key }}"{% if tab == key %} aria-current="page"{% endif %}{% if key == "gov" %} title="피해 대상이 정부기관 또는 공공기관인 사고"{% endif %}>{{ label }} <span class="count">{{ counts[key] }}</span></a>
+  {% endfor %}
+  {% endif %}
 </nav>
-{% if q %}<p class="found">‘{{ q }}’ 검색 결과 {{ total }}건 · <a href="/{% if tab != 'all' %}?tab={{ tab }}{% endif %}">검색 해제</a></p>{% endif %}
+{% if q %}<p class="found">‘{{ q }}’ 검색 결과 {{ total }}건 · <a href="/?{% if section == 'intel' %}section=intel&amp;{% endif %}tab={{ tab }}">검색 해제</a></p>{% endif %}
 {% for day in days %}
 <section class="day">
   <h2>{{ day.date }} <small>({{ day.weekday }})</small></h2>
-  {% for i in day['items'] %}{% include "_card.html" %}{% endfor %}
+  {% for i in day['items'] %}{% if section == "intel" %}{% include "_intel_card.html" %}{% else %}{% include "_card.html" %}{% endif %}{% endfor %}
 </section>
 {% else %}
-<p class="empty">{% if q %}검색 결과가 없습니다.{% elif tab == "gov" %}피해 대상이 정부기관·공공기관인 사고가 아직 없습니다.{% else %}아직 수집된 사고가 없습니다. 잠시 후 다시 확인하세요.{% endif %}</p>
+<p class="empty">{% if q %}검색 결과가 없습니다.{% elif section == "intel" %}{% if tab != "all" %}이 종류의 인텔·권고가 아직 없습니다.{% else %}아직 수집된 인텔·권고가 없습니다. config.toml의 [[intel_sources]]를 확인하세요.{% endif %}{% elif tab == "gov" %}피해 대상이 정부기관·공공기관인 사고가 아직 없습니다.{% else %}아직 수집된 사고가 없습니다. 잠시 후 다시 확인하세요.{% endif %}</p>
 {% endfor %}
 {% endblock %}

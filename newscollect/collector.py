@@ -3,7 +3,7 @@ import logging
 
 import httpx
 
-from . import db, dedupe, extractor, feeds, llm as llmmod
+from . import db, dedupe, extractor, feeds, intel, llm as llmmod
 from .config import load_config
 
 log = logging.getLogger("newscollect")
@@ -11,9 +11,11 @@ MAX_ATTEMPTS = 3
 
 
 def collect_once(conn, cfg) -> dict:
-    stats = {"new": 0, "incidents": 0, "skipped": 0, "failed": 0}
+    stats = {"new": 0, "incidents": 0, "intel": 0, "skipped": 0, "failed": 0}
     with httpx.Client(timeout=20) as web, httpx.Client(timeout=cfg.llm_timeout) as http:
-        for src in (s for s in cfg.sources if s.enabled):
+        feeds_to_read = [(s, "incident") for s in cfg.sources if s.enabled]
+        feeds_to_read += [(s, "intel") for s in getattr(cfg, "intel_sources", []) if s.enabled]
+        for src, section in feeds_to_read:
             try:
                 items = feeds.fetch_feed(web, src.url, cfg.max_articles_per_run, cfg.max_age_days)
             except Exception as e:
@@ -21,8 +23,8 @@ def collect_once(conn, cfg) -> dict:
                 continue
             for it in items:
                 cur = conn.execute(
-                    "INSERT OR IGNORE INTO articles(source,url,title,published_at,body) VALUES(?,?,?,?,?)",
-                    (src.name, it["url"], it["title"], it["published_at"], it["snippet"]))
+                    "INSERT OR IGNORE INTO articles(source,url,title,published_at,body,section) VALUES(?,?,?,?,?,?)",
+                    (src.name, it["url"], it["title"], it["published_at"], it["snippet"], section))
                 if cur.rowcount:
                     stats["new"] += 1
             conn.commit()
@@ -38,12 +40,29 @@ def collect_once(conn, cfg) -> dict:
         pending = conn.execute(
             "SELECT * FROM articles WHERE status IN ('new','failed') AND attempts < ? ORDER BY published_at",
             (MAX_ATTEMPTS,)).fetchall()
-        # Korean first, then the rest: with a separate foreign_model the LLM server swaps models once per run
-        pending = sorted(pending, key=lambda a: not extractor.is_korean(a["title"] + " " + a["body"][:600]))
+        # incidents before intel; Korean first within each (with a separate foreign_model the LLM server swaps
+        # models less often)
+        pending = sorted(pending, key=lambda a: (a["section"] == "intel",
+                                                 not extractor.is_korean(a["title"] + " " + a["body"][:600])))
         for a in pending:
             art = dict(a)
             try:
                 art["body"] = feeds.fetch_body(web, art["url"], art["body"])
+                if art["section"] == "intel":
+                    if not cfg.llm_enabled:  # no heuristic fallback: intel needs the LLM to be summarized in Korean
+                        break
+                    korean = extractor.is_korean(art["title"] + " " + art["body"][:600])
+                    entry = intel.extract(llm, llmmod.model_for(cfg, korean), art)
+                    if entry:
+                        intel.save(conn, art["id"], entry, art["published_at"])
+                        stats["intel"] += 1
+                        log.info("intel [%s] <- %s", entry.kind, art["title"])
+                    else:
+                        stats["skipped"] += 1
+                    conn.execute("UPDATE articles SET body=?, status=?, attempts=attempts+1, error=NULL WHERE id=?",
+                                 (art["body"], "done" if entry else "skipped", art["id"]))
+                    conn.commit()
+                    continue
                 ex = extractor.extract(llm, cfg, art)
                 if ex.is_incident:
                     inc = dedupe.upsert_incident(conn, ex, art["id"], judge)

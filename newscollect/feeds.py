@@ -32,7 +32,26 @@ def _entry_date(e) -> str | None:
             return date(t.tm_year, t.tm_mon, t.tm_mday).isoformat()
     raw = e.get("published") or e.get("updated") or ""
     m = re.search(r"(\d{4})-(\d{2})-(\d{2})", raw)
-    return m.group(0) if m else None
+    if m:
+        return m.group(0)
+    return _loose_date(raw)
+
+
+_MONTHS = {m: i for i, m in enumerate(("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"), 1)}
+
+
+def _loose_date(raw: str) -> str | None:
+    """Dates feedparser can't read: "Nov 05, 2026 00:00:00-0600" (CrowdStrike), "5 November 2026"."""
+    m = (re.search(r"\b([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2}),?\s+(\d{4})\b", raw)
+         or re.search(r"\b(\d{1,2})\s+([A-Za-z]{3})[a-z]*\.?,?\s+(\d{4})\b", raw))
+    if not m:
+        return None
+    a, b, year = m.groups()
+    mon, day = (a, b) if a[0].isalpha() else (b, a)
+    try:
+        return date(int(year), _MONTHS[mon.lower()], int(day)).isoformat()
+    except (KeyError, ValueError):
+        return None
 
 
 def fetch_feed(client: httpx.Client, url: str, limit: int, max_age_days: int) -> list[dict]:

@@ -38,7 +38,8 @@ class Config:
     tagcloud_exclude: list[str] = field(default_factory=list)  # tags left out of the tag cloud
     gov_list: str = ""     # CSV of government bodies (name in column 2) -> "정부기관" tag
     public_list: str = ""  # CSV of public institutions (name in column 1) -> "공공기관" tag
-    sources: list[Source] = field(default_factory=list)
+    sources: list[Source] = field(default_factory=list)        # [[sources]]: incident news
+    intel_sources: list[Source] = field(default_factory=list)  # [[intel_sources]]: intel & advisories
 
     @property
     def llm_base_url(self) -> str:
@@ -93,8 +94,9 @@ def load_config(path: Path | str | None = None) -> Config:
         gov_list=raw.get("orgs", {}).get("government_list", ""),
         public_list=raw.get("orgs", {}).get("public_list", ""),
     )
-    for s in raw.get("sources", []):
-        if "url" not in s:
-            raise ValueError(f"source missing url: {s}")
-        cfg.sources.append(Source(s.get("name") or s["url"], s["url"], bool(s.get("enabled", True))))
+    for key, dest in (("sources", cfg.sources), ("intel_sources", cfg.intel_sources)):
+        for s in raw.get(key, []):
+            if "url" not in s:
+                raise ValueError(f"[[{key}]] entry missing url: {s}")
+            dest.append(Source(s.get("name") or s["url"], s["url"], bool(s.get("enabled", True))))
     return cfg

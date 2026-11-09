@@ -9,12 +9,14 @@ try{var p=localStorage.getItem("pane");document.documentElement.dataset.pane=(in
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="{{ static_url('style.css') }}">
 </head>
-<body data-page="{% block page %}list{% endblock %}">
+<body data-page="{% block page %}list{% endblock %}" data-section="{{ section or 'incident' }}">
 <header>
   {% block pane_toggle %}{% endblock %}
   <a class="brand" href="/">{{ title }}</a>
+  {% block header_nav %}{% endblock %}
   <form class="search" action="/" method="get" role="search">
-    <input type="search" name="q" value="{{ q or '' }}" placeholder="사고 검색 (기업, 공격자, 키워드)" maxlength="100" aria-label="사고 검색">
+    <input type="search" name="q" value="{{ q or '' }}" placeholder="{% if section == 'intel' %}인텔·권고 검색 (제품, CVE, 공격 그룹, 키워드){% else %}사고 검색 (기업, 공격자, 키워드){% endif %}" maxlength="100" aria-label="{% if section == 'intel' %}인텔·권고 검색{% else %}사고 검색{% endif %}">
+    {% if section == "intel" %}<input type="hidden" name="section" value="intel">{% endif %}
     {% if tab and tab != "all" %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
     <button type="submit">검색</button>
   </form>

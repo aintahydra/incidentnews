@@ -100,3 +100,21 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .new-banner[hidden]{display:none}
 .new-banner:hover{filter:brightness(1.1)}
 .incident.fresh h3::before{content:"새 사고";display:inline-block;margin-right:6px;padding:1px 7px;border-radius:4px;background:#2e9e5b;color:#fff;font-size:12px;font-weight:600;vertical-align:2px}
+
+/* 보안 사고 | 인텔·권고: section switch in the sticky header, next to the site title */
+.sections{display:flex;gap:4px;padding:3px;border:1px solid var(--line);border-radius:999px;background:var(--card)}
+.sections a{padding:6px 14px;border-radius:999px;color:var(--mut);text-decoration:none;font-weight:600;font-size:14px;white-space:nowrap}
+.sections a:hover{color:var(--fg)}
+.sections a[aria-current="page"]{color:#fff;background:var(--series-1)}
+.sections .count{font-weight:400;font-size:12px;opacity:.8;margin-left:3px}
+.tag.kind{color:var(--series-1);border-color:var(--series-1)}
+.intel .action{margin:8px 0;padding:8px 10px;border-left:3px solid var(--series-1);background:color-mix(in srgb,var(--series-1) 8%,transparent)}
+.intel .action strong{margin-right:6px}
+.intel .src .orig{color:var(--mut)}
+.incident.intel.fresh h3::before{content:"새 글"}
+@media(max-width:699px){ /* phones: the section switch and the search box each get a full row */
+  .sections{order:3;flex:1 1 100%}
+  .sections a{flex:1;text-align:center}
+  .search{order:4;flex:1 1 100%;max-width:none;margin-left:0}
+  .themes{order:2;margin-left:auto}
+}

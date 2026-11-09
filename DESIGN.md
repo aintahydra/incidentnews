@@ -34,7 +34,8 @@ Single process, single SQLite file: simple to run (`python -m newscollect`).
 
 ## 3. Data model
 
-- `articles(id, source, url UNIQUE, title, published_at, body, status, error, fetched_at)`
+- `articles(id, source, url UNIQUE, title, published_at, body, status, error, fetched_at, section)` — section is `incident` or `intel`
+- `intel(id, article_id UNIQUE, title, kind, summary, action, hashtags, published_at, created_at, updated_at)`
   status: `new` → `done` | `skipped` (not an incident) | `failed` (retried, max attempts)
 - `incidents(id, title, occurred_at, attacker, victim, damage, summary, category, hashtags, created_at, updated_at)`
 - `incident_articles(incident_id, article_id)` — many articles per incident
@@ -161,3 +162,20 @@ On a match: link the article, fill empty fields, keep the longer summary.
   articles a bad name that also appears in the title/summary still rejects the result.
 - Date sanity: `occurred_at` must lie within 180 days before the publish date; years written in a summary must occur
   in the article or equal the publish year (`known_years`).
+
+## Intel & advisories
+
+- `[[intel_sources]]` in config.toml (same shape as `[[sources]]`); articles stored with `section='intel'` in the shared
+  `articles` table (URL uniqueness and statuses as before). The collector reads both lists each cycle and processes
+  incident articles first, then intel.
+- `intel.py`: one JSON call per article (`intel.SYSTEM`): `relevant`, `kind` (권고 / 위협 분석 / 가이드 / 정책; unknown
+  values fall back to 위협 분석), Korean `title`, 3-4 sentence `summary` (다체), one-line `action`, and `tags` with four
+  slots (actor, product/CVE, technique, topic) cleaned by `extractor.clean_hashtags(tags, intel.TAG_ROLES)`.
+  Not relevant -> article `skipped`. Checks reuse the incident ones (`summary_problems`, `plain_form`, transliteration
+  stripping, polite-form rejection also for `action`); retried at hotter temperatures with the problems as a hint;
+  failure -> article `failed`, retried next cycle. No heuristic fallback (intel needs the LLM).
+- No merging: one `intel` row per article (`article_id UNIQUE`, upsert on conflict).
+- Web: `/?section=intel` with kind tabs (`tab=advisory|threat|guide|policy`), grouped by the article's publication
+  date; `_intel_card.html` links to the original. `/api/intel`, and `section=` on `/api/tagcloud` and
+  `/api/article-stats`. `/api/version` includes intel so live updates cover both tabs. `body[data-section]` tells
+  app.js which section the side pane serves.

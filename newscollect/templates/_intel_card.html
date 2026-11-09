@@ -1,0 +1,7 @@
+<article class="incident intel" id="intel-{{ i.id }}">
+  <h3><a href="{{ i.url }}" target="_blank" rel="noopener">{{ i.title }}</a> <span class="tag kind">{{ i.kind }}</span></h3>
+  <p>{{ i.summary }}</p>
+  {% if i.action %}<p class="action"><strong>권고 조치</strong> {{ i.action }}</p>{% endif %}
+  {% if i.hashtags %}<p class="hashtags">{% for h in i.hashtags %}<a href="/?section=intel&amp;q={{ h|urlencode }}">#{{ h }}</a>{% endfor %}</p>{% endif %}
+  <p class="src"><a href="{{ i.url }}" target="_blank" rel="noopener">{{ i.source }}</a> · <span class="orig" lang="{% if i.article_title is string and i.article_title.isascii() %}en{% else %}ko{% endif %}">{{ i.article_title }}</span></p>
+</article>

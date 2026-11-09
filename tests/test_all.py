@@ -1370,3 +1370,132 @@ def test_prefilter_skips_conference_talks_columns_and_roundups():
     for t in keep:
         assert extractor.looks_like_incident({"title": t, "body": body}), t
     assert "주간 요약" in extractor.SYSTEM and "강연" in extractor.SYSTEM
+
+
+# ---- intel & advisories ----
+INTEL_RSS = """<?xml version="1.0"?><rss version="2.0"><channel><title>intel</title>
+<item><title>Fortinet urges FortiOS patch after active exploitation</title><link>http://intel/1</link>
+<description>Fortinet warned customers that CVE-2026-1234 in FortiOS SSL VPN is being exploited. Admins should upgrade to 7.4.5.</description>
+<pubDate>Tue, 27 Oct 2026 10:00:00 +0000</pubDate></item>
+<item><title>Join our webinar next week</title><link>http://intel/2</link><description>Register for our webinar on threat hunting.</description>
+<pubDate>Tue, 27 Oct 2026 11:00:00 +0000</pubDate></item>
+</channel></rss>"""
+INTEL_JSON = {"relevant": True, "kind": "권고", "title": "Fortinet, 악용 중인 FortiOS 취약점 패치 권고",
+              "summary": "Fortinet은 FortiOS SSL VPN의 CVE-2026-1234 취약점이 실제 공격에 악용되고 있다고 경고했다. "
+                         "공격자는 이 취약점으로 인증 없이 장비에 접근할 수 있다. 회사는 관리자에게 즉시 업데이트를 권고했다.",
+              "action": "FortiOS를 7.4.5 이상으로 업데이트한다.",
+              "tags": {"actor": "", "product": "FortiOS", "technique": "취약점악용", "topic": "패치관리"}}
+
+
+def intel_cfg(tmp_path):
+    p = write_cfg(tmp_path)
+    p.write_text(p.read_text() + '\n[[intel_sources]]\nname = "Vendor"\nurl = "http://intel/feed.xml"\n'
+                 '\n[[intel_sources]]\nname = "Off"\nurl = "http://intel/off.xml"\nenabled = false\n')
+    cfg = load_config(p); cfg.max_age_days = 100000
+    return cfg
+
+
+def test_intel_sources_config(tmp_path):
+    cfg = intel_cfg(tmp_path)
+    assert [(s.name, s.enabled) for s in cfg.intel_sources] == [("Vendor", True), ("Off", False)]
+    assert [s.name for s in cfg.sources] == ["A", "B"]          # incident sources unchanged
+    assert load_config(write_cfg(tmp_path)).intel_sources == []
+
+
+def test_intel_extract_kinds_relevance_and_checks():
+    from newscollect import intel
+    answers = []
+    def handler(req):
+        body = json.loads(req.content)
+        assert body["format"] == "json" and "relevant" in body["messages"][0]["content"]
+        return httpx.Response(200, json={"message": {"content": json.dumps(answers.pop(0), ensure_ascii=False)}})
+    llm_ = llm.Ollama(httpx.Client(transport=httpx.MockTransport(handler)), "http://x")
+    art = {"title": "Fortinet urges FortiOS patch after active exploitation", "published_at": "2026-10-27",
+           "body": "Fortinet warned that CVE-2026-1234 in FortiOS SSL VPN is exploited. Upgrade to 7.4.5. Year 2026."}
+    # polite action -> rejected and retried; the retry passes
+    answers[:] = [{**INTEL_JSON, "action": "FortiOS를 업데이트하십시오. 업데이트합니다."}, INTEL_JSON]
+    e = intel.extract(llm_, "m", art)
+    assert (e.kind, e.action, e.hashtags) == ("권고", "FortiOS를 7.4.5 이상으로 업데이트한다.", ["FortiOS", "취약점악용", "패치관리"])
+    answers[:] = [{"relevant": False}]
+    assert intel.extract(llm_, "m", {**art, "title": "Join our webinar"}) is None
+    answers[:] = [{**INTEL_JSON, "summary": "짧다."}] * 3
+    with pytest.raises(ValueError):
+        intel.extract(llm_, "m", art)
+    _, e = intel.parse(json.dumps({**INTEL_JSON, "kind": "위협분석", "summary": "이 글은 동향을 분석했습니다."}))
+    assert e.kind == "위협 분석" and e.summary == "이 글은 동향을 분석했다."   # spacing-insensitive kind, 다체 conversion
+    _, e = intel.parse(json.dumps({**INTEL_JSON, "kind": "뉴스"}))
+    assert e.kind in intel.KINDS
+
+
+def test_collect_routes_intel_articles_and_page_shows_them(tmp_path, monkeypatch):
+    from newscollect import intel
+    cfg = intel_cfg(tmp_path)
+    prompts = []
+    def handler(req):
+        if req.url.path == "/api/chat":
+            body = json.loads(req.content); system = body["messages"][0]["content"]
+            prompts.append("intel" if system == intel.SYSTEM else "incident")
+            if system == intel.SYSTEM:
+                webinar = "webinar" in body["messages"][1]["content"]
+                return httpx.Response(200, json={"message": {"content": json.dumps({"relevant": False} if webinar else INTEL_JSON)}})
+            out = {"is_incident": True, "title": "A사 랜섬웨어 피해", "occurred_at": "2026-10-27", "victim": "A사",
+                   "summary": "10월 27일 A사가 랜섬웨어 공격을 받아 서버가 마비됐다."}
+            return httpx.Response(200, json={"message": {"content": json.dumps(out)}})
+        if req.url.path == "/feed.xml" and req.url.host == "intel":
+            return httpx.Response(200, content=INTEL_RSS.encode())
+        if req.url.host == "x" and req.url.path.endswith(".xml"):
+            return httpx.Response(200, content=RSS.encode())
+        if req.url.path == "/off.xml":
+            raise AssertionError("disabled intel source was fetched")
+        return httpx.Response(404)
+    real = httpx.Client
+    monkeypatch.setattr(collector.httpx, "Client", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    conn = db.connect(cfg.database)
+    s = collector.collect_once(conn, cfg)
+    assert s["intel"] == 1 and s["incidents"] == 1 and s["failed"] == 0
+    assert prompts.index("intel") > max(i for i, p in enumerate(prompts) if p == "incident")   # incidents first
+    sections = dict(conn.execute("SELECT url, section FROM articles").fetchall())
+    assert sections["http://intel/1"] == "intel" and sections["http://x/1"] == "incident"
+    assert conn.execute("SELECT status FROM articles WHERE url='http://intel/2'").fetchone()[0] == "skipped"
+    assert conn.execute("SELECT COUNT(*) FROM incidents").fetchone()[0] == 1          # intel never becomes an incident
+    assert collector.collect_once(conn, cfg)["new"] == 0
+
+    c = TestClient(create_app(tmp_path / "config.toml", run_collector=False))
+    page = c.get("/?section=intel").text
+    assert "Fortinet, 악용 중인 FortiOS 취약점 패치 권고" in page and "권고 조치" in page and 'data-section="intel"' in page
+    assert 'href="/?section=intel&amp;q=FortiOS"' in page and "A사 랜섬웨어 피해" not in page
+    assert re.search(r'aria-current="page">인텔·권고 <span class="count">1</span>', page)
+    assert "A사 랜섬웨어 피해" in c.get("/").text and "FortiOS" not in c.get("/").text
+    assert "FortiOS" in c.get("/?section=intel&tab=advisory").text and "FortiOS" not in c.get("/?section=intel&tab=guide").text
+    assert "FortiOS 취약점 패치 권고" in c.get("/?section=intel&q=CVE-2026").text            # search covers the summary
+    assert "FortiOS 취약점 패치 권고" not in c.get("/?section=intel&q=webinar").text
+    assert c.get("/api/intel").json()[0]["kind"] == "권고" and c.get("/api/intel?tab=bogus").status_code == 400
+    cloud = c.get("/api/tagcloud?period=year&section=intel").json()
+    assert {t["tag"] for t in cloud["tags"]} == {"FortiOS", "취약점악용", "패치관리"}
+    assert c.get("/api/tagcloud?section=bogus").status_code == 400
+    assert c.get("/api/article-stats?unit=year&section=intel").json()["total"] == 2
+    assert c.get("/api/article-stats?unit=year&section=incident").json()["total"] == 2
+    assert c.get("/api/article-stats?unit=year").json()["total"] == 4
+    v1 = c.get("/api/version").json()
+    conn.execute("UPDATE intel SET summary=summary||' ', updated_at='2999-01-01' "); conn.commit()
+    assert c.get("/api/version").json()["incidents"] != v1["incidents"]                # intel edits trigger live refresh
+
+
+def test_feed_dates_in_loose_formats():
+    from newscollect import feeds
+    assert feeds._loose_date("Nov 05, 2026 00:00:00-0600") == "2026-11-05"      # CrowdStrike
+    assert feeds._loose_date("5 November 2026") == "2026-11-05"
+    assert feeds._loose_date("Sept. 30 2026") == "2026-09-30"
+    assert feeds._loose_date("Feb 30, 2026") is None and feeds._loose_date("soon") is None
+    assert feeds._entry_date({"published": "Nov 05, 2026 00:00:00-0600"}) == "2026-11-05"
+    assert feeds._entry_date({"published": "2026-11-04T10:00:00Z"}) == "2026-11-04"
+
+
+def test_intel_skips_podcast_stubs_without_llm_call():
+    from newscollect import intel
+    class NoLLM:
+        def chat(self, *a, **k):
+            raise AssertionError("LLM called for a podcast stub")
+    art = {"title": "ISC Stormcast For Monday, November 9th, 2026 https://isc.sans.edu/podcastdetail/9700",
+           "body": "podcast", "published_at": "2026-11-09"}
+    assert intel.extract(NoLLM(), "m", art) is None

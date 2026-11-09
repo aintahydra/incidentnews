@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS articles (
   status TEXT NOT NULL DEFAULT 'new',   -- new | done | skipped | failed
   attempts INTEGER NOT NULL DEFAULT 0,
   error TEXT,
-  fetched_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  fetched_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  section TEXT NOT NULL DEFAULT 'incident'  -- incident ([[sources]]) | intel ([[intel_sources]])
 );
 CREATE TABLE IF NOT EXISTS incidents (
   id INTEGER PRIMARY KEY,
@@ -33,6 +34,20 @@ CREATE TABLE IF NOT EXISTS incident_articles (
   PRIMARY KEY (incident_id, article_id)
 );
 CREATE INDEX IF NOT EXISTS idx_incidents_date ON incidents(occurred_at DESC);
+-- intel & advisories: one entry per article (no incident-style merging)
+CREATE TABLE IF NOT EXISTS intel (
+  id INTEGER PRIMARY KEY,
+  article_id INTEGER NOT NULL UNIQUE REFERENCES articles(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,          -- Korean
+  kind TEXT NOT NULL,           -- 권고 | 위협 분석 | 가이드 | 정책
+  summary TEXT NOT NULL,        -- Korean, 다체
+  action TEXT DEFAULT '',       -- recommended action, one line (advisories)
+  hashtags TEXT NOT NULL DEFAULT '[]',  -- JSON array: actor, product/CVE, technique, topic
+  published_at TEXT NOT NULL,   -- the article's publication date
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_intel_date ON intel(published_at DESC);
 """
 
 
@@ -52,4 +67,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(incidents)")}
     if "hashtags" not in cols:
         conn.execute("ALTER TABLE incidents ADD COLUMN hashtags TEXT NOT NULL DEFAULT '[]'")
+        conn.commit()
+    if "section" not in {r["name"] for r in conn.execute("PRAGMA table_info(articles)")}:
+        conn.execute("ALTER TABLE articles ADD COLUMN section TEXT NOT NULL DEFAULT 'incident'")
         conn.commit()

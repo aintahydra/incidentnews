@@ -1,5 +1,7 @@
 (function () {
   var refreshers = []; // side-pane redraws run when new data arrives (live updates below)
+  var section = document.body.dataset.section === "intel" ? "intel" : "incident"; // 보안 사고 | 인텔·권고 tab
+  var ITEM = section === "intel" ? "글" : "사고"; // what one card is, in notes and the new-items button
   // --- theme buttons (initial theme is set by the inline script in <head>) ---
   var root = document.documentElement;
   function paint() {
@@ -91,7 +93,7 @@
       words.forEach(function (w) {
         var t = max === min ? 0.6 : Math.log(w.count / min) / Math.log(max / min);
         var a = document.createElement("a");
-        a.href = "/?q=" + encodeURIComponent(w.tag);
+        a.href = "/?" + (section === "intel" ? "section=intel&" : "") + "q=" + encodeURIComponent(w.tag);
         a.textContent = "#" + w.tag;
         a.title = "#" + w.tag + " · 사고 " + w.count + "건";
         a.style.fontSize = (small + (big - small) * t).toFixed(1) + "px";
@@ -127,7 +129,7 @@
       try {
         if (!cache[period]) {
           note.textContent = "불러오는 중…";
-          var r = await fetch("/api/tagcloud?period=" + period, { cache: "no-store" });
+          var r = await fetch("/api/tagcloud?period=" + period + "&section=" + section, { cache: "no-store" });
           if (!r.ok) throw new Error("태그를 불러오지 못했습니다 (" + r.status + ")");
           cache[period] = await r.json();
         }
@@ -135,8 +137,8 @@
         var d = cache[period];
         layout(d);
         note.textContent = d.incidents
-          ? NAMES[period] + " 사고 " + d.incidents + "건의 태그 · 누르면 검색합니다"
-          : NAMES[period] + " 동안 수집된 사고가 없습니다";
+          ? NAMES[period] + " " + ITEM + " " + d.incidents + "건의 태그 · 누르면 검색합니다"
+          : NAMES[period] + " 동안 수집된 " + (section === "intel" ? "인텔·권고가" : "사고가") + " 없습니다";
       } catch (err) {
         if (my === seq) { box.innerHTML = ""; note.textContent = err.message; }
       }
@@ -264,7 +266,7 @@
       try {
         if (!tcache[unit]) {
           tnote.textContent = "불러오는 중…";
-          var r = await fetch("/api/article-stats?unit=" + unit, { cache: "no-store" });
+          var r = await fetch("/api/article-stats?unit=" + unit + "&section=" + section, { cache: "no-store" });
           if (!r.ok) throw new Error("통계를 불러오지 못했습니다 (" + r.status + ")");
           tcache[unit] = await r.json();
         }
@@ -335,7 +337,7 @@
         fresh.querySelector("#live").dataset.incidents = v.incidents;
         pending = { html: fresh.innerHTML, version: v.incidents };
         if (!document.hidden && window.scrollY < 120 && !busy()) { apply(); return; } // reader at the top: just show it
-        banner.textContent = added ? "↑ 새 사고 " + added + "건 보기" : "↻ 업데이트된 사고 정보 보기";
+        banner.textContent = added ? "↑ 새 " + ITEM + " " + added + "건 보기" : "↻ 업데이트된 " + ITEM + " 보기";
         banner.hidden = false;
         if (added) document.title = "(" + added + ") " + baseTitle;
       } catch (err) { /* offline or server restarting: try again next round */ }

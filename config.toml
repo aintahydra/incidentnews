@@ -4,7 +4,7 @@
 [server]
 host = "0.0.0.0"
 port = 8000
-site_title = "최신 보안사고 목록"
+site_title = "사이버보안 동향정보"
 # How often (seconds) an open list page checks for new incidents and shows them without a reload.
 # 0 turns auto-refresh off; values below 5 are raised to 5. Applies on the next page load.
 #refresh_seconds = 60
@@ -95,3 +95,82 @@ name = "Security Week"
 url = "https://www.securityweek.com/feed/"
 enabled = true
 
+
+# ---- Intel & advisories (the "인텔·권고" tab) ----
+# Same fields as [[sources]]. Every article becomes one Korean entry (kind: 권고 / 위협 분석 / 가이드 / 정책) with a
+# summary, a recommended action and up to four tags (actor, product/CVE, technique, topic). Not-security posts
+# (webinar promos, hiring, marketing) are skipped by the LLM.
+
+[[intel_sources]]
+name = "NCSC UK"
+url = "https://www.ncsc.gov.uk/api/1/services/v1/all-rss-feed.xml"
+enabled = true
+
+[[intel_sources]]
+name = "Recorded Future"
+url = "https://www.recordedfuture.com/feed"
+enabled = true
+
+[[intel_sources]]
+name = "Kaspersky Tips"
+url = "https://www.kaspersky.com/blog/category/tips/feed/"
+enabled = true
+
+[[intel_sources]]
+name = "Cisco Talos"
+url = "https://blog.talosintelligence.com/rss/"
+enabled = true
+
+[[intel_sources]]
+name = "Google Security Blog"
+url = "https://blog.google/security/rss/"
+enabled = true
+
+[[intel_sources]]
+name = "Google Threat Intelligence"
+url = "https://cloudblog.withgoogle.com/topics/threat-intelligence/rss/"
+enabled = true
+
+[[intel_sources]]
+name = "Unit 42"
+url = "https://unit42.paloaltonetworks.com/feed/"
+enabled = true
+
+# Diary posts only: the daily "ISC Stormcast" podcast stubs are skipped without an LLM call.
+[[intel_sources]]
+name = "SANS ISC"
+url = "https://isc.sans.edu/rssfeed_full.xml"
+enabled = true
+
+[[intel_sources]]
+name = "Securelist"
+url = "https://securelist.com/feed/"
+enabled = true
+
+# Parses fine, but its newest post was 2026-09-25, so nothing currently falls within max_age_days.
+[[intel_sources]]
+name = "Trend Micro"
+url = "https://feeds.feedburner.com/TrendMicroSimplySecurity"
+enabled = true
+
+[[intel_sources]]
+name = "CERT-EU"
+url = "https://cert.europa.eu/publications/security-advisories-rss"
+enabled = true
+
+[[intel_sources]]
+name = "Rapid7"
+url = "https://www.rapid7.com/blog/rss/"
+enabled = true
+
+[[intel_sources]]
+name = "CrowdStrike"
+url = "https://www.crowdstrike.com/blog/feed/"
+enabled = true
+
+# CISA refuses automated clients (HTTP 403) on all its feeds tried so far: all.xml, alerts.xml, blog.xml and
+# news.xml under www.cisa.gov. Left off; try enabling it from another network.
+[[intel_sources]]
+name = "CISA"
+url = "http://www.cisa.gov/cybersecurity-advisories/all.xml"
+enabled = false
