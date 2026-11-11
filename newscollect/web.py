@@ -6,6 +6,7 @@ import time
 from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlencode
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -18,6 +19,7 @@ from .config import load_config
 BASE = Path(__file__).parent
 WEEKDAYS = "월화수목금토일"
 REGEN_COOLDOWN = 20  # seconds, per incident
+PAGE = 100  # cards per "더 보기" step on the 보안 사고 / 인텔·권고 tabs (?n= shows the first n)
 SEARCH_FIELDS = ("title", "summary", "attacker", "victim", "damage", "category", "hashtags")
 INTEL_SEARCH_FIELDS = ("i.title", "i.summary", "i.action", "i.kind", "i.hashtags", "a.title", "a.source")
 SECTIONS = ("incident", "intel")  # card sections; the header also has the "graph" page (태그간 관계 그래프)
@@ -134,15 +136,16 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
         return tagged(rows[0])
 
     @app.get("/", response_class=HTMLResponse)
-    def index(request: Request, q: str = "", tab: str = "all", section: str = "incident"):
+    def index(request: Request, q: str = "", tab: str = "all", section: str = "incident", n: int = PAGE):
         q = q.strip()[:100]
+        n = max(PAGE, min(n, 10000))
         try:  # re-read so a [server].refresh_seconds edit applies on the next page load
             refresh = load_config(config_path).refresh_seconds
         except Exception:
             refresh = cfg.refresh_seconds
         section = section if section in SECTIONS + ("graph",) else "incident"
-        inc_rows, inc_counts = listing(query=q, tab=tab if tab in orgs.TAB_TAGS else "all")
-        intel_rows, intel_counts = intel_listing(query=q, tab=tab if tab in INTEL_TABS else "all")
+        inc_rows, inc_counts = listing(limit=n, query=q, tab=tab if tab in orgs.TAB_TAGS else "all")
+        intel_rows, intel_counts = intel_listing(limit=n, query=q, tab=tab if tab in INTEL_TABS else "all")
         if section == "graph":  # one graph over all 글타래 for now (the API also takes scope=incident|intel)
             tab = "all"
             rows, counts, date_key = [], {k: 0 for k in taggraph.SCOPES}, "posted_at"
@@ -157,10 +160,16 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
             groups.setdefault(r[date_key], []).append(r)
         days = [{"date": d, "weekday": WEEKDAYS[date.fromisoformat(d).weekday()], "items": items}
                 for d, items in groups.items()]
+        more = None  # link to the same list with the next PAGE cards (None when everything is shown)
+        if section != "graph" and len(rows) < counts[tab]:
+            params = {k: v for k, v in (("q", q), ("section", section if section == "intel" else ""),
+                                        ("tab", tab if tab != "all" else "")) if v}
+            more = "/?" + urlencode({**params, "n": n + PAGE})
         return templates.TemplateResponse(request, "graph.html" if section == "graph" else "index.html",
                                           {"title": cfg.site_title, "days": days, "q": q, "total": counts[tab],
                                            "tab": tab, "counts": counts, "version": version(), "refresh": refresh,
                                            "section": section, "intel_tabs": INTEL_TABS,
+                                           "shown": len(rows), "more": more, "step": PAGE,
                                            "section_counts": {"incident": inc_counts["all"],
                                                               "intel": intel_counts["all"]}})
 

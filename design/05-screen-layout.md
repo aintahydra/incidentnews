@@ -59,6 +59,10 @@ Server-rendered pages (FastAPI + Jinja2 templates in `newscollect/templates/`), 
 - **Incident card**: title (to the detail page), category tag, 정부기관/공공기관 tags, a definition list (발생 only when
   it differs from the display date, 공격자, 피해, 규모 when known), the summary, tag links, source links, and the
   "요약 다시 생성" button with an inline status message.
+- **더 보기**: each tab shows the newest 100 cards; a "더 보기 (shown / total)" button under the list adds the next
+  100 in place (`?n=200`, `?n=300`, ...; it keeps the search and sub-tab, and also works as a plain link without
+  JavaScript). The fetched cards are merged into the existing day groups, and the address is updated so live
+  updates keep the longer list.
 - **Intel card**: title (to the original), kind tag, summary, a highlighted "권고 조치" line when present, tag links,
   and the source name with the original title.
 - **Side pane**: the tag cloud and the "수집 기사 수" bar chart for the current section ([03](03-tag-graph.md)). The

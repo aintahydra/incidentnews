@@ -1536,3 +1536,28 @@ def test_tag_graph_links_repeated_pairs(tmp_path):
     assert 'class="graph-lede"' not in page and 'class="hist"' not in page and 'data-scope=' not in page
     assert 'class="graph-stats"' not in page
     assert 'href="/?section=graph"' in c.get("/").text   # the header switch links to it from every section
+
+
+def test_more_button_pages_through_incidents(tmp_path):
+    from datetime import date, timedelta
+    from newscollect import web
+    p = write_cfg(tmp_path)
+    conn = db.connect(load_config(p).database)
+    total = web.PAGE + 5
+    for n in range(total):  # inserted directly: dedupe would merge look-alike test incidents
+        d = (date.today() - timedelta(days=n % 40)).isoformat()
+        i = conn.execute("INSERT INTO incidents(title,occurred_at,summary) VALUES(?,?,'요약')", (f"사고 {n}", d)).lastrowid
+        a = conn.execute("INSERT INTO articles(source,url,title,published_at) VALUES('S',?,?,?)",
+                         (f"http://m/{n}", f"기사 {n}", d)).lastrowid
+        conn.execute("INSERT INTO incident_articles VALUES(?,?)", (i, a))
+    conn.commit()
+    c = TestClient(create_app(p, run_collector=False))
+    page = c.get("/").text
+    assert page.count('<article class="incident"') == web.PAGE
+    assert f'href="/?n={2 * web.PAGE}" data-more' in page and f"{web.PAGE} / {total}" in page
+    page2 = c.get("/", params={"n": 2 * web.PAGE}).text
+    assert page2.count('<article class="incident"') == total and "data-more" not in page2
+    # the link keeps the search; n below a page is raised to a page
+    assert f'href="/?q=%EC%82%AC%EA%B3%A0&amp;n={2 * web.PAGE}"' in c.get("/", params={"q": "사고"}).text
+    assert c.get("/", params={"n": 3}).text.count('<article class="incident"') == web.PAGE
+    assert "data-more" not in c.get("/", params={"section": "intel"}).text   # no intel cards: no button

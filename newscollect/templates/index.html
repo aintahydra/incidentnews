@@ -61,4 +61,5 @@
 {% else %}
 <p class="empty">{% if q %}검색 결과가 없습니다.{% elif section == "intel" %}{% if tab != "all" %}이 종류의 인텔·권고가 아직 없습니다.{% else %}아직 수집된 인텔·권고가 없습니다. config.toml의 [[intel_sources]]를 확인하세요.{% endif %}{% elif tab == "gov" %}피해 대상이 정부기관·공공기관인 사고가 아직 없습니다.{% else %}아직 수집된 사고가 없습니다. 잠시 후 다시 확인하세요.{% endif %}</p>
 {% endfor %}
+{% if more %}<div class="more-wrap"><a class="more" href="{{ more }}" data-more>더 보기 <span class="count">{{ shown }} / {{ total }}</span></a></div>{% endif %}
 {% endblock %}

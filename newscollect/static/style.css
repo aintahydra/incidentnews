@@ -162,3 +162,10 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .pill.no{color:var(--mut);border:1px solid var(--line)}
 .graph-notes{display:grid;gap:8px;padding-left:20px;margin:6px 0 12px;color:var(--mut);font-size:13.5px}
 .graph-notes b{color:var(--fg)}
+/* 더 보기: next PAGE cards on the 보안 사고 / 인텔·권고 tabs */
+.more-wrap{text-align:center;margin:24px 0 8px}
+.more{display:inline-block;padding:9px 28px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--fg);font-weight:600;text-decoration:none}
+.more:hover{border-color:var(--acc)}
+.more[aria-busy=true]{opacity:.6;cursor:wait}
+.more .count{font-weight:400;font-size:12px;color:var(--mut);margin-left:4px}
+.more-err{color:var(--acc);font-size:13px}

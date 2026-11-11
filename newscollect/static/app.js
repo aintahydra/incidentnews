@@ -292,6 +292,46 @@
     showUnit(["day", "month", "year"].indexOf(su) >= 0 ? su : "day");
   }
 
+  // --- 더 보기: load the next cards in place (the link also works without JS: /?n=200 shows the first 200) ---
+  document.addEventListener("click", async function (e) {
+    var link = e.target.closest("a[data-more]");
+    if (!link || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    e.preventDefault();
+    if (link.getAttribute("aria-busy") === "true") return;
+    var label = link.innerHTML;
+    link.setAttribute("aria-busy", "true"); link.textContent = "불러오는 중…";
+    try {
+      var r = await fetch(link.href, { cache: "no-store" });
+      if (!r.ok) throw new Error(r.status);
+      var fresh = new DOMParser().parseFromString(await r.text(), "text/html").querySelector("main");
+      var main = document.querySelector("main"), wrap = link.closest(".more-wrap");
+      var dayOf = function (sec) { return sec.querySelector("h2").textContent.trim(); };
+      var mine = {};
+      main.querySelectorAll("section.day").forEach(function (sec) { mine[dayOf(sec)] = sec; });
+      var added = 0;
+      fresh.querySelectorAll("section.day").forEach(function (sec) {
+        var have = mine[dayOf(sec)];
+        if (!have) { // a day not shown yet: the whole section
+          var copy = document.importNode(sec, true);
+          added += copy.querySelectorAll("article").length;
+          main.insertBefore(copy, wrap);
+          return;
+        }
+        sec.querySelectorAll("article").forEach(function (a) { // the rest of a day that was cut off
+          if (!document.getElementById(a.id)) { have.appendChild(document.importNode(a, true)); added++; }
+        });
+      });
+      var next = fresh.querySelector(".more-wrap");
+      if (next) wrap.replaceWith(document.importNode(next, true)); else wrap.remove();
+      // live updates re-render location.href: keep the larger list there
+      history.replaceState(history.state, "", link.getAttribute("href"));
+      if (!added && next) throw new Error("no new cards");
+    } catch (err) {
+      link.removeAttribute("aria-busy"); link.innerHTML = label;
+      link.insertAdjacentHTML("afterend", '<span class="more-err" role="alert"> 불러오지 못했습니다. 다시 눌러 주세요.</span>');
+    }
+  });
+
   // --- live updates (list page): poll /api/version, then swap in the freshly rendered list ---
   var live = document.getElementById("live");
   var refreshSec = live ? Number(live.dataset.refresh) : 0; // [server].refresh_seconds; 0 = off
