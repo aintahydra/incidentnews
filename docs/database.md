@@ -47,11 +47,11 @@ Each row is one feed item, keyed by URL.
 | `title` | TEXT NOT NULL | The original title, in the source language. |
 | `published_at` | TEXT | Publication date as `YYYY-MM-DD`, taken from the feed or the page. It can be empty. |
 | `body` | TEXT | Article text. It starts as the feed snippet and is replaced by the fetched page body when processed. It stays snippet-only for sites that block fetches, such as Cloudflare 403s. |
-| `status` | TEXT NOT NULL | `new` → `done` / `skipped` / `failed` (see below). |
+| `status` | TEXT NOT NULL | `new` → `done` / `skipped` / `failed` (see below). Links imported from KakaoTalk start as `humint` instead. |
 | `attempts` | INTEGER NOT NULL | How many times processing was tried. Rows with `attempts >= 3` (`MAX_ATTEMPTS` in `collector.py`) are not retried. |
 | `error` | TEXT | Last error message (up to 300 characters) when `status='failed'`. |
 | `fetched_at` | TEXT NOT NULL | When the collector first saw the item, as a UTC `CURRENT_TIMESTAMP`. |
-| `section` | TEXT NOT NULL | `incident` or `intel`, depending on which source list the item came from. The default is `incident`. |
+| `section` | TEXT NOT NULL | `incident` or `intel`, depending on which source list the item came from. The default is `incident`. KakaoTalk links get the section of the card the LLM made from them. |
 
 **Status lifecycle**
 
@@ -60,6 +60,11 @@ new ──► done      incident section: an incident was created or merged · i
     ├─► skipped   not an incident (talks, interviews, roundups, product news) / intel item judged irrelevant
     └─► failed    an exception occurred; retried on later cycles until attempts reaches 3
 ```
+
+Links shared in a KakaoTalk chat (`scripts/KakaotalkParser/kakao_import.py`) are stored with source
+`카카오톡 · <chat title>` and status `humint`, which the collector ignores. The import script runs the LLM over them
+itself (incident extractor first, then the intel extractor) and sets `done`, `skipped` or, after 3 attempts,
+`failed`.
 
 If the LLM server is unreachable, the cycle stops without changing the status or `attempts` of any article, so
 nothing loses a retry. The collector processes `new` and `failed` rows with incident articles first, then
@@ -171,3 +176,18 @@ incident link first if needed):
 ```sql
 UPDATE articles SET status = 'new', attempts = 0, error = NULL WHERE id = ?;
 ```
+
+### `humint_imports`
+
+Created by `scripts/KakaotalkParser/kakao_import.py`, not by the app. One row per KakaoTalk chat: a bookmark so a
+newer export of the same chat only imports messages after the last one already read.
+
+| Column | Type | Notes |
+|---|---|---|
+| `chat` | TEXT PK | Chat title from the export header (`<title> 님과 카카오톡 대화`). |
+| `last_message_at` | TEXT NOT NULL | `YYYY-MM-DD HH:MM` of the latest message imported. |
+| `last_seq` | INTEGER NOT NULL | How many messages in that minute were imported (exports only have minute resolution). |
+| `file` | TEXT | Export file the bookmark came from. |
+| `saved_at` | TEXT | The export's 저장한 날짜. |
+| `updated_at` | TEXT NOT NULL | UTC timestamp. |
+
