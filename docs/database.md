@@ -61,8 +61,8 @@ new ──► done      incident section: an incident was created or merged · i
     └─► failed    an exception occurred; retried on later cycles until attempts reaches 3
 ```
 
-Links shared in a KakaoTalk chat (`scripts/KakaotalkParser/kakao_import.py`) are stored with source
-`카카오톡 · <chat title>` and status `humint`, which the collector ignores. The import script runs the LLM over them
+Links shared in a KakaoTalk chat (`scripts/KakaotalkParser/kakao_import.py`) are stored with the publishing outlet as
+source (e.g. `보안뉴스`; the chat is recorded in `humint_articles`) and status `humint`, which the collector ignores. The import script runs the LLM over them
 itself (incident extractor first, then the intel extractor) and sets `done`, `skipped` or, after 3 attempts,
 `failed`.
 
@@ -190,4 +190,15 @@ newer export of the same chat only imports messages after the last one already r
 | `file` | TEXT | Export file the bookmark came from. |
 | `saved_at` | TEXT | The export's 저장한 날짜. |
 | `updated_at` | TEXT NOT NULL | UTC timestamp. |
+
+### `humint_articles`
+
+Created by `scripts/KakaotalkParser/kakao_import.py`. Which KakaoTalk chat shared an article (the article's own
+`source` is the outlet that published it).
+
+| Column | Type | Notes |
+|---|---|---|
+| `article_id` | INTEGER PK | → `articles.id`, `ON DELETE CASCADE` |
+| `chat` | TEXT NOT NULL | Chat title. |
+| `shared_at` | TEXT | `YYYY-MM-DD HH:MM` of the message; NULL for articles renamed by `--fix-sources`. |
 

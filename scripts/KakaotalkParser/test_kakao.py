@@ -79,13 +79,15 @@ def test_import_is_incremental_and_skips_known_urls(tmp_path, monkeypatch):
 
     def fake_fetch(client, url):
         fetched.append(url)
-        return {"url": redirects.get(url, url), "text": "", "title": "Page Title - 사이트", "date": "2025-01-01"}
+        return {"url": redirects.get(url, url), "text": "", "title": "Page Title - 사이트", "date": "2025-01-01", "site": "사이트"}
     monkeypatch.setattr(kakao_import, "fetch", fake_fetch)
     f1, f2 = tmp_path / "KakaoTalk_1.txt", tmp_path / "KakaoTalk_2.txt"
     f1.write_text(LOG1, encoding="utf-8")
     assert kakao_import.import_links(conn, [f1], date(2026, 1, 1)) == 1        # boannews one redirects to a known URL
     row = conn.execute("SELECT * FROM articles WHERE url LIKE '%dailysecu%'").fetchone()
-    assert row["status"] == "humint" and row["source"] == "카카오톡 · 공급망보안연구회"
+    assert row["status"] == "humint" and row["source"] == "데일리시큐"       # the outlet, not the chat
+    prov = conn.execute("SELECT * FROM humint_articles WHERE article_id=?", (row["id"],)).fetchone()
+    assert (prov["chat"], prov["shared_at"]) == ("공급망보안연구회", "2026-01-05 12:51")
     assert row["title"].startswith("국정원, 152개 기관")                        # the chat headline, not the page title
     assert row["published_at"] == "2026-01-05"                                 # page date outside 90 days: share date
     assert "‘우수’ 공공기관" in row["body"]                                      # page unreadable: chat preview
@@ -103,3 +105,24 @@ def test_headline_falls_back_to_page_title_without_site_name():
     ln = kakao_log.Link("https://x", title="[공유][일본]SEGA Data Breach in Arara Vendor")
     assert kakao_import.headline(ln, "whatever", "https://x") == "SEGA Data Breach in Arara Vendor"
     assert kakao_import.headline(kakao_log.Link("https://x"), "해킹 사고 발생 - 보안뉴스", "https://x") == "해킹 사고 발생"
+
+
+def test_outlet_names_and_fixing_old_sources(tmp_path):
+    from types import SimpleNamespace as NS
+    cfg = NS(sources=[NS(name="보안뉴스", url="https://www.boannews.com/rss/S1N2.xml"),
+                      NS(name="The Hacker News", url="https://feeds.feedburner.com/TheHackersNews")],
+             intel_sources=[NS(name="Cisco Talos", url="https://blog.talosintelligence.com/rss/")])
+    names = kakao_import.outlet_names(cfg)
+    o = lambda url, site="": kakao_import.outlet(url, site, names)
+    assert o("https://m.boannews.com/html/detail.html?idx=1") == "보안뉴스"           # config name, mobile host
+    assert o("https://thehackernews.com/2026/01/x.html") == "The Hacker News"        # built-in (feed is on feedburner)
+    assert o("https://blog.talosintelligence.com/x/") == "Cisco Talos"
+    assert o("https://news.example.org/a", "Example News") == "Example News"         # the page's og:site_name
+    assert o("https://www.unknown-site.io/a") == "unknown-site.io"                    # else the host
+    conn = db.connect(str(tmp_path / "t.db"))
+    conn.executescript(kakao_import.SCHEMA)
+    conn.execute("INSERT INTO articles(source,url,title) VALUES('카카오톡 · 공급망보안연구회','https://www.securityweek.com/a/','t')")
+    conn.execute("INSERT INTO articles(source,url,title) VALUES('보안뉴스','https://www.boannews.com/b','t')")
+    assert kakao_import.fix_sources(conn, names) == 1 and kakao_import.fix_sources(conn, names) == 0
+    assert [r[0] for r in conn.execute("SELECT source FROM articles ORDER BY id")] == ["Security Week", "보안뉴스"]
+    assert conn.execute("SELECT chat FROM humint_articles").fetchone()[0] == "공급망보안연구회"

@@ -15,8 +15,14 @@ Steps
      extractor first (merging with existing incidents); if it is not an incident, the intel extractor; if neither,
      the article is skipped. Articles become status done / skipped, or failed after 3 attempts.
 
+The article's `source` is the outlet that published it (보안뉴스, Security Week, ...), the same name its RSS cards
+use, so cards link to and credit the original provider. Which chat shared it is kept in table humint_articles.
+
 The server's collector ignores status 'humint', so the two never process the same article. Re-running resumes
-where it stopped. Chat participants' names are not stored; the source is "카카오톡 · <chat title>".
+where it stopped. Chat participants' names are not stored.
+
+`--fix-sources` only rewrites articles stored by older versions with source "카카오톡 · <chat>" to the outlet name
+(recording the chat in humint_articles) and exits.
 """
 import argparse
 import logging
@@ -47,7 +53,54 @@ SKIP_HOSTS = re.compile(r"(^|\.)(youtube\.com|youtu\.be|forms\.gle|zoom\.us|open
 SKIP_EXT = re.compile(r"\.(jpg|jpeg|png|gif|webp|mp4|zip|hwp|hwpx|docx?|xlsx?|pptx?)$", re.I)
 DROP_PARAMS = re.compile(r"^(utm_.*|fbclid|gclid|page|mkind|kind|tab_type|ref|from)$", re.I)
 
+# outlet names for sites that are not (or not under this host) in config.toml's feed lists
+OUTLETS = {
+    "boannews.com": "보안뉴스", "dailysecu.com": "데일리시큐", "securityweek.com": "Security Week",
+    "thehackernews.com": "The Hacker News", "darkreading.com": "Dark Reading", "bleepingcomputer.com": "Bleeping Computer",
+    "zdnet.co.kr": "지디넷코리아", "yna.co.kr": "연합뉴스", "etnews.com": "전자신문", "edaily.co.kr": "이데일리",
+    "newsis.com": "뉴시스", "chosun.com": "조선일보", "donga.com": "동아일보", "joongang.co.kr": "중앙일보",
+    "hani.co.kr": "한겨레", "mk.co.kr": "매일경제", "hankyung.com": "한국경제", "digitaltoday.co.kr": "디지털투데이",
+    "itdaily.kr": "아이티데일리", "datanet.co.kr": "데이터넷", "ddaily.co.kr": "디지털데일리", "inews24.com": "아이뉴스24",
+    "dt.co.kr": "디지털타임스", "boho.or.kr": "KISA 보호나라", "kisa.or.kr": "한국인터넷진흥원", "kiisc.or.kr": "한국정보보호학회",
+    "v.daum.net": "Daum 뉴스", "n.news.naver.com": "네이버 뉴스", "reuters.com": "Reuters", "theregister.com": "The Register",
+    "securityonline.info": "SecurityOnline", "cisa.gov": "CISA", "microsoft.com": "Microsoft", "cloud.google.com": "Google Cloud",
+    "github.com": "GitHub", "nikkei.com": "日本経済新聞", "wired.com": "WIRED", "techcrunch.com": "TechCrunch",
+    "therecord.media": "The Record", "cyberscoop.com": "CyberScoop", "infosecurity-magazine.com": "Infosecurity Magazine",
+}
+FEED_HOSTS = re.compile(r"^(feeds\.feedburner\.com|feeds\.|rss\.)")  # feed hosts that say nothing about the outlet
+
+
+def bare_host(url: str) -> str:
+    return re.sub(r"^(www\.|m\.|mobile\.)", "", (urlsplit(url).hostname or "").lower())
+
+
+def outlet_names(cfg) -> dict[str, str]:
+    """host -> outlet name: the built-in list, overridden by the names config.toml gives its feeds' sites."""
+    names = dict(OUTLETS)
+    for src in list(getattr(cfg, "sources", [])) + list(getattr(cfg, "intel_sources", [])):
+        host = bare_host(src.url)
+        if host and not FEED_HOSTS.match(host):
+            names[host] = src.name
+    return names
+
+
+def outlet(url: str, site_name: str = "", names: dict | None = None) -> str:
+    """The publisher of `url`: a known name for its host or a parent domain, else the page's og:site_name, else the host."""
+    host, names = bare_host(url), names or OUTLETS
+    parts = host.split(".")
+    for i in range(len(parts) - 1):
+        if ".".join(parts[i:]) in names:
+            return names[".".join(parts[i:])]
+    site = re.sub(r"\s+", " ", site_name or "").strip()
+    return site[:40] if 2 <= len(site) <= 40 else host or url
+
+
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS humint_articles (
+  article_id INTEGER PRIMARY KEY REFERENCES articles(id) ON DELETE CASCADE,
+  chat TEXT NOT NULL,              -- chat the link was shared in
+  shared_at TEXT                   -- 'YYYY-MM-DD HH:MM' of the message (NULL for rows fixed by --fix-sources)
+);
 CREATE TABLE IF NOT EXISTS humint_imports (
   chat TEXT PRIMARY KEY,           -- chat title from the export header
   last_message_at TEXT NOT NULL,   -- 'YYYY-MM-DD HH:MM' of the last message imported
@@ -81,7 +134,7 @@ def page_date(soup) -> str | None:
 
 def fetch(client: httpx.Client, url: str) -> dict:
     """{'url': final URL, 'text', 'title', 'date'}; text/title/date are '' or None when the page can't be read."""
-    out = {"url": url, "text": "", "title": "", "date": None}
+    out = {"url": url, "text": "", "title": "", "date": None, "site": ""}
     try:
         r = client.get(url, headers=feeds.UA, follow_redirects=True)
         final = str(r.url)
@@ -95,6 +148,8 @@ def fetch(client: httpx.Client, url: str) -> dict:
         og = soup.find("meta", attrs={"property": "og:title"})
         out["title"] = ((og.get("content") if og else "") or (soup.title.string if soup.title else "") or "").strip()
         out["date"] = page_date(soup)
+        site = soup.find("meta", attrs={"property": "og:site_name"})
+        out["site"] = (site.get("content") or "").strip() if site else ""
         out["text"] = feeds.extract_article_text(r.content)
     except Exception as e:
         log.debug("fetch %s: %s", url, e)
@@ -150,7 +205,18 @@ def new_links(conn, files: list[Path], since: date):
                 yield lg.chat, f, lg.saved_at, seq[i], None           # still advances the bookmark
 
 
-def import_links(conn, files, since, dry_run=False) -> int:
+def fix_sources(conn, names=None) -> int:
+    """Articles stored as "카카오톡 · <chat>" by earlier versions: source -> the outlet, chat -> humint_articles."""
+    rows = conn.execute("SELECT id, url, source FROM articles WHERE source LIKE '카카오톡 · %'").fetchall()
+    for r in rows:
+        conn.execute("INSERT OR IGNORE INTO humint_articles(article_id, chat) VALUES(?,?)",
+                     (r["id"], r["source"].split(" · ", 1)[1]))
+        conn.execute("UPDATE articles SET source=? WHERE id=?", (outlet(r["url"], "", names), r["id"]))
+    conn.commit()
+    return len(rows)
+
+
+def import_links(conn, files, since, dry_run=False, names=None) -> int:
     known = {norm_url(r["url"]) for r in conn.execute("SELECT url FROM articles")}
     added, marks = 0, {r["chat"]: (r["last_message_at"], r["last_seq"])
                        for r in conn.execute("SELECT * FROM humint_imports")}
@@ -178,9 +244,13 @@ def import_links(conn, files, since, dry_run=False) -> int:
                             d = shared.isoformat()                   # no usable page date: the day it was shared
                         body = page["text"] if len(page["text"]) > feeds.MIN_BODY_CHARS else snippet(ln)
                         title = headline(ln, page["title"], page["url"])
-                        conn.execute("INSERT OR IGNORE INTO articles(source,url,title,published_at,body,section,status) "
-                                     "VALUES(?,?,?,?,?,'incident',?)",
-                                     (f"카카오톡 · {chat}", page["url"], title[:300], d, body[:6000], STATUS))
+                        cur = conn.execute("INSERT OR IGNORE INTO articles(source,url,title,published_at,body,section,status) "
+                                           "VALUES(?,?,?,?,?,'incident',?)",
+                                           (outlet(page["url"], page["site"], names), page["url"], title[:300], d,
+                                            body[:6000], STATUS))
+                        if cur.rowcount:
+                            conn.execute("INSERT OR IGNORE INTO humint_articles(article_id, chat, shared_at) VALUES(?,?,?)",
+                                         (cur.lastrowid, chat, f"{ln.when:%Y-%m-%d %H:%M}"))
                         known.update({norm_url(ln.url), norm_url(page["url"])})
                         added += 1
                         log.info("queued %s  %s", d, title[:80])
@@ -256,19 +326,29 @@ def main():
     ap.add_argument("--limit", type=int, help="LLM-process at most this many queued articles")
     ap.add_argument("--dry-run", action="store_true", help="list the links that would be imported; write nothing")
     ap.add_argument("--import-only", action="store_true", help="queue links but skip the LLM pass")
+    ap.add_argument("--fix-sources", action="store_true",
+                    help="only rename sources stored as '카카오톡 · <chat>' to the outlet, then exit")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO, format="%(asctime)s %(message)s",
                         datefmt="%H:%M:%S")
     logging.getLogger("httpx").setLevel(logging.WARNING)
     files = args.files or sorted((ROOT / "int" / "humint").glob("KakaoTalk_*.txt"))
-    if not files:
+    if not files and not args.fix_sources:
         sys.exit("no KakaoTalk_*.txt files found")
     cfg = load_config(args.config)
     database = cfg.database if Path(cfg.database).is_absolute() else str(ROOT / cfg.database)
     conn = db.connect(database)
     conn.executescript(SCHEMA)
-    n = import_links(conn, files, args.since, dry_run=args.dry_run)
+    names = outlet_names(cfg)
+    if args.fix_sources:
+        print(f"renamed the source of {fix_sources(conn, names)} articles")
+        return
+    if not args.dry_run:
+        fixed = fix_sources(conn, names)
+        if fixed:
+            log.info("renamed the source of %d articles from older imports", fixed)
+    n = import_links(conn, files, args.since, dry_run=args.dry_run, names=names)
     print(f"{'would queue' if args.dry_run else 'queued'} {n} new links")
     if args.dry_run or args.import_only:
         return

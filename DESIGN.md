@@ -115,8 +115,11 @@ On a match: link the article, fill empty fields, keep the longer summary.
   `localStorage` (default open; always closed below 900px, where the pane is a fixed overlay drawer). Both widgets skip
   layout while their box is zero-sized and re-lay out when the pane opens.
 
-- Org tags (`orgs.py`): victim -> "정부기관" if on `[orgs].government_list` (KOSIS, column 2), "공공기관" if on
-  `public_list` (column 1); both possible. Names normalized (drop `(...)`, 재단법인/사단법인/주식회사, spaces, punctuation);
+- Org tags (`orgs.py`): victim -> tag from `[orgs].government_list` (KOSIS, column 2) by its 기관유형 (중앙행정기관,
+  지방자치단체 -> "정부기관"; 공사/공단, 연구기관, 기타기관, 금융기관 -> "공공기관"; 협회/조합 -> none), "공공기관" if on
+  `public_list` (column 1); both possible. Victims naming several parties are split (`,` `·` `/` 및 와 과) and checked
+  part by part. Local public bodies on neither list: a region (local government or its short form, or 서울/경기/...)
+  followed by an institution suffix (공사, 공단, 재단, 센터, 진흥원, 연구원, 의료원, ...) -> "공공기관". Names normalized (drop `(...)`, 재단법인/사단법인/주식회사, spaces, punctuation);
   match = equal, or a listed name of >= 3 chars contained in the victim; local governments also get short forms
   (서울시, 종로구청). Computed at read time (cached per victim, lists re-read when the file mtime changes), so tags follow
   list updates without a migration. Tabs `?tab=all|gov` filter the search result in Python before paging.

@@ -455,6 +455,68 @@
       graph.querySelectorAll("tr.hl").forEach(function (t) { t.classList.remove("hl"); });
     };
 
+    // --- node filter: four stops that keep all, ½, ¼ and ⅛ of the linked tags. Each stop is a 글타래 threshold
+    // worked out from the data (tag counts are lopsided, so evenly spaced thresholds would jump from everything to
+    // almost nothing). The choice is saved as a stop, so it keeps its meaning as tags accumulate. ---
+    var STOPS = [{ share: 1, label: "전체" }, { share: 1 / 2, label: "½" }, { share: 1 / 4, label: "¼" }, { share: 1 / 8, label: "⅛" }];
+    var filterBox = graph.querySelector(".graph-filter"), slider = graph.querySelector("#graph-min");
+    var minOut = graph.querySelector(".graph-min-val"), autoBtn = graph.querySelector(".graph-auto");
+    var shownOut = graph.querySelector(".graph-shown"), ticks = graph.querySelector(".graph-ticks"), chosen = null;
+    try { var saved = localStorage.getItem("graphStop"); chosen = saved === null ? null : Number(saved); } catch (err) {}
+    if (!(chosen >= 0 && chosen < STOPS.length)) chosen = null;
+    var visible = function (D, min) { // tags at or above min, links whose two tags both remain, and no lone tags
+      var keep = {};
+      D.nodes.forEach(function (n) { if (n.n >= min) keep[n.id] = true; });
+      var edges = D.edges.filter(function (e) { return keep[e.a] && keep[e.b]; }), linked = {};
+      edges.forEach(function (e) { linked[e.a] = linked[e.b] = true; });
+      return { nodes: D.nodes.filter(function (n) { return linked[n.id]; }), edges: edges };
+    };
+    var stopsFor = function (D) { // [{label, min, tags}] with distinct thresholds and something left to show
+      var total = D.nodes.length, maxN = Math.max.apply(null, D.nodes.map(function (n) { return n.n; })), out = [];
+      var counts = [];                                               // tags left at each threshold 2..maxN
+      for (var t = 2; t <= maxN; t++) counts.push({ min: t, tags: visible(D, t).nodes.length });
+      counts = counts.filter(function (x) { return x.tags > 0; });  // never a stop that empties the graph
+      STOPS.forEach(function (st) {                                  // the threshold whose tag count is closest
+        var goal = st.share * total, best = counts[0];
+        counts.forEach(function (x) { if (Math.abs(x.tags - goal) < Math.abs(best.tags - goal)) best = x; });
+        if (!out.length || best.min > out[out.length - 1].min) out.push({ label: st.label, min: best.min, tags: best.tags });
+      });
+      return out;
+    };
+    var setupFilter = function (D, W) {
+      var stops = stopsFor(D);
+      var auto = Math.min(W < 600 ? 3 : 2, stops.length - 1);        // phone ⅛, wider screens ¼
+      var idx = chosen === null ? auto : Math.min(chosen, stops.length - 1), st = stops[idx];
+      filterBox.hidden = stops.length < 2;
+      slider.max = stops.length - 1; slider.value = idx;
+      slider.setAttribute("aria-valuetext", st.label + ", 글타래 " + st.min + "개 이상");
+      minOut.textContent = st.min;
+      ticks.innerHTML = stops.map(function (x, i) {
+        return '<button type="button" data-stop="' + i + '"' + (i === idx ? ' aria-current="true"' : "") + ">" + x.label +
+          " <small>" + x.min + "+</small></button>";
+      }).join("");
+      autoBtn.setAttribute("aria-pressed", String(chosen === null));
+      var v = visible(D, st.min);
+      shownOut.textContent = "태그 " + v.nodes.length + "/" + D.nodes.length + "개 · 연결 " + v.edges.length + "/" + D.edges.length + "개 표시";
+      return st.min;
+    };
+    var redrawSoon = (function () {
+      var timer = 0; // dragging the slider fires many input events: lay out once it pauses
+      return function () { clearTimeout(timer); timer = setTimeout(function () { if (gcache[gscope]) drawNet(gcache[gscope]); }, 40); };
+    })();
+    var pick = function (i) {
+      chosen = i;
+      try { if (i === null) localStorage.removeItem("graphStop"); else localStorage.setItem("graphStop", String(i)); } catch (err) {}
+      redrawSoon();
+    };
+    slider.addEventListener("input", function () { pick(Number(slider.value)); });
+    ticks.addEventListener("click", function (e) {    // the labels under the slider are buttons too
+      var b = e.target.closest("[data-stop]");
+      if (b) pick(Number(b.dataset.stop));
+    });
+    autoBtn.addEventListener("click", function () { pick(null); });
+
+    var HUBS = 5; // how many of the most-used tags get their own colour
     var drawNet = function (D) {
       // draw at the panel's real width so labels keep their size; phones get a taller box
       var svg = graph.querySelector("svg.net"), W = Math.round(Math.min(900, Math.max(320, svg.clientWidth || 900)));
@@ -462,21 +524,49 @@
       svg.setAttribute("viewBox", "0 0 " + W + " " + H);
       svg.innerHTML = "";
       if (!D.nodes.length) {
+        filterBox.hidden = true;
         el("text", { x: W / 2, y: H / 2, "text-anchor": "middle", class: "empty-txt" }, svg).textContent =
           D.minsup + "개 이상의 글타래에 함께 붙은 태그 쌍이 아직 없습니다";
         return;
       }
-      var byId = {}, maxN = 1, maxK = 2;
-      var nodes = D.nodes.map(function (n) { var d = Object.assign({}, n); byId[d.id] = d; maxN = Math.max(maxN, d.n); return d; });
-      var links = D.edges.map(function (e, i) { maxK = Math.max(maxK, e.k); return { s: byId[e.a], t: byId[e.b], e: e, i: i }; });
+      var maxN = Math.max.apply(null, D.nodes.map(function (n) { return n.n; }));
+      var maxK = Math.max.apply(null, [2].concat(D.edges.map(function (e) { return e.k; })));
+      var min = setupFilter(D, W);
+      var shown = visible(D, min), byId = {};
+      var nodes = shown.nodes.map(function (n) { var d = Object.assign({}, n); byId[d.id] = d; return d; });
+      var links = shown.edges.map(function (e) { return { s: byId[e.a], t: byId[e.b], e: e, i: D.edges.indexOf(e) }; });
+      if (!nodes.length) {
+        el("text", { x: W / 2, y: H / 2, "text-anchor": "middle", class: "empty-txt" }, svg).textContent =
+          "글타래 " + min + "개 이상인 태그끼리 이어진 연결이 없습니다. 기준을 낮춰 보세요";
+        return;
+      }
       var rad = function (d) { return 6 + 16 * Math.sqrt((d.n - 1) / Math.max(maxN - 1, 1)); };
       var wid = function (k) { return 1.5 + 5.5 * (k - 2) / Math.max(maxK - 2, 1); };
       place(nodes, links, W, H, rad);
+      // the most-used tags get their own colour, and so do their links. Ranked over all tags, not the visible ones,
+      // so a tag keeps its colour whichever stop is chosen (colour follows the tag, not its rank on screen).
+      var hubs = {};
+      D.nodes.slice().sort(function (a, b) { return b.n - a.n || (a.id < b.id ? -1 : 1); }).slice(0, HUBS)
+        .forEach(function (n, i) { hubs[n.id] = { slot: i + 1, n: n.n }; });
+      var hubOf = function (l) { // a link takes the colour of its more-used hub end
+        var a = hubs[l.e.a], b = hubs[l.e.b];
+        return a && b ? (a.n >= b.n ? a : b) : a || b;
+      };
       var g = el("g", {}, svg);
-      links.forEach(function (l) {
-        el("line", { x1: l.s.x, y1: l.s.y, x2: l.t.x, y2: l.t.y, class: "edge" + (isSig(l.e) ? " sig" : ""),
-                     "stroke-width": wid(l.e.k), "stroke-dasharray": l.e.g < l.e.k ? "5 4" : "none" }, g);
+      links.slice().sort(function (x, y) { return (hubOf(x) ? 1 : 0) - (hubOf(y) ? 1 : 0); }).forEach(function (l) {
+        var h = hubOf(l); // hub links on top of the others
+        var line = el("line", { x1: l.s.x, y1: l.s.y, x2: l.t.x, y2: l.t.y,
+                                class: "edge" + (isSig(l.e) ? " sig" : "") + (h ? " hub" : ""),
+                                "stroke-width": wid(l.e.k), "stroke-dasharray": l.e.g < l.e.k ? "5 4" : "none" }, g);
+        if (h) line.style.stroke = "var(--hub-" + h.slot + ")";
       });
+      graph.querySelector(".graph-hubs").innerHTML =
+        '<span class="graph-hubs-title" title="이 태그의 연결도 같은 색이며, 흐린 선은 유의하지 않은 연결이다">많이 쓰인 태그 ' +
+        '<small>(연결도 같은 색 · 흐리면 유의하지 않음)</small></span>' +
+        Object.keys(hubs).filter(function (id) { return byId[id]; }).map(function (id) {
+          return '<span class="hub-chip"><i style="background:var(--hub-' + hubs[id].slot + ')"></i>#' + esc(id) +
+            " <small>" + hubs[id].n + "</small></span>";
+        }).join("");
       links.forEach(function (l) { // wide invisible hit targets
         var hit = el("line", { x1: l.s.x, y1: l.s.y, x2: l.t.x, y2: l.t.y, class: "edge-hit" }, g);
         hit.addEventListener("mousemove", function (ev) {
@@ -493,8 +583,10 @@
         });
       });
       nodes.forEach(function (d) {
-        var a = el("a", { href: tagHref(d), class: "node", transform: "translate(" + d.x.toFixed(1) + "," + d.y.toFixed(1) + ")" }, g);
-        el("circle", { r: rad(d) }, a);
+        var a = el("a", { href: tagHref(d), class: "node" + (hubs[d.id] ? " hub" : ""),
+                          transform: "translate(" + d.x.toFixed(1) + "," + d.y.toFixed(1) + ")" }, g);
+        var c = el("circle", { r: rad(d) }, a);
+        if (hubs[d.id]) c.style.setProperty("--hub", "var(--hub-" + hubs[d.id].slot + ")");
         var t = el("text", { y: rad(d) + 14, "text-anchor": "middle", class: d.n >= maxN * 0.5 ? "big" : "" }, a);
         t.textContent = "#" + d.id;
         a.addEventListener("mousemove", function (ev) { showTip(ev, "<b>#" + esc(d.id) + "</b><br>글타래 " + d.n + "개 · 누르면 목록 보기"); });

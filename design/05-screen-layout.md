@@ -52,8 +52,8 @@ Server-rendered pages (FastAPI + Jinja2 templates in `newscollect/templates/`), 
 
 - **Grid**: three columns `pane | list | spacer` keep the list centred while there is room; the pane's widgets sit
   against the list. Pane closed: the list stays centred.
-- **Sub-tabs**: incidents `전체 / 정부공공` (victim is a government or public body, from the KOSIS and public-institution
-  lists in `refs/`); intel `전체 / 권고 / 위협 분석 / 가이드 / 정책`.
+- **Sub-tabs**: incidents `전체 / 정부공공` (victim is a government or public body: the KOSIS and public-institution
+  lists in `refs/`, plus local public bodies recognised by name, see `orgs.py`); intel `전체 / 권고 / 위협 분석 / 가이드 / 정책`.
 - **Day groups**: incidents by the earliest article's publication date, intel by the article's publication date,
   newest first, with the weekday.
 - **Incident card**: title (to the detail page), category tag, 정부기관/공공기관 tags, a definition list (발생 only when
@@ -78,6 +78,8 @@ No side pane; one wider column (≤ 960px).
 ┌─ main (≤ 960px) ─────────────────────────────────────────────────┐
 │ ▌태그 연결망                                                      │
 │ explanation · legend (유의함 / 유의하지 않음 / 원문 미확인 / 태그)     │
+│ 글타래 [9]개 이상인 태그만  ●───●───◉───●  [자동]  태그 19/79 · 연결 28/91 │
+│                          전체 2+ ½ 3+ ¼ 9+ ⅛ 16+                     │
 │ ┌ network panel ───────────────────────────────────────────────┐ │
 │ │     #패치관리 ━━ #PHP ━━ #RCE        #정책 ── #취약점관리        │ │
 │ │          ╲ ┄┄ #피싱     #AI보안 ── #TAG-217 ...               │ │

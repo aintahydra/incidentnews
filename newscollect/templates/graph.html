@@ -13,6 +13,16 @@
     <span><i class="dash"></i>일부 원문에서 태그를 찾지 못함</span>
     <span><i class="dot"></i>태그 (크기 = 글타래 수)</span>
   </div>
+  <div class="graph-hubs" aria-label="많이 쓰인 태그와 그 연결의 색"></div>
+  <div class="graph-filter" hidden>
+    <label for="graph-min">글타래 <output class="graph-min-val">2</output>개 이상인 태그만</label>
+    <div class="graph-scale">
+      <input type="range" id="graph-min" min="0" max="3" step="1" value="0">
+      <div class="graph-ticks" role="group" aria-label="표시할 태그 비율"></div>
+    </div>
+    <button type="button" class="graph-auto" aria-pressed="true" title="화면 크기에 맞춰 태그 수를 자동으로 정합니다">자동</button>
+    <span class="graph-shown" aria-live="polite"></span>
+  </div>
   <div class="graph-panel net-panel"><svg class="net" viewBox="0 0 900 560" role="img" aria-label="태그 동시 출현 연결망"></svg><div class="graph-tip" hidden></div></div>
 </section>
 

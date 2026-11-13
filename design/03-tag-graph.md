@@ -86,8 +86,25 @@ card is added, merged or rewritten (about 0.2 s for ~170 documents).
   box. The same data always gives the same picture.
 - **Size**: drawn at the panel's real width (≤ 900 px) so labels keep their size; on phones (< 600 px) the box is
   1.35 × taller than wide. Redrawn on window resize.
+- **Tag filter**: a four-stop slider above the network, "글타래 N개 이상인 태그만". Each stop keeps about a share of
+  the linked tags: 전체, ½, ¼, ⅛. For each share the page picks the 글타래 threshold N whose remaining tag count is
+  closest to that share (only tags on at least N documents, the links whose two tags both remain, and no tag left
+  without a link), skips thresholds that would leave nothing, and drops a stop that repeats the previous threshold.
+  Shares rather than evenly spaced thresholds, because tag counts are lopsided: with counts from 2 to 83, even spacing
+  gave 79 → 5 → 3 → 2 tags, while the shares give 2+ (79), 3+ (42), 9+ (19), 16+ (10). The stop labels under the
+  slider show each threshold and can be tapped. Default ("자동"): ⅛ on a phone (< 600 px), ¼ on wider screens. A
+  chosen stop is saved in the browser (`localStorage.graphStop`) as a stop, not a number, so it keeps its meaning as
+  data grows; 자동 clears it. A counter shows "태그 shown/total · 연결 shown/total". The table below still lists every
+  tested pair.
 - **Encoding**: node radius grows with √(documents); line width grows with `k`; blue solid = significant
   (`q < 0.05`), grey = not significant; dashed = at least one document where the tags weren't found in the text.
+- **Most-used tags**: the five tags on the most documents (ranked over all tags, not the visible ones, so a tag keeps
+  its colour at every filter stop) each get a categorical colour (orange, aqua, yellow, magenta, violet: slots 2-5 and
+  7 of the dataviz reference palette, light and dark steps; blue slot 1 already means "significant"). Their circles
+  and their links take that colour; a link between two of them takes the more-used one's colour; a coloured link is
+  opaque when significant and faded when not, and hub links are drawn on top. A legend row lists the five tags with
+  their colours and counts. The palette passes the colour-blind separation checks in both themes; three colours are
+  below 3:1 contrast on the light surface, so every coloured tag is labelled in the graph and named in the legend.
 - **Interaction**: hovering a line shows the pair, `k`, lift, q and up to three document titles, and highlights its
   table row; clicking a line scrolls to that row; clicking a tag searches for it (in the intel tab when the tag occurs
   only on intel cards).

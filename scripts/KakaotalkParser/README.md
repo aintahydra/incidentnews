@@ -39,7 +39,11 @@ Tests: `venv/bin/python -m pytest scripts/KakaotalkParser -q` (offline).
    within 90 days before the share, the share date is used). If the page can't be read (Cloudflare on Dark Reading
    and SecurityWeek, paywalls), the chat's headline and preview, plus the member's comment when those are short,
    are used as the body. The title is the chat's headline (without tags like `[공유]`), else the page title.
-   The article is stored with source `카카오톡 · <chat title>` and status `humint`. Member names are not stored.
+   The article's source is the outlet that published it (보안뉴스, Security Week, 데일리시큐, ...), so cards credit and
+   link to the original provider: the name config.toml gives that site's feed, else a built-in list of outlets, else
+   the page's `og:site_name`, else the domain. Which chat shared it, and when, goes to table `humint_articles`. Status
+   is `humint`. Member names are not stored. Articles stored by older versions as "카카오톡 · <chat>" are renamed at the
+   start of the next run, or alone with `--fix-sources`.
 5. **Summarise with the LLM in `config.toml`**, exactly as the collector does: the incident extractor first (an
    incident already on the site is merged, its card gains the link as a source); if it isn't an incident, the
    intel extractor (권고 / 위협 분석 / 가이드 / 정책); if neither, the article is `skipped`. Errors are retried on the next

@@ -169,3 +169,37 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .more[aria-busy=true]{opacity:.6;cursor:wait}
 .more .count{font-weight:400;font-size:12px;color:var(--mut);margin-left:4px}
 .more-err{color:var(--acc);font-size:13px}
+/* 태그간 관계 그래프: threshold on how many 글타래 a tag must be on */
+.graph-filter{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:0 0 8px;padding:8px 12px;background:var(--card);border:1px solid var(--line);border-radius:10px;font-size:13.5px}
+.graph-filter[hidden]{display:none}
+.graph-filter label{font-weight:600;white-space:nowrap}
+.graph-filter output{display:inline-block;min-width:1.6em;text-align:center;color:var(--series-1);font-variant-numeric:tabular-nums}
+.graph-scale{flex:1 1 220px;min-width:200px;display:grid;gap:2px}
+.graph-scale input[type=range]{width:100%;margin:0;accent-color:var(--series-1)}
+.graph-ticks{display:flex;justify-content:space-between}
+.graph-ticks button{border:0;background:none;padding:2px 4px;font-size:12px;color:var(--mut);min-width:44px}
+.graph-ticks button:first-child{text-align:left;padding-left:0}
+.graph-ticks button:last-child{text-align:right;padding-right:0}
+.graph-ticks button[aria-current=true]{color:var(--series-1);font-weight:700}
+.graph-ticks small{font-size:11px;opacity:.8}
+.graph-filter .graph-auto{padding:3px 10px}
+.graph-filter .graph-auto[aria-pressed=true]{border-color:var(--series-1);color:var(--series-1);font-weight:700}
+.graph-filter .graph-shown{color:var(--mut);font-size:12.5px;white-space:nowrap}
+/* 태그간 관계 그래프: the five most-used tags and their links each get a categorical colour (slots 2-5 and 7 of the
+   reference palette; slot 1 blue already means "significant"). Validated for CVD separation in both themes; light-mode
+   contrast is below 3:1 for three of them, so every coloured tag is labelled in the graph and named in the legend. */
+:root,[data-theme=dark]{--hub-1:#d95926;--hub-2:#199e70;--hub-3:#c98500;--hub-4:#d55181;--hub-5:#9085e9}
+[data-theme=light]{--hub-1:#eb6834;--hub-2:#1baf7a;--hub-3:#eda100;--hub-4:#e87ba4;--hub-5:#6250d6}
+@media(prefers-color-scheme:light){:root:not([data-theme]){--hub-1:#eb6834;--hub-2:#1baf7a;--hub-3:#eda100;--hub-4:#e87ba4;--hub-5:#6250d6}}
+.net .edge.hub{stroke-opacity:.4}
+.net .edge.hub.sig{stroke-opacity:.95}
+.net .node.hub circle{fill:color-mix(in srgb,var(--hub) 30%,var(--card));stroke:var(--hub);stroke-width:2.5}
+.net .node.hub:hover circle,.net .node.hub:focus-visible circle{fill:var(--hub)}
+.net .node.hub text{font-weight:700}
+.graph-hubs{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin:0 0 8px;font-size:12.5px;color:var(--mut)}
+.graph-hubs:empty{display:none}
+.graph-hubs-title{font-weight:600;color:var(--fg)}
+.graph-hubs-title small{font-weight:400;color:var(--mut)}
+.hub-chip{display:inline-flex;align-items:center;gap:5px;color:var(--fg);white-space:nowrap}
+.hub-chip i{display:inline-block;width:12px;height:12px;border-radius:50%}
+.hub-chip small{color:var(--mut)}

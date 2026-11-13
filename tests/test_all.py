@@ -998,7 +998,9 @@ def test_side_pane_and_toggle_only_on_list_page(tmp_path):
 def _org_lists(tmp_path):
     gov = tmp_path / "gov.csv"   # KOSIS layout, EUC-KR like the original download
     gov.write_bytes("기관코드,기관명,기관유형\n101,국방부,중앙행정기관\n201,서울특별시,지방자치단체\n"
-                    "202,서울특별시 종로구,지방자치단체\n301,한국인터넷진흥원,기타기관\n".encode("cp949"))
+                    "202,서울특별시 종로구,지방자치단체\n301,한국인터넷진흥원,기타기관\n203,광주광역시,지방자치단체\n"
+                    "204,광주광역시 동구,지방자치단체\n205,경기도 수원시,지방자치단체\n401,한국무역협회,협회/조합\n"
+                    "501,조달청,중앙행정기관\n".encode("cp949"))
     pub = tmp_path / "pub.csv"   # 공공기관 지정현황 layout, UTF-8 with BOM
     pub.write_text("기관명,기관유형,주무부처\n(재)예술경영지원센터,기타공공기관,문화체육관광부\n88관광개발(주),기타공공기관,국가보훈부\n"
                    "주식회사 에스알,공기업,국토교통부\n한국인터넷진흥원,준정부기관,과학기술정보통신부\n", encoding="utf-8-sig")
@@ -1012,11 +1014,30 @@ def test_org_classifier_lists_parentheses_aliases_and_containment(tmp_path):
     assert c.tags("국방부") == ["정부기관"]
     assert c.tags("예술경영지원센터") == c.tags("(재) 예술경영지원센터") == ["공공기관"]   # "(재)" ignored
     assert c.tags("88관광개발") == c.tags("에스알") == ["공공기관"]                         # "(주)", 주식회사 ignored
-    assert c.tags("한국인터넷진흥원") == ["정부기관", "공공기관"]                            # on both lists
+    assert c.tags("한국인터넷진흥원") == ["공공기관"]           # KOSIS 기타기관 and the public list: a public body
     assert c.tags("서울시") == c.tags("종로구청") == c.tags("서울특별시 종로구") == ["정부기관"]  # local-gov short forms
-    assert c.tags("한국인터넷진흥원 침해대응센터") == ["정부기관", "공공기관"]                # victim containing a listed name
+    assert c.tags("한국인터넷진흥원 침해대응센터") == ["공공기관"]                # victim containing a listed name
     assert c.tags("SK텔레콤") == c.tags("") == c.tags("한국") == []
     assert orgs.Classifier(str(tmp_path / "missing.csv"), str(pub)).tags("국방부") == []     # missing file: no crash
+
+
+def test_org_classifier_local_bodies_districts_and_associations(tmp_path):
+    from newscollect import orgs
+    gov, pub = _org_lists(tmp_path)
+    c = orgs.Classifier(str(gov), str(pub))
+    # local public enterprises, foundations and centres are on neither list: region + institution suffix
+    assert c.tags("광주관광공사") == c.tags("서울시설공단") == c.tags("서울시 육아종합지원센터") == ["공공기관"]
+    assert c.tags("경기도일자리재단") == c.tags("수원시 정보센터") == ["공공기관"]
+    # districts and cities as news writes them
+    assert c.tags("전남광주 동구") == c.tags("광주 동구청") == c.tags("광주광역시 동구") == ["정부기관"]
+    assert c.tags("수원시") == c.tags("수원시청") == c.tags("종로구") == ["정부기관"]
+    assert c.tags("동구") == []                                   # two-letter district alone is ambiguous
+    # several parties: each is checked
+    assert c.tags("더존비즈온, 서울시 육아종합지원센터") == ["공공기관"]
+    assert c.tags("조달청 및 광주관광공사") == ["정부기관", "공공기관"]
+    # KOSIS 협회/조합 are private associations; region-named companies are not public bodies
+    assert c.tags("한국무역협회") == c.tags("광주은행") == c.tags("제주항공") == []
+    assert c.tags("부산외국어대학교 평생교육원(교육사업단)") == c.tags("광주은행 고객센터") == []   # private bodies
 
 
 def test_gov_tab_lists_only_tagged_incidents(tmp_path):

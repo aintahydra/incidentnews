@@ -80,8 +80,12 @@ on the final URL, so an old Boannews link (`media/view.asp?idx=141289`) that red
 | `title` | the chat headline without share tags such as `[공유]`, `[일본]`; else the page title without " - 사이트명"; else the URL |
 | `body` | the page text (≥ 200 characters); else the chat headline + preview, plus the member's comment when those are short |
 | `published_at` | the page's `article:published_time` (or similar) when it lies within 90 days before the share; else the share date |
-| `source` | `카카오톡 · 공급망보안연구회` — member names are not stored |
+| `source` | the outlet that published it, e.g. `보안뉴스`, `Security Week` (the feed name in config.toml for that site, else a built-in list of outlets, else the page's `og:site_name`, else the domain), so cards credit and link to the original provider |
 | `status` | `humint` (the server's collector ignores it) |
+
+The chat a link came from is kept apart from the card, in `humint_articles(article_id, chat, shared_at)`. Member names
+are not stored. `--fix-sources` (also run at the start of every import) renames articles stored by older versions as
+`카카오톡 · <chat>` to their outlet and records their chat there.
 
 Pages that block automated requests (Cloudflare on Dark Reading and SecurityWeek, paywalls) are not worked around;
 the chat's own headline and preview are used instead.
