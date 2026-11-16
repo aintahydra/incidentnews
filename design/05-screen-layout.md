@@ -27,7 +27,8 @@ Server-rendered pages (FastAPI + Jinja2 templates in `newscollect/templates/`), 
 - The section switch is a pill group; the current section is filled blue. Counts are cards in each section
   (for the current search). Links: `/`, `/?section=intel`, `/?section=graph`.
 - The search box searches the current section (`?q=`; on the intel tab it keeps `section=intel`). Placeholder text
-  changes with the section.
+  changes with the section. A × inside the box appears once it holds text: it clears the words, and on a results
+  page it also returns to the unfiltered list of the same section and sub-tab.
 - Theme buttons set `data-theme` on `<html>` (saved in `localStorage`; default follows the OS).
 - The header stays at the top while scrolling; its height is published as `--header-h` so the side pane can stick
   right below it.

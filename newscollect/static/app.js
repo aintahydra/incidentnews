@@ -18,6 +18,22 @@
   });
   paint();
 
+  // --- search box ×: clears the words; on a results page it also goes back to the unfiltered list ---
+  var sbox = document.querySelector(".search input[name=q]"), sclear = document.querySelector(".search-clear");
+  if (sbox && sclear) {
+    var searched = sbox.defaultValue.trim() !== ""; // this page shows search results
+    var sync = function () { sclear.hidden = sbox.value === ""; };
+    sbox.addEventListener("input", sync); sbox.addEventListener("search", sync); // Esc also clears a search box
+    sclear.addEventListener("click", function () {
+      sbox.value = ""; sync();
+      if (!searched) { sbox.focus(); return; }
+      var params = new URLSearchParams(); // keep the section and sub-tab, drop the words
+      sbox.form.querySelectorAll("input[type=hidden]").forEach(function (h) { params.set(h.name, h.value); });
+      var qs = params.toString();
+      location.href = "/" + (qs ? "?" + qs : "");
+    });
+  }
+
   // --- sticky header: the pane sticks just below it, whatever height the header wraps to ---
   var header = document.querySelector("header");
   var setHeaderH = function () { root.style.setProperty("--header-h", header.offsetHeight + "px"); };

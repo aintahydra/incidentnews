@@ -47,7 +47,7 @@ Each row is one feed item, keyed by URL.
 | `title` | TEXT NOT NULL | The original title, in the source language. |
 | `published_at` | TEXT | Publication date as `YYYY-MM-DD`, taken from the feed or the page. It can be empty. |
 | `body` | TEXT | Article text. It starts as the feed snippet and is replaced by the fetched page body when processed. It stays snippet-only for sites that block fetches, such as Cloudflare 403s. |
-| `status` | TEXT NOT NULL | `new` → `done` / `skipped` / `failed` (see below). Links imported from KakaoTalk start as `humint` instead. |
+| `status` | TEXT NOT NULL | `new` → `done` / `skipped` / `failed` (see below). Links imported from KakaoTalk start as `humint`, articles added with `python -m newscollect add` as `manual`. |
 | `attempts` | INTEGER NOT NULL | How many times processing was tried. Rows with `attempts >= 3` (`MAX_ATTEMPTS` in `collector.py`) are not retried. |
 | `error` | TEXT | Last error message (up to 300 characters) when `status='failed'`. |
 | `fetched_at` | TEXT NOT NULL | When the collector first saw the item, as a UTC `CURRENT_TIMESTAMP`. |
@@ -65,6 +65,10 @@ Links shared in a KakaoTalk chat (`scripts/KakaotalkParser/kakao_import.py`) are
 source (e.g. `보안뉴스`; the chat is recorded in `humint_articles`) and status `humint`, which the collector ignores. The import script runs the LLM over them
 itself (incident extractor first, then the intel extractor) and sets `done`, `skipped` or, after 3 attempts,
 `failed`.
+
+Articles added by hand (`python -m newscollect add URL`, `addurl.py`) get the outlet as source and status `manual`,
+which the collector also ignores; the command processes them at once the same way. A `manual` row left behind
+(LLM off or unreachable) is retried when the same URL is added again.
 
 If the LLM server is unreachable, the cycle stops without changing the status or `attempts` of any article, so
 nothing loses a retry. The collector processes `new` and `failed` rows with incident articles first, then

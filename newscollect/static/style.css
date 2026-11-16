@@ -20,6 +20,12 @@ a{color:var(--acc)}
 .empty{color:var(--mut);text-align:center;margin:60px 0}
 footer{max-width:760px;margin:24px auto;padding:0 16px;color:var(--mut);font-size:13px}
 .search{display:flex;gap:6px;flex:1 1 240px;max-width:420px;margin-left:auto}
+.search-field{position:relative;display:flex;flex:1;min-width:0}
+.search-field input{padding-right:30px}
+.search input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none} /* our own × instead */
+.search-clear{position:absolute;right:3px;top:50%;transform:translateY(-50%);width:26px;height:26px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--mut);font-size:18px;line-height:1}
+.search-clear:hover:not(:disabled){color:var(--fg);background:var(--line)}
+.search-clear[hidden]{display:none}
 .search input{flex:1;min-width:0;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);font:inherit;font-size:14px}
 button{font:inherit;font-size:13px;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer}
 button:hover:not(:disabled){border-color:var(--acc)}

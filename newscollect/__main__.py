@@ -17,5 +17,8 @@ if sys.argv[1:2] == ["retag"]:  # python -m newscollect retag [id ...]: re-tag s
     from . import db, retag
     ids = [int(x) for x in sys.argv[2:]]
     print(retag.retag(db.connect(cfg.database), cfg, ids or None))
+elif sys.argv[1:2] == ["add"]:  # python -m newscollect add URL ...: read articles into the DB now, then exit
+    from . import addurl
+    sys.exit(addurl.main(sys.argv[2:], cfg))
 else:
     uvicorn.run("newscollect.web:app_factory", factory=True, host=cfg.host, port=cfg.port)

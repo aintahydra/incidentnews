@@ -1,0 +1,6 @@
+#!/bin/sh
+# ./addnews URL [URL ...]  - read news articles into data/news.db now (python -m newscollect add)
+cd "$(dirname "$0")" || exit 1
+PY=venv/bin/python
+[ -x "$PY" ] || PY=python3
+exec "$PY" -m newscollect add "$@"

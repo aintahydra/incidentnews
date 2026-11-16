@@ -15,7 +15,10 @@ try{var p=localStorage.getItem("pane");document.documentElement.dataset.pane=(in
   <a class="brand" href="/">{{ title }}</a>
   {% block header_nav %}{% endblock %}
   <form class="search" action="/" method="get" role="search">
+    <span class="search-field">
     <input type="search" name="q" value="{{ q or '' }}" placeholder="{% if section == 'intel' %}인텔·권고 검색 (제품, CVE, 공격 그룹, 키워드){% else %}사고 검색 (기업, 공격자, 키워드){% endif %}" maxlength="100" aria-label="{% if section == 'intel' %}인텔·권고 검색{% else %}사고 검색{% endif %}">
+    <button type="button" class="search-clear" aria-label="검색어 지우기" title="검색어 지우기"{% if not q %} hidden{% endif %}>×</button>
+    </span>
     {% if section == "intel" %}<input type="hidden" name="section" value="intel">{% endif %}
     {% if tab and tab != "all" %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
     <button type="submit">검색</button>

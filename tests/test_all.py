@@ -1582,3 +1582,54 @@ def test_more_button_pages_through_incidents(tmp_path):
     assert f'href="/?q=%EC%82%AC%EA%B3%A0&amp;n={2 * web.PAGE}"' in c.get("/", params={"q": "사고"}).text
     assert c.get("/", params={"n": 3}).text.count('<article class="incident"') == web.PAGE
     assert "data-more" not in c.get("/", params={"section": "intel"}).text   # no intel cards: no button
+
+
+def test_search_keeps_working_links_to_sections_and_tabs(tmp_path):
+    # the query prefix is built in a {% set %}: a literal "&amp;" there was escaped again to "&amp;amp;", so the
+    # browser saw a parameter "amp;section" and every section/tab link of a search page fell back to 보안 사고
+    p = write_cfg(tmp_path)
+    page = TestClient(create_app(p, run_collector=False)).get("/", params={"q": "카스퍼스키"}).text
+    q = "q=%EC%B9%B4%EC%8A%A4%ED%8D%BC%EC%8A%A4%ED%82%A4"
+    assert f'href="/?{q}&amp;section=intel"' in page and f'href="/?{q}&amp;tab=gov"' in page
+    assert "&amp;amp;" not in page
+    # the × in the search box: shown on a results page, hidden (until typing) otherwise
+    c = TestClient(create_app(p, run_collector=False))
+    assert 'class="search-clear" aria-label="검색어 지우기" title="검색어 지우기">' in page
+    assert 'class="search-clear" aria-label="검색어 지우기" title="검색어 지우기" hidden>' in c.get("/").text
+
+
+def test_add_url_command_stores_processes_and_skips_known(tmp_path, monkeypatch):
+    from types import SimpleNamespace as NS
+    from datetime import date
+    from newscollect import addurl, pages
+    cfg = load_config(write_cfg(tmp_path))
+    conn = db.connect(cfg.database)
+    conn.execute("INSERT INTO articles(source,url,title,status) VALUES('보안뉴스','https://www.boannews.com/a?idx=1','x','done')")
+    conn.commit()
+    body = "정부기관을 노린 신종 악성코드가 발견됐습니다. " * 10
+    pagesrc = {"https://news.kbs.co.kr/v?ncd=1": {"url": "https://news.kbs.co.kr/v?ncd=1", "text": body,
+                                                  "title": "신종 악성코드 발견 - KBS 뉴스", "date": None, "site": "KBS 뉴스",
+                                                  "description": "요약"},
+               "https://short.link/x": {"url": "http://boannews.com/a/?idx=1&utm_source=k", "text": "", "title": "",
+                                        "date": None, "site": "", "description": ""},
+               "https://blocked.example/a": {"url": "https://blocked.example/a", "text": "", "title": "", "date": None,
+                                             "site": "", "description": ""}}
+    monkeypatch.setattr(pages, "fetch", lambda client, url: pagesrc[url])
+    # LLM off: stored, but left queued; a second run retries it instead of calling it a duplicate
+    monkeypatch.setattr(cfg, "llm_enabled", False)
+    rep = addurl.add(conn, cfg, ["https://news.kbs.co.kr/v?ncd=1", "https://short.link/x", "https://blocked.example/a",
+                                 "notaurl"], client=NS())
+    assert [r["outcome"] for r in rep] == ["added", "exists", "error", "error"]
+    a = conn.execute("SELECT * FROM articles WHERE url LIKE '%kbs%'").fetchone()
+    assert (a["source"], a["title"], a["status"]) == ("KBS 뉴스", "신종 악성코드 발견", "manual")   # site name trimmed
+    assert a["published_at"] == date.today().isoformat() and rep[0]["result"] == "queued"
+    assert not conn.execute("SELECT 1 FROM articles WHERE url LIKE '%blocked%'").fetchone()
+    # LLM on: neither an incident nor intel -> skipped (the collector's order: incident, then intel)
+    monkeypatch.setattr(cfg, "llm_enabled", True)
+    monkeypatch.setattr(pages.llmmod, "from_config", lambda cfg, http: object())
+    monkeypatch.setattr(pages.extractor, "extract", lambda llm, cfg, art: NS(is_incident=False))
+    monkeypatch.setattr(pages.intel, "extract", lambda llm, model, art: None)
+    rep = addurl.add(conn, cfg, ["https://news.kbs.co.kr/v?ncd=1"], client=NS())
+    assert rep[0]["outcome"] == "retried" and rep[0]["result"] == "skipped"
+    assert conn.execute("SELECT status FROM articles WHERE id=?", (a["id"],)).fetchone()[0] == "skipped"
+    assert addurl.add(conn, cfg, ["https://news.kbs.co.kr/v?ncd=1"], client=NS())[0]["outcome"] == "exists"

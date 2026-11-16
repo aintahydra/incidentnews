@@ -122,3 +122,10 @@ Full column list: [../docs/database.md](../docs/database.md).
 - `POST /incidents/{id}/regenerate` (the card's "요약 다시 생성" button): re-reads up to 3 source pages and asks the LLM
   again at temperature 0.4; one at a time, 20 s cooldown per incident; keeps `occurred_at`.
 - `python -m newscollect retag [id ...]`: re-tags stored incidents with a tags-only prompt.
+- `python -m newscollect add URL ...` (or `./addnews URL ...`, `addurl.py`): adds articles by hand. Skips URLs
+  already stored (`pages.norm_url`, checked again after redirects) and reports their card; otherwise reads the page
+  (`pages.fetch`: text, og:title without a trailing site name, publication date or today, og:site_name, and
+  og:description as the body when the text can't be extracted), stores it with the outlet as source
+  (`pages.outlet`) and status `manual`, and runs `pages.process_queued` at once: incident extractor (merging via
+  dedupe), else intel extractor, else skipped. A page with neither title nor text is not stored. If the LLM is off or
+  unreachable the article stays `manual`, and running the same command again retries it.

@@ -40,7 +40,7 @@
 {% block content %}
 <div id="live" data-incidents="{{ version.incidents }}" data-articles="{{ version.articles }}" data-refresh="{{ refresh }}" hidden></div>
 <button type="button" class="new-banner" hidden></button>
-{% set sq = ("q=" ~ (q|urlencode) ~ "&amp;") if q else "" %}
+{% set sq = ("q=" ~ (q|urlencode) ~ "&") if q else "" %}
 <nav class="tabs" aria-label="{% if section == 'intel' %}인텔·권고 종류{% else %}사고 분류{% endif %}">
   {% if section == "intel" %}
   {% for key, label in [("all", "전체")] + intel_tabs.items()|list %}

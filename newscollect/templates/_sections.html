@@ -1,4 +1,4 @@
-{% set hq = ("q=" ~ (q|urlencode) ~ "&amp;") if q else "" %}
+{% set hq = ("q=" ~ (q|urlencode) ~ "&") if q else "" %}
 <nav class="sections" aria-label="정보 종류">
   {% for key, label in [("incident", "보안 사고"), ("intel", "인텔·권고")] %}
   <a href="/?{{ hq }}section={{ key }}"{% if section == key %} aria-current="page"{% endif %}>{{ label }} <span class="count">{{ section_counts[key] }}</span></a>

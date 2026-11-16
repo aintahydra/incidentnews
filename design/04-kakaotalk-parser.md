@@ -53,7 +53,7 @@ for each export, oldest 저장한 날짜 first:
      skip if URL already known
      fetch page ─► final URL (after redirects), text, og:title, publication date
      skip if final URL already known
-     INSERT articles(status='humint', source='카카오톡 · <chat>', ...)
+     INSERT articles(status='humint', source=<outlet>, ...) + humint_articles(chat, shared_at)
   advance the bookmark, commit (per message)
 LLM pass over articles with status='humint' and attempts < 3
 ```
@@ -101,6 +101,9 @@ Same steps as the collector ([01](01-incident-news.md), [02](02-intel-advisories
 3. Otherwise `status='skipped'`.
 4. Errors: `attempts+1`, error stored; after 3 attempts `status='failed'`. An unreachable LLM stops the pass and leaves
    the rest queued.
+
+This pass is `newscollect/pages.process_queued(conn, cfg, 'humint')`, shared with `python -m newscollect add URL`
+(status `manual`); page reading (`fetch`), `norm_url` and outlet naming live in `newscollect/pages.py` too.
 
 Each article is committed on its own, so the script can be stopped and re-run at any time. `--import-only` queues
 links without the LLM pass; `--limit N` processes at most N; `--dry-run` only lists what would be imported.

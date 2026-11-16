@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 UA = {"User-Agent": "Mozilla/5.0 (compatible; newscollect/1.0)"}
 # most specific first; "article" last because on some sites it is only a small wrapper
 BODY_SELECTORS = ["#news_body_area", "#article-view-content-div", ".articleBody", "#articlebody", "[itemprop=articleBody]",
-                  ".post-body", ".entry-content", ".article_txt", "#articleBody", "article"]
+                  ".post-body", ".entry-content", ".article_txt", "#articleBody", "#cont_newstext", "article"]
 NOISE_TAGS = ["script", "style", "noscript", "nav", "aside", "form", "iframe", "button", "svg", "figure", "header", "footer"]
 BLOCKS = ["p", "li", "h2", "h3", "h4", "blockquote", "pre"]
 MIN_BODY_CHARS = 200

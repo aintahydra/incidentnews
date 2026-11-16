@@ -137,6 +137,9 @@ On a match: link the article, fill empty fields, keep the longer summary.
   keeping one name per slot ("A, B" -> "A"), stripping `#` and spaces (2-25 chars), deduping; never fails the
   extraction; also accepts the older plain list. Stored as a JSON array in `incidents.hashtags` (max 5); merge keeps the
   first non-empty set; regenerate replaces it; searchable; rendered as links to `/?q=<tag>`.
+  `python -m newscollect add URL ...` (`addurl.py`, wrapper `./addnews`) reads a page into `articles` (status
+  `manual`) and runs the LLM on it at once via `pages.process_queued`, the same incident-then-intel pass the KakaoTalk
+  importer uses; `pages.py` holds the shared page reading, URL normalisation and outlet naming.
   `python -m newscollect retag [id ...]` (`retag.py`) re-tags stored incidents with a tags-only prompt
   (`extractor.extract_tags`, `TAGS_SYSTEM`), from the stored article text plus the incident's fields.
 - Timeline dates: the list groups by `posted_at` = earliest linked article's `published_at` (collection date if
