@@ -54,7 +54,7 @@ Server-rendered pages (FastAPI + Jinja2 templates in `newscollect/templates/`), 
 - **Grid**: three columns `pane | list | spacer` keep the list centred while there is room; the pane's widgets sit
   against the list. Pane closed: the list stays centred.
 - **Sub-tabs**: incidents `전체 / 정부공공` (victim is a government or public body: the KOSIS and public-institution
-  lists in `refs/`, plus local public bodies recognised by name, see `orgs.py`); intel `전체 / 권고 / 위협 분석 / 가이드 / 정책`.
+  lists in `refs/`, plus local public bodies recognised by name, and any name containing 국립 or 법원 as 정부기관, see `orgs.py`); intel `전체 / 권고 / 위협 분석 / 가이드 / 정책`.
 - **Day groups**: incidents by the earliest article's publication date, intel by the article's publication date,
   newest first, with the weekday.
 - **Incident card**: title (to the detail page), category tag, 정부기관/공공기관 tags, a definition list (발생 only when

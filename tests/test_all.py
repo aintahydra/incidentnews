@@ -1038,6 +1038,10 @@ def test_org_classifier_local_bodies_districts_and_associations(tmp_path):
     # KOSIS 협회/조합 are private associations; region-named companies are not public bodies
     assert c.tags("한국무역협회") == c.tags("광주은행") == c.tags("제주항공") == []
     assert c.tags("부산외국어대학교 평생교육원(교육사업단)") == c.tags("광주은행 고객센터") == []   # private bodies
+    # 국립… and courts are state bodies whether or not a list has them; "불법원격" is not a court
+    assert c.tags("국립한국해양대학교 산학협력단") == c.tags("서울중앙지방법원") == c.tags("대법원") == ["정부기관"]
+    assert c.tags("가정법원, 광주은행") == ["정부기관"] and c.tags("불법원격제어 피해 기업") == []
+    assert orgs.Classifier("", "").tags("국립중앙박물관") == ["정부기관"]                    # no lists configured
 
 
 def test_gov_tab_lists_only_tagged_incidents(tmp_path):

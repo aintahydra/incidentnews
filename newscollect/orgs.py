@@ -29,6 +29,8 @@ REGIONS = ("서울", "부산", "대구", "인천", "광주", "대전", "울산",
 LOCAL_BODY = re.compile(r"(공사|공단|관리단|재단|진흥원|센터|연구원|의료원|정보원|평생교육원|문화원|체육회|복지관|사업단)$")
 # region-named bodies that are not public: universities and schools, financial companies, private hospitals
 NOT_LOCAL_BODY = re.compile(r"대학|학교|학원|은행|보험|증권|카드|캐피탈|저축|병원|의원|교회|성당|주식회사|㈜")
+# names that always mean a state body: national institutions (국립…) and courts (…법원; not "불법원격")
+GOV_WORDS = re.compile(r"국립|(?<!불)법원")
 _SPLIT = re.compile(r"[,，·/]|\s및\s|\s와\s|\s과\s")
 
 _PAREN = re.compile(r"\([^)]*\)|（[^）]*）")  # "(사)", "(재)", "(주)", "(DaeJonBizOn)"
@@ -128,6 +130,14 @@ class Classifier:
 def _tags_for(names: tuple[tuple[str, str], ...], regions: tuple[str, ...], v: str) -> tuple[str, ...]:
     if len(v) < 2:
         return ()
+    found = set(_list_tags(names, regions, v))
+    if GOV_WORDS.search(v):  # 국립한국해양대학교, 국립중앙박물관, 서울중앙지방법원, 대법원
+        found.add(GOV)
+    return tuple(t for t in (GOV, PUBLIC) if t in found)
+
+
+def _list_tags(names: tuple[tuple[str, str], ...], regions: tuple[str, ...], v: str) -> tuple[str, ...]:
+    """Tags from the KOSIS / public-institution lists and the local-public-body name rule."""
     exact = {tag for n, tag in names if n == v}
     if exact:
         return tuple(t for t in (GOV, PUBLIC) if t in exact)

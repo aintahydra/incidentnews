@@ -119,7 +119,8 @@ On a match: link the article, fill empty fields, keep the longer summary.
   지방자치단체 -> "정부기관"; 공사/공단, 연구기관, 기타기관, 금융기관 -> "공공기관"; 협회/조합 -> none), "공공기관" if on
   `public_list` (column 1); both possible. Victims naming several parties are split (`,` `·` `/` 및 와 과) and checked
   part by part. Local public bodies on neither list: a region (local government or its short form, or 서울/경기/...)
-  followed by an institution suffix (공사, 공단, 재단, 센터, 진흥원, 연구원, 의료원, ...) -> "공공기관". Names normalized (drop `(...)`, 재단법인/사단법인/주식회사, spaces, punctuation);
+  followed by an institution suffix (공사, 공단, 재단, 센터, 진흥원, 연구원, 의료원, ...) -> "공공기관". A name containing 국립 or 법원 (not 불법원…)
+  is always "정부기관" (`GOV_WORDS`), on top of any list tag. Names normalized (drop `(...)`, 재단법인/사단법인/주식회사, spaces, punctuation);
   match = equal, or a listed name of >= 3 chars contained in the victim; local governments also get short forms
   (서울시, 종로구청). Computed at read time (cached per victim, lists re-read when the file mtime changes), so tags follow
   list updates without a migration. Tabs `?tab=all|gov` filter the search result in Python before paging.
