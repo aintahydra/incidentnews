@@ -1637,3 +1637,165 @@ def test_add_url_command_stores_processes_and_skips_known(tmp_path, monkeypatch)
     assert rep[0]["outcome"] == "retried" and rep[0]["result"] == "skipped"
     assert conn.execute("SELECT status FROM articles WHERE id=?", (a["id"],)).fetchone()[0] == "skipped"
     assert addurl.add(conn, cfg, ["https://news.kbs.co.kr/v?ncd=1"], client=NS())[0]["outcome"] == "exists"
+
+
+CVEFEED_RSS = """<?xml version="1.0" encoding="utf-8"?><rss version="2.0"><channel><title>t</title>
+<item><title>CVE-2026-125812 - WordPress WP Rocket plugin &lt; 3.24.2 - Remote Code Execution (RCE) vulnerability</title>
+<link>https://cvefeed.io/vuln/detail/CVE-2026-125812</link><description>
+  &lt;strong&gt;CVE ID :&lt;/strong&gt;CVE-2026-125812 &lt;br /&gt;
+  &lt;strong&gt;Description :&lt;/strong&gt;Path traversal in WP Rocket.
+  &lt;br /&gt; &lt;strong&gt;Severity:&lt;/strong&gt; 9.8 | CRITICAL &lt;br /&gt;</description>
+<pubDate>Wed, 25 Nov 2026 12:09:00 +0000</pubDate></item>
+<item><title>CVE-2026-80273 - Dell Secure Connect Gateway OS Command Injection Vulnerability</title>
+<link>https://cvefeed.io/vuln/detail/CVE-2026-80273</link><description>&lt;strong&gt;Description :&lt;/strong&gt;OS command
+injection. &lt;br /&gt; &lt;strong&gt;Severity:&lt;/strong&gt; 8.4 | HIGH</description>
+<pubDate>Wed, 25 Nov 2026 10:17:00 +0000</pubDate></item></channel></rss>"""
+KNVD_RSS = """<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>k</title>
+<item><title>CVE-2026-80273 | 델 Secure Connect Gateway 명령어 삽입</title>
+<link>https://knvd.krcert.or.kr/info/vuln/public/detail?id=1</link><description>##### □ 개요
+o 델社의 SCG에서 발생하는 명령어 삽입 취약점
+
+| CVE | CVSS | 심각도 | CWE | 영향 |
+| --- | --- | --- | --- | --- |
+| CVE-2026-80273 | 8.4 | High | CWE-78 | CAPEC-88 |
+
+##### □ 영향받는 제품 및 해결 방안
+| 제품 | 영향받는 버전 | 해결 버전 |
+| --- | --- | --- |
+| Dell SCG | 5.36 미만 | 5.36.00.16 |
+
+ ※ 하단의 참고사이트를 확인하여 업데이트 수행
+##### □ 참고사이트
+o https://www.dell.com/support/kbdoc/x
+o javascript:alert(1)
+##### □ 기여자
+o 홍길동님께서 신고해주셨습니다.</description><pubDate>Mon, 23 Nov 2026 01:00:00 GMT</pubDate></item></channel></rss>"""
+CVEFEED_DETAIL = """<html><body><div class="card-body"><h5>Affected Products</h5><table><tbody>
+<tr><td>1</td><td>Dell</td><td>secure_connect_gateway</td><td></td></tr></tbody></table></div>
+<div class="card"><div class="card-header"><h6 class="card-title">Solution</h6></div><div class="card-body">
+<div class="card-text">Update SCG to 5.36.00.16.</div><ul><li>Restrict local access.</li></ul></div></div>
+<div class="card"><div class="card-header"><h6>References to Advisories, Solutions, and Tools</h6></div>
+<div class="card-body"><a href="https://www.dell.com/support/kbdoc/x">x</a><a href="https://ex.com/adv">y</a></div></div>
+<p>CVSS 3.1</p></body></html>"""
+
+
+def test_cve_feeds_parse_merge_and_detail(tmp_path):
+    from newscollect import cves
+    a = cves.parse_feed("https://cvefeed.io/rssfeed/severity/high.xml", CVEFEED_RSS.encode())
+    assert [(x["cve_id"], x["cvss"], x["severity"], x["affected"]) for x in a] == [
+        ("CVE-2026-125812", 9.8, "CRITICAL", "WordPress WP Rocket plugin"),   # vendor-style title: reliable name
+        ("CVE-2026-80273", 8.4, "HIGH", "")]                                   # no name yet: detail page decides
+    assert a[0]["description"] == "Path traversal in WP Rocket." and a[0]["published_at"] == "2026-11-25"
+    k = cves.parse_feed("https://knvd.krcert.or.kr/rss/security/info", KNVD_RSS.encode())[0]
+    assert (k["cve_id"], k["cvss"], k["severity"], k["cwe"], k["affected"]) == ("CVE-2026-80273", 8.4, "HIGH", "CWE-78", "Dell SCG")
+    assert k["description_ko"] == "델社의 SCG에서 발생하는 명령어 삽입 취약점" and "Dell SCG: 5.36.00.16" in k["remediation"]
+    assert "홍길동" not in json.dumps(k, ensure_ascii=False)                     # 기여자 (reporter names) not kept
+    conn = db.connect(str(tmp_path / "t.db"))
+    assert [cves.upsert(conn, x, "cvefeed.io") for x in a] == [True, True]
+    assert cves.upsert(conn, k, "KNVD") is False                               # same CVE from the second feed: merged
+    r = cves.decorate(dict(conn.execute("SELECT * FROM cves WHERE cve_id='CVE-2026-80273'").fetchone()))
+    assert r["description"] == "OS command\ninjection." and r["description_ko"].startswith("델社")
+    assert r["affected"] == "Dell SCG" and r["published_at"] == "2026-11-23" and len(r["sources"]) == 2
+    assert r["refs"] == ["https://www.dell.com/support/kbdoc/x"]                # javascript: never reaches href
+    # the cvefeed.io detail page: the KNVD product table and remediation stay, new references are added
+    cves.apply_detail(conn, "CVE-2026-80273", cves.parse_cvefeed_detail(CVEFEED_DETAIL.encode()))
+    r = cves.decorate(dict(conn.execute("SELECT * FROM cves WHERE cve_id='CVE-2026-80273'").fetchone()))
+    assert r["refs"] == ["https://www.dell.com/support/kbdoc/x", "https://ex.com/adv"] and r["detail_url"] == ""
+    assert r["remediation"].startswith("다음 버전 이상으로 업데이트") and r["cvss_version"] == "3.1"
+    d = cves.parse_cvefeed_detail(CVEFEED_DETAIL.encode())
+    assert d["products"][0]["product"] == "Dell Secure Connect Gateway"
+    assert d["remediation"] == "Update SCG to 5.36.00.16.\n- Restrict local access."
+    assert cves.affected_from_title("Apache JSPWiki: Session fixation in the login flow") == "Apache JSPWiki"
+    assert cves.affected_from_title("Cross-Site Scripting in Custom Link module in Opentext APM") == "Opentext APM"
+    assert cves.affected_from_title("Eclipse Jetty JSON Parser Stack Overflow Vulnerability") == ""
+    assert cves._text(r"135823 이상 \~ 148667 미만") == "135823 이상 ~ 148667 미만"   # KNVD markdown escapes
+
+
+def test_cve_page_pane_and_related_cards(tmp_path):
+    from newscollect import cves
+    p = write_cfg(tmp_path)
+    conn = db.connect(load_config(p).database)
+    for x in cves.parse_feed("https://cvefeed.io/rssfeed/severity/high.xml", CVEFEED_RSS.encode()):
+        cves.upsert(conn, x, "cvefeed.io")
+    a = conn.execute("INSERT INTO articles(source,url,title) VALUES('S','https://n/1','WP Rocket 취약점')").lastrowid
+    conn.execute("INSERT INTO intel(article_id,title,kind,summary,hashtags,published_at) VALUES(?,?,?,?,?,?)",
+                 (a, "WP Rocket 원격코드실행", "권고", "요약", '["CVE-2026-125812"]', "2026-11-25"))
+    i = conn.execute("INSERT INTO incidents(title,occurred_at,summary) VALUES('사고','2026-11-24',"
+                     "'CVE-2026-125812 악용')").lastrowid
+    conn.execute("INSERT INTO incidents(title,occurred_at,summary) VALUES('다른 사고','2026-11-24','CVE-2026-1258120')")
+    conn.commit()
+    rel = cves.related(conn, "CVE-2026-125812")                                # CVE-2026-1258120 is another CVE
+    assert [(r["section"], r["tagged"]) for r in rel] == [("intel", True), ("incident", False)]
+    assert rel[1]["url"] == f"/incidents/{i}" and rel[0]["url"] == "https://n/1"
+    c = TestClient(create_app(p, run_collector=False))
+    home = c.get("/").text
+    assert 'href="/?section=cve"' in home and "주요 CVE" in home            # its own oval in the header
+    page = c.get("/", params={"section": "cve"}).text
+    assert page.count('data-cve="') == 2 and "WordPress WP Rocket plugin" in page and ">9.8<" in page
+    assert 'name="section" value="cve"' in page                              # search stays on the CVE page
+    assert "CVE 번호를 누르면" in page
+    sel = c.get("/", params={"section": "cve", "cve": "cve-2026-125812"}).text  # ?cve= renders the pane server-side
+    assert 'data-cve-detail="CVE-2026-125812"' in sel and "WP Rocket 원격코드실행" in sel
+    pane = c.get("/cves/CVE-2026-125812").text
+    assert "관련 글타래" in pane and "제목·요약에 언급" in pane and c.get("/cves/CVE-1999-1").status_code == 404
+    found = c.get("/", params={"section": "cve", "q": "Dell"}).text
+    assert found.count('data-cve="') == 1 and "CVE-2026-80273" in found
+    assert c.get("/api/cves").json()["total"] == 2
+    assert len(c.get("/api/cves/CVE-2026-125812").json()["related"]) == 2
+    bad = c.get("/", params={"section": "cve", "cve": "<img src=x>"}).text      # unknown id from the address: escaped
+    assert "&lt;IMG SRC=X&gt;" in bad and "<IMG" not in bad
+
+
+CVE_RECORD = {"cveMetadata": {"cveId": "CVE-2026-80273", "state": "PUBLISHED"}, "containers": {
+    "cna": {"title": "Dell SCG OS Command Injection",
+            "descriptions": [{"lang": "en", "value": "OS command injection in SCG."}],
+            "affected": [{"vendor": "Dell", "product": "Secure Connect Gateway", "versions": [
+                {"version": "0", "lessThan": "5.36.00.16", "status": "affected", "versionType": "semver"}]}],
+            "metrics": [{"cvssV3_1": {"baseScore": 8.4, "baseSeverity": "HIGH", "vectorString": "CVSS:3.1/AV:L/AC:L"}},
+                        {"cvssV4_0": {"baseScore": 8.6, "baseSeverity": "HIGH", "vectorString": "CVSS:4.0/AV:L"}}],
+            "problemTypes": [{"descriptions": [{"cweId": "CWE-78", "lang": "en", "type": "CWE"}]}],
+            "solutions": [{"lang": "en", "value": "Upgrade to 5.36.00.16."}],
+            "workarounds": [{"lang": "en", "value": "Restrict local access."}],
+            "references": [{"url": "https://www.dell.com/support/kbdoc/x"}, {"url": "javascript:alert(1)"}]},
+    "adp": [{"providerMetadata": {"shortName": "CISA-ADP"}, "metrics": [
+        {"other": {"type": "ssvc", "content": {"options": [{"Exploitation": "active"}, {"Automatable": "no"}]}}},
+        {"other": {"type": "kev", "content": {"dateAdded": "2026-11-26", "reference": "https://www.cisa.gov/kev"}}}]}]}}
+
+
+def test_cve_records_from_the_search_api(tmp_path):
+    from types import SimpleNamespace as NS
+    from newscollect import cves
+    r = cves.parse_record(CVE_RECORD)
+    assert (r["cvss"], r["cvss_version"], r["cvss_vector"], r["severity"]) == (8.6, "4.0", "CVSS:4.0/AV:L", "HIGH")
+    assert r["products"] == [{"product": "Dell Secure Connect Gateway", "affected": "5.36.00.16 미만", "fixed": "5.36.00.16"}]
+    assert (r["cwe"], r["remediation"], r["workarounds"]) == ("CWE-78", "Upgrade to 5.36.00.16.", "Restrict local access.")
+    assert (r["exploitation"], r["kev_added"], r["refs"]) == ("active", "2026-11-26", ["https://www.dell.com/support/kbdoc/x"])
+    conn = db.connect(str(tmp_path / "t.db"))
+    for x in cves.parse_feed("https://cvefeed.io/rssfeed/severity/high.xml", CVEFEED_RSS.encode()):
+        cves.upsert(conn, x, "cvefeed.io")                                   # CVE-2026-125812, CVE-2026-80273
+    k = cves.parse_feed("https://knvd.krcert.or.kr/rss/security/info", KNVD_RSS.encode())[0]
+    cves.upsert(conn, k, "KNVD")                                             # KNVD product table for 80273
+    seen = []
+
+    def handler(request):
+        body = json.loads(request.content)
+        seen.append((body["cveIds"], request.headers["user-agent"]))
+        return httpx.Response(200, json={"status": "ok", "records": [CVE_RECORD]})   # 125812 not (yet) indexed
+    cfg = NS(cve_api_enabled=True, cve_api_url="https://search.cve.org/search", cve_api_contact="https://example.org/issues")
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        assert cves.fetch_records(conn, cfg, client) == 1
+        assert seen == [("CVE-2026-125812,CVE-2026-80273", "newscollect/1.0 (+https://example.org/issues)")]  # one batch
+        row = cves.decorate(dict(conn.execute("SELECT * FROM cves WHERE cve_id='CVE-2026-80273'").fetchone()))
+        assert (row["cvss"], row["cvss_vector"], row["exploitation_ko"], row["kev_added"]) == (8.6, "CVSS:4.0/AV:L", "실제 악용 확인", "2026-11-26")
+        assert row["products_from"] == "feed" and row["affected"] == "Dell SCG"          # KNVD's table stays
+        assert row["remediation"].startswith("다음 버전") and row["workarounds"] == "Restrict local access."
+        assert row["sources"][-1] == {"name": "CVE.org", "url": "https://www.cve.org/CVERecord?id=CVE-2026-80273"}
+        assert row["detail_url"] == ""                                          # record + KNVD cover it: no page
+        miss = conn.execute("SELECT record_status, record_attempts FROM cves WHERE cve_id='CVE-2026-125812'").fetchone()
+        assert tuple(miss) == ("", 1)                                           # asked again next cycle
+        seen.clear()
+        assert cves.fetch_records(conn, cfg, client) == 0 and seen[0][0] == "CVE-2026-125812"   # done one not re-read today
+    with httpx.Client(transport=httpx.MockTransport(lambda req: httpx.Response(429))) as client:
+        assert cves.fetch_records(conn, cfg, client) == 0                    # rate-limited: stop until the next cycle
+    assert conn.execute("SELECT record_attempts FROM cves WHERE cve_id='CVE-2026-125812'").fetchone()[0] == 2
+    assert cves.fetch_records(conn, NS(cve_api_enabled=False, cve_api_url="x", cve_api_contact=""), None) == 0

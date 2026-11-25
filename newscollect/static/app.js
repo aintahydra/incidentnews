@@ -41,7 +41,7 @@
   window.addEventListener("resize", setHeaderH);
 
   // --- side pane toggle (initial state is set by the inline script in <head>) ---
-  var paneBtn = document.querySelector(".pane-toggle");
+  var paneBtn = document.querySelector(".pane-toggle"), openPane = function () {};
   if (paneBtn) {
     var setPane = function (open, remember) {
       root.dataset.pane = open ? "open" : "closed";
@@ -51,6 +51,7 @@
       if (open) window.dispatchEvent(new Event("resize"));
     };
     setPane(root.dataset.pane !== "closed", false);
+    openPane = function () { if (root.dataset.pane === "closed") setPane(true, false); };
     paneBtn.addEventListener("click", function () { setPane(root.dataset.pane === "closed", true); });
     var narrowClose = function () { setPane(false, false); paneBtn.focus(); };
     document.querySelector(".pane-close").addEventListener("click", narrowClose);
@@ -60,6 +61,51 @@
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape" && window.innerWidth < 900 && root.dataset.pane === "open") narrowClose();
     });
+  }
+
+  // --- 주요 CVE: a CVE number shows its details in the side pane (the link alone also works: ?cve=…) ---
+  var cveBox = document.getElementById("cve-detail");
+  if (cveBox) {
+    var hint = cveBox.innerHTML;
+    var mark = function (cid) {
+      document.querySelectorAll(".cve-table tr").forEach(function (tr) {
+        var a = tr.querySelector("a[data-cve]");
+        if (a && a.dataset.cve === cid) tr.setAttribute("aria-current", "true"); else tr.removeAttribute("aria-current");
+      });
+    };
+    var showCve = async function (cid, href) {
+      cveBox.setAttribute("aria-busy", "true");
+      try {
+        if (!cid) { cveBox.innerHTML = hint; mark(""); return; }
+        var r = await fetch("/cves/" + encodeURIComponent(cid), { cache: "no-store" });
+        if (r.ok) cveBox.innerHTML = await r.text();
+        else { // cid can come from the address bar: text only
+          cveBox.innerHTML = '<section class="cloud cve-card cve-hint"><p></p></section>';
+          cveBox.querySelector("p").textContent = cid + " 정보를 불러오지 못했습니다.";
+        }
+        mark(cid);
+        if (href) history.pushState({ cve: cid }, "", href);
+        openPane();
+        var side = document.getElementById("side");
+        if (side) side.scrollTop = 0;
+      } catch (err) {
+        if (href) location.href = href; // offline or server restarting: a normal page load
+      } finally {
+        cveBox.removeAttribute("aria-busy");
+      }
+    };
+    document.addEventListener("click", function (e) {
+      var a = e.target.closest("a[data-cve]");
+      if (!a || e.ctrlKey || e.metaKey || e.shiftKey || e.button) return;
+      e.preventDefault();
+      showCve(a.dataset.cve, a.getAttribute("href"));
+    });
+    window.addEventListener("popstate", function () {
+      showCve(new URLSearchParams(location.search).get("cve") || "", null);
+    });
+    if (cveBox.querySelector("[data-cve-detail]")) openPane(); // opened with ?cve=…: show it, also on phones
+    hint = cveBox.querySelector("[data-cve-detail]") ? // back to the list without ?cve= shows the hint
+      '<section class="cloud cve-card cve-hint"><p>목록에서 CVE 번호를 누르면 상세 정보가 여기에 표시됩니다.</p></section>' : hint;
   }
 
   // --- regenerate summary ---

@@ -13,7 +13,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import collector, db, intel, orgs, regen, stats, tagcloud, taggraph
+from . import collector, cves, db, intel, orgs, regen, stats, tagcloud, taggraph
 from .config import load_config
 
 BASE = Path(__file__).parent
@@ -23,6 +23,8 @@ PAGE = 100  # cards per "더 보기" step on the 보안 사고 / 인텔·권고 
 SEARCH_FIELDS = ("title", "summary", "attacker", "victim", "damage", "category", "hashtags")
 INTEL_SEARCH_FIELDS = ("i.title", "i.summary", "i.action", "i.kind", "i.hashtags", "a.title", "a.source")
 SECTIONS = ("incident", "intel")  # card sections; the header also has the "graph" page (태그간 관계 그래프)
+PAGES = SECTIONS + ("graph", "cve")  # every ?section= value; "cve" is 주요 CVE, in its own header group
+CVE_SEARCH_FIELDS = ("cve_id", "title", "affected", "description", "description_ko", "products", "cwe")
 INTEL_TABS = {"advisory": "권고", "threat": "위협 분석", "guide": "가이드", "policy": "정책"}  # tab key -> intel.kind
 # when the news came out: the earliest linked article's publication date (feed date; collection date if missing).
 # The timeline and the tag cloud use this; occurred_at (the incident date the LLM extracted) is shown on the card.
@@ -121,6 +123,29 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
         by_tab = {"all": rows, **{k: [r for r in rows if r["kind"] == kind] for k, kind in INTEL_TABS.items()}}
         return by_tab.get(tab, rows)[offset:offset + limit], {k: len(v) for k, v in by_tab.items()}
 
+    def cve_listing(query="", limit=PAGE):
+        """(newest CVEs matching every search term, how many match)."""
+        clauses, args = [], []
+        for term in query.split()[:5]:
+            clauses.append("(" + " OR ".join(f"{f} LIKE ? ESCAPE '\\'" for f in CVE_SEARCH_FIELDS) + ")")
+            args += [_like(term)] * len(CVE_SEARCH_FIELDS)
+        where = "WHERE " + " AND ".join(clauses) if clauses else ""
+        total = q(f"SELECT COUNT(*) n FROM cves {where}", args)[0]["n"]
+        rows = q(f"SELECT cve_id, title, affected, cvss, severity, exploitation, kev_added, published_at FROM cves {where} "
+                 "ORDER BY published_at DESC, cvss DESC, cve_id DESC LIMIT ?", args + [limit])
+        for r in rows:
+            r["severity_ko"] = cves.SEVERITY_KO.get(r["severity"], "")
+        return rows, total
+
+    def cve_detail(cve_id: str):
+        rows = q("SELECT * FROM cves WHERE cve_id=?", (cve_id.strip().upper(),))
+        if not rows:
+            return None
+        r = cves.decorate(rows[0])
+        with lock:
+            r["related"] = cves.related(conn, r["cve_id"])
+        return r
+
     def version():
         """Changes whenever an incident or intel entry is added, merged or rewritten (and articles: the charts)."""
         r = q("SELECT COUNT(*) n, MAX(id) m, MAX(updated_at) u, (SELECT COUNT(*) FROM articles) a FROM incidents")[0]
@@ -136,16 +161,25 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
         return tagged(rows[0])
 
     @app.get("/", response_class=HTMLResponse)
-    def index(request: Request, q: str = "", tab: str = "all", section: str = "incident", n: int = PAGE):
+    def index(request: Request, q: str = "", tab: str = "all", section: str = "incident", n: int = PAGE, cve: str = ""):
         q = q.strip()[:100]
         n = max(PAGE, min(n, 10000))
         try:  # re-read so a [server].refresh_seconds edit applies on the next page load
             refresh = load_config(config_path).refresh_seconds
         except Exception:
             refresh = cfg.refresh_seconds
-        section = section if section in SECTIONS + ("graph",) else "incident"
+        section = section if section in PAGES else "incident"
         inc_rows, inc_counts = listing(limit=n, query=q, tab=tab if tab in orgs.TAB_TAGS else "all")
         intel_rows, intel_counts = intel_listing(limit=n, query=q, tab=tab if tab in INTEL_TABS else "all")
+        cve_rows, cve_total = cve_listing(q, n if section == "cve" else 1)  # counts follow the search, like the others
+        section_counts = {"incident": inc_counts["all"], "intel": intel_counts["all"], "cve": cve_total}
+        if section == "cve":
+            more = ("/?" + urlencode({k: v for k, v in (("section", "cve"), ("q", q), ("n", n + PAGE)) if v})
+                    if len(cve_rows) < cve_total else None)
+            return templates.TemplateResponse(request, "cve.html", {
+                "title": cfg.site_title, "q": q, "section": "cve", "tab": "all", "rows": cve_rows,
+                "total": cve_total, "shown": len(cve_rows), "more": more, "selected": cve_detail(cve) if cve else None,
+                "cve_param": cve.strip().upper(), "section_counts": section_counts})
         if section == "graph":  # one graph over all 글타래 for now (the API also takes scope=incident|intel)
             tab = "all"
             rows, counts, date_key = [], {k: 0 for k in taggraph.SCOPES}, "posted_at"
@@ -170,8 +204,27 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
                                            "tab": tab, "counts": counts, "version": version(), "refresh": refresh,
                                            "section": section, "intel_tabs": INTEL_TABS,
                                            "shown": len(rows), "more": more, "step": PAGE,
-                                           "section_counts": {"incident": inc_counts["all"],
-                                                              "intel": intel_counts["all"]}})
+                                           "section_counts": section_counts})
+
+    @app.get("/cves/{cve_id}", response_class=HTMLResponse)
+    def cve_pane(request: Request, cve_id: str):
+        """The side-pane detail of one CVE (주요 CVE page; fetched when a CVE number is clicked)."""
+        r = cve_detail(cve_id)
+        if r is None:
+            raise HTTPException(404, "CVE를 찾을 수 없습니다")
+        return templates.TemplateResponse(request, "_cve_detail.html", {"c": r})
+
+    @app.get("/api/cves")
+    def api_cves(q: str = "", limit: int = 100):
+        rows, total = cve_listing(q.strip()[:100], max(1, min(limit, 1000)))
+        return {"total": total, "cves": rows}
+
+    @app.get("/api/cves/{cve_id}")
+    def api_cve(cve_id: str):
+        r = cve_detail(cve_id)
+        if r is None:
+            raise HTTPException(404, "CVE를 찾을 수 없습니다")
+        return r
 
     @app.get("/incidents/{inc_id}", response_class=HTMLResponse)
     def detail(request: Request, inc_id: int):

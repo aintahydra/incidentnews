@@ -128,6 +128,39 @@ Each row is one card in the 인텔리전스·권고 tab.
 | `published_at` | TEXT NOT NULL | The article's publication date. Cards are sorted and charted by it. |
 | `created_at`, `updated_at` | TEXT NOT NULL | UTC timestamps. |
 
+### `cves`
+
+Each row is one CVE on the 주요 CVE page, from the `[[cve_sources]]` feeds (`cves.py`, no LLM). Merged by id across
+feeds: later data only fills empty fields. Schema in `cves.SCHEMA`.
+
+| Column | Type | Notes |
+|---|---|---|
+| `cve_id` | TEXT PK | `CVE-YYYY-NNNN…`, upper case. |
+| `title` | TEXT | The feed's title (cvefeed.io: English; KNVD: Korean). |
+| `description` | TEXT | Description as cvefeed.io (or another feed) gives it. |
+| `description_ko` | TEXT | KNVD 개요 + 설명. |
+| `affected` | TEXT | Short affected-system name for the list (first product + "외 N개", or a name from the title). |
+| `products` | TEXT | JSON `[{product, affected, fixed}]`: KNVD's product table, or cvefeed.io's affected products. |
+| `cvss`, `cvss_version` | REAL, TEXT | Base score and its CVSS version when known. |
+| `severity` | TEXT | `CRITICAL` / `HIGH` / `MEDIUM` / `LOW` (from the feed, else from the score). |
+| `cwe` | TEXT | e.g. `CWE-78` (KNVD). |
+| `remediation` | TEXT | KNVD fixed versions and notes, else cvefeed.io's "Solution". |
+| `detection` | TEXT | Only when a source has a detection section (currently rare). |
+| `refs` | TEXT | JSON list of reference URLs. |
+| `sources` | TEXT | JSON `[{name, url}]`: each feed's page for this CVE. |
+| `published_at` | TEXT | Earliest feed date, `YYYY-MM-DD`. The list is sorted by it. |
+| `detail_url`, `detail_attempts` | TEXT, INTEGER | cvefeed.io detail page still to read ('' when done, not needed, or given up after 3 attempts). |
+| `products_from` | TEXT | Where `products` came from: `feed` (KNVD table, never replaced), `record` (CVE.org), `detail` (cvefeed.io page) or ''. |
+| `cvss_vector` | TEXT | CVSS vector string from the CVE record. |
+| `workarounds` | TEXT | The CNA's workarounds from the CVE record. |
+| `exploitation` | TEXT | CISA SSVC Exploitation: `none`, `poc` or `active` ('' when not assessed). |
+| `kev_added` | TEXT | Date the CVE entered CISA's KEV catalog ('' if not listed). |
+| `record_status`, `record_attempts`, `record_fetched_at` | TEXT, INTEGER, TEXT | CVE Search API: '' (to fetch), `done` or `missing` (not returned 5 times); when the record was last read. |
+| `created_at`, `updated_at` | TEXT | UTC timestamps. |
+
+Related cards are not stored: `cves.related()` finds incidents and intel cards whose tags, title or summary contain
+the id when the CVE is opened.
+
 ## Indexes
 
 | Index | On | Used for |
@@ -137,6 +170,8 @@ Each row is one card in the 인텔리전스·권고 tab.
 | `idx_incidents_date` | `incidents(occurred_at DESC)` | the ±7-day merge window lookup |
 | `sqlite_autoindex_intel_1` | `intel(article_id)` | the UNIQUE constraint and upserts |
 | `idx_intel_date` | `intel(published_at DESC)` | listing intel cards newest first |
+| `sqlite_autoindex_cves_1` | `cves(cve_id)` | the primary key and merging by id |
+| `idx_cves_published` | `cves(published_at DESC)` | listing CVEs newest first |
 
 ## Migrations
 
@@ -145,6 +180,7 @@ columns that older databases lack:
 
 - `incidents.hashtags`, for databases created before tags existed.
 - `articles.section`. Existing rows become `incident`.
+- `cves` columns added after the table's first version (`cves.migrate`, `COLUMNS_ADDED`).
 
 `ALTER TABLE ... ADD COLUMN` appends the new column at the end, which is why `section` is the last column of
 `articles`. SQLite also keeps the original `CREATE TABLE` text, comments included. In databases created before

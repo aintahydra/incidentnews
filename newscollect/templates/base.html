@@ -16,16 +16,16 @@ try{var p=localStorage.getItem("pane");document.documentElement.dataset.pane=(in
   {% block header_nav %}{% endblock %}
   <form class="search" action="/" method="get" role="search">
     <span class="search-field">
-    <input type="search" name="q" value="{{ q or '' }}" placeholder="{% if section == 'intel' %}인텔·권고 검색 (제품, CVE, 공격 그룹, 키워드){% else %}사고 검색 (기업, 공격자, 키워드){% endif %}" maxlength="100" aria-label="{% if section == 'intel' %}인텔·권고 검색{% else %}사고 검색{% endif %}">
+    <input type="search" name="q" value="{{ q or '' }}" placeholder="{% if section == 'intel' %}인텔·권고 검색 (제품, CVE, 공격 그룹, 키워드){% elif section == 'cve' %}CVE 검색 (CVE 번호, 제품, 키워드){% else %}사고 검색 (기업, 공격자, 키워드){% endif %}" maxlength="100" aria-label="{% if section == 'intel' %}인텔·권고 검색{% elif section == 'cve' %}CVE 검색{% else %}사고 검색{% endif %}">
     <button type="button" class="search-clear" aria-label="검색어 지우기" title="검색어 지우기"{% if not q %} hidden{% endif %}>×</button>
     </span>
-    {% if section == "intel" %}<input type="hidden" name="section" value="intel">{% endif %}
+    {% if section in ("intel", "cve") %}<input type="hidden" name="section" value="{{ section }}">{% endif %}
     {% if tab and tab != "all" %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
     <button type="submit">검색</button>
   </form>
   <div class="themes" role="group" aria-label="테마 선택">
-    <button type="button" data-theme-choice="light" aria-pressed="false">☀ 라이트</button>
-    <button type="button" data-theme-choice="dark" aria-pressed="false">🌙 다크</button>
+    <button type="button" data-theme-choice="light" aria-pressed="false" aria-label="라이트 테마" title="라이트 테마">☀<span class="lbl"> 라이트</span></button>
+    <button type="button" data-theme-choice="dark" aria-pressed="false" aria-label="다크 테마" title="다크 테마">🌙<span class="lbl"> 다크</span></button>
   </div>
 </header>
 <div class="layout">

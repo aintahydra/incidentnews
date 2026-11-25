@@ -168,9 +168,42 @@ name = "CrowdStrike"
 url = "https://www.crowdstrike.com/blog/feed/"
 enabled = true
 
+[[intel_sources]]
+name = "Malware bytes"
+url = "https://www.malwarebytes.com/blog/feed/index.xml"
+enabled = true
+
+[[intel_sources]]
+name = "KISA"
+url = "https://knvd.krcert.or.kr/rss/security/notice"
+enabled = true
+
 # CISA refuses automated clients (HTTP 403) on all its feeds tried so far: all.xml, alerts.xml, blog.xml and
 # news.xml under www.cisa.gov. Left off; try enabling it from another network.
 [[intel_sources]]
 name = "CISA"
 url = "http://www.cisa.gov/cybersecurity-advisories/all.xml"
 enabled = false
+
+# 주요 CVE: CVE feeds, stored as the feeds give them (no LLM). Read every collection cycle; edits apply live.
+# Formats understood: cvefeed.io (each CVE's cvefeed.io detail page is also read once for affected products,
+# the "Solution" section and references) and KISA KNVD (knvd.krcert.or.kr). Other feeds: CVE ids in item titles.
+[[cve_sources]]
+name = "cvefeed.io"
+url = "https://cvefeed.io/rssfeed/severity/high.xml"
+enabled = true
+
+[[cve_sources]]
+name = "KNVD 보안취약점 정보포털"
+url = "https://knvd.krcert.or.kr/rss/security/info"
+enabled = true
+
+# CVE records from the CVE Program's Search API (BETA): after the feeds, the official record of each new CVE is
+# fetched in one batched request per cycle (vendor/product/versions, CVSS vector, CWE, the vendor's solutions and
+# workarounds, references, CISA's exploitation status and KEV). Recent records are refreshed once a day.
+# https://cveproject.github.io/search-api-responsible-use asks publicly distributed apps to put a contact
+# (an email or a repository URL for issues) in the User-Agent: set `contact` if you distribute this app.
+[cve_api]
+enabled = true
+url = "https://search.cve.org/search"
+contact = ""

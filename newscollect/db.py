@@ -1,6 +1,8 @@
 import sqlite3
 from pathlib import Path
 
+from .cves import SCHEMA as CVE_SCHEMA, migrate as cve_migrate
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS articles (
   id INTEGER PRIMARY KEY,
@@ -58,6 +60,8 @@ def connect(path: str) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(SCHEMA)
+    conn.executescript(CVE_SCHEMA)  # 주요 CVE (cves.py)
+    cve_migrate(conn)
     _migrate(conn)
     return conn
 

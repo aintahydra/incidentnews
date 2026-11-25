@@ -40,6 +40,10 @@ class Config:
     public_list: str = ""  # CSV of public institutions (name in column 1) -> "공공기관" tag
     sources: list[Source] = field(default_factory=list)        # [[sources]]: incident news
     intel_sources: list[Source] = field(default_factory=list)  # [[intel_sources]]: intel & advisories
+    cve_sources: list[Source] = field(default_factory=list)    # [[cve_sources]]: 주요 CVE feeds
+    cve_api_enabled: bool = True   # [cve_api]: CVE records from the CVE Program's Search API
+    cve_api_url: str = "https://search.cve.org/search"
+    cve_api_contact: str = ""      # added to the User-Agent (the API's Responsible Use Guide asks distributed apps for it)
 
     @property
     def llm_base_url(self) -> str:
@@ -93,8 +97,11 @@ def load_config(path: Path | str | None = None) -> Config:
         tagcloud_exclude=exclude,
         gov_list=raw.get("orgs", {}).get("government_list", ""),
         public_list=raw.get("orgs", {}).get("public_list", ""),
+        cve_api_enabled=bool(raw.get("cve_api", {}).get("enabled", True)),
+        cve_api_url=raw.get("cve_api", {}).get("url", "https://search.cve.org/search"),
+        cve_api_contact=str(raw.get("cve_api", {}).get("contact", "")),
     )
-    for key, dest in (("sources", cfg.sources), ("intel_sources", cfg.intel_sources)):
+    for key, dest in (("sources", cfg.sources), ("intel_sources", cfg.intel_sources), ("cve_sources", cfg.cve_sources)):
         for s in raw.get(key, []):
             if "url" not in s:
                 raise ValueError(f"[[{key}]] entry missing url: {s}")

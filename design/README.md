@@ -10,6 +10,7 @@ implementation; file and function names point at the code that does it.
 | [03-tag-graph.md](03-tag-graph.md) | Tags, the tag cloud, and the 태그간 관계 그래프 (tag co-occurrence network and its statistics) |
 | [04-kakaotalk-parser.md](04-kakaotalk-parser.md) | Importing links shared in a KakaoTalk group chat (HUMINT) |
 | [05-screen-layout.md](05-screen-layout.md) | Page structure, header, side pane, cards, the graph page, responsive and live behaviour |
+| [06-cves.md](06-cves.md) | 주요 CVE: CVE feeds (cvefeed.io, KNVD), detail pages, storage, the CVE list and its side-pane detail |
 
 The database schema itself is in [../docs/database.md](../docs/database.md). The older single-file design notes
 are in [../DESIGN.md](../DESIGN.md).
@@ -25,6 +26,7 @@ are in [../DESIGN.md](../DESIGN.md).
                  │ 2 fetch article page text
                  │ 3 section=incident: extractor (LLM) ─► dedupe ─► incidents + incident_articles
                  │   section=intel:    intel (LLM) ───────────────► intel
+                 │ 0 [[cve_sources]] (no LLM) ─► cvefeed.io detail pages ─► cves
                  ▼
   KakaoTalk ──► scripts/KakaotalkParser/kakao_import.py (run by hand)
   export         parse chat ─► fetch linked page ─► articles (status=humint)
@@ -38,6 +40,7 @@ are in [../DESIGN.md](../DESIGN.md).
      /                     보안 사고 tab (incident cards by day)
      /?section=intel       인텔·권고 tab (intel cards by day)
      /?section=graph       태그간 관계 그래프 tab
+     /?section=cve         주요 CVE (list; ?cve=<id> fills the side pane)
      /incidents/{id}       incident detail
      /api/...              JSON for cards, tag cloud, article chart, tag graph, change polling
 ```

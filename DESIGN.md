@@ -203,3 +203,19 @@ On a match: link the article, fill empty fields, keep the longer summary.
   (taller on phones) and the pair table, and re-fetches when `/api/version` changes. The permutation test is still
   computed and returned by the API (`obs`, `nullmean`, `hist`, `permp`) but the page doesn't show it.
 
+## 주요 CVE
+
+- `cves.py`: `[[cve_sources]]` feeds read every collection cycle (before the LLM step; no LLM). Parsers by host:
+  cvefeed.io RSS (+ its `/vuln/detail/` page once per CVE for affected products, "Solution" and references, up to
+  40 per cycle, 1 s apart, 3 attempts) and KISA KNVD RSS (Korean 개요/설명, CVSS table, product/fixed-version table,
+  참고사이트); other feeds: CVE ids in titles. One `cves` row per id, merged across feeds (fill empty fields, keep
+  both descriptions, combine sources/refs). cve.socradar.io was asked for but sits behind a Cloudflare challenge,
+  so it isn't used.
+- `/?section=cve` (`cve.html`): its own pill group in the header (`_sections.html`); a CVE table; clicking an id
+  loads `/cves/{id}` (`_cve_detail.html`) into the side pane and pushes `?cve=`. Related 글타래 are found at request
+  time (`cves.related`: whole-id match in tags, title, summary). Details in `design/06-cves.md`.
+- CVE records: `cves.fetch_records` asks the CVE Program's Search API (`[cve_api]`, `POST https://search.cve.org/search`,
+  `cveIds` batches of up to 100) for new CVEs and re-reads records from the last 30 days once a day; 429/5xx stops
+  until the next cycle. `parse_record` / `apply_record` add vendor/product version ranges, CVSS vector, CWE, the CNA's
+  solutions and workarounds, references, CISA SSVC exploitation and KEV date. cvefeed.io pages are then read only
+  where the record left products or remediation empty.

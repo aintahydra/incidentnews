@@ -19,7 +19,7 @@ a{color:var(--acc)}
 .src{font-size:13px;color:var(--mut)}
 .empty{color:var(--mut);text-align:center;margin:60px 0}
 footer{max-width:760px;margin:24px auto;padding:0 16px;color:var(--mut);font-size:13px}
-.search{display:flex;gap:6px;flex:1 1 240px;max-width:420px;margin-left:auto}
+.search{display:flex;gap:6px;flex:1 1 180px;max-width:420px;margin-left:auto}
 .search-field{position:relative;display:flex;flex:1;min-width:0}
 .search-field input{padding-right:30px}
 .search input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none} /* our own × instead */
@@ -209,3 +209,51 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .hub-chip{display:inline-flex;align-items:center;gap:5px;color:var(--fg);white-space:nowrap}
 .hub-chip i{display:inline-block;width:12px;height:12px;border-radius:50%}
 .hub-chip small{color:var(--mut)}
+
+/* header: the section switch and the separate 주요 CVE oval */
+.navs{display:flex;flex-wrap:wrap;gap:8px}
+@media(max-width:699px){
+  .navs{order:3;flex:1 1 100%}
+  .navs .sections{order:0;flex:1 1 auto}
+  .navs .sections:last-child{flex:0 0 auto}
+}
+
+/* 주요 CVE page: list on the right, the clicked CVE's details in the side pane */
+:root,[data-theme=dark]{--sev-critical:#e5484d;--sev-high:#f08c2e;--sev-medium:#d6a300;--sev-low:#7d8796}
+[data-theme=light]{--sev-critical:#d92d20;--sev-high:#dc6803;--sev-medium:#b58a00;--sev-low:#667085}
+@media(prefers-color-scheme:light){:root:not([data-theme]){--sev-critical:#d92d20;--sev-high:#dc6803;--sev-medium:#b58a00;--sev-low:#667085}}
+.cve-h{font-size:18px;margin:12px 0 8px;border-left:4px solid var(--acc);padding-left:10px}
+.cve-wrap{overflow-x:auto}
+.cve-table{width:100%;border-collapse:collapse;font-size:14px;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.cve-table th{text-align:left;font-size:13px;color:var(--mut);font-weight:600;padding:8px 12px;border-bottom:1px solid var(--line)}
+.cve-table td{padding:7px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+.cve-table tr:last-child td{border-bottom:0}
+.cve-table .num{text-align:right;white-space:nowrap}
+.cve-table .id{white-space:nowrap;font-variant-numeric:tabular-nums}
+.cve-table .id a{font-weight:600;color:var(--series-1);text-decoration:none}
+.cve-table .id a:hover{text-decoration:underline}
+.cve-table tr[aria-current]{background:color-mix(in srgb,var(--series-1) 12%,transparent)}
+.cve-table .sys{overflow-wrap:anywhere}
+.sev{display:inline-block;min-width:3.2em;text-align:center;padding:0 6px;border-radius:999px;border:1px solid var(--sev,var(--line));
+  background:color-mix(in srgb,var(--sev,transparent) 16%,transparent);color:var(--fg);font-variant-numeric:tabular-nums;font-weight:600}
+.sev-critical{--sev:var(--sev-critical)} .sev-high{--sev:var(--sev-high)} .sev-medium{--sev:var(--sev-medium)} .sev-low{--sev:var(--sev-low)}
+.sev-none{border-color:var(--line);color:var(--mut);font-weight:400}
+.cve-card{font-size:14px}
+.cve-card h2.cve-id{margin:0;font-size:18px}
+.cve-card .cve-title{margin:2px 0 8px;color:var(--fg)}
+.cve-card h3{font-size:14px;margin:14px 0 4px;color:var(--mut)}
+.cve-card h3 .count{font-weight:400}
+.cve-facts{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:6px 0}
+.cve-facts dt{color:var(--mut)} .cve-facts dd{margin:0}
+.cve-text{white-space:pre-line;margin:4px 0;overflow-wrap:anywhere}
+.cve-products,.cve-links,.cve-related{margin:0;padding-left:18px}
+.cve-links a{overflow-wrap:anywhere}
+.cve-related li{margin:4px 0}
+.cve-related .tag{font-size:11px;margin-right:4px}
+.mut{color:var(--mut)}
+.cve-hint p{margin:4px 0;color:var(--mut)}
+#cve-detail[aria-busy=true]{opacity:.5}
+@media(min-width:700px) and (max-width:1199px){.themes .lbl{display:none}} /* icons only: keeps the header on one row */
+.tag.exploit{color:#fff;background:var(--sev-critical);border-color:var(--sev-critical);font-size:11px;font-weight:600;padding:0 6px}
+.cve-vector{font-size:12px;color:var(--mut);overflow-wrap:anywhere}
+.cve-versions{margin:0;padding-left:14px;list-style:"– ";font-size:13px}

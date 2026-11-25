@@ -1,0 +1,38 @@
+<section class="cloud cve-card" data-cve-detail="{{ c.cve_id }}">
+  <h2 class="cve-id">{{ c.cve_id }}</h2>
+  {% if c.title %}<p class="cve-title">{{ c.title }}</p>{% endif %}
+  <dl class="cve-facts">
+    <dt>CVSS</dt>
+    <dd>{% if c.cvss is not none %}<span class="sev sev-{{ (c.severity or 'none')|lower }}">{{ "%.1f"|format(c.cvss) }}</span>{% endif %}
+      {% if c.severity_ko %}{{ c.severity_ko }} ({{ c.severity }}){% elif c.cvss is none %}정보 없음{% endif %}
+      {% if c.cvss_version %}<span class="mut">· CVSS {{ c.cvss_version }}</span>{% endif %}
+      {% if c.cvss_vector %}<br><code class="cve-vector">{{ c.cvss_vector }}</code>{% endif %}</dd>
+    {% if c.exploitation or c.kev_added %}<dt>악용 여부</dt>
+    <dd>{% if c.kev_added %}<span class="tag exploit">KEV</span> CISA KEV 등재 ({{ c.kev_added }}){% if c.exploitation_ko %} · {% endif %}{% endif %}{{ c.exploitation_ko }} <span class="mut">(CISA)</span></dd>{% endif %}
+    <dt>영향받는 시스템</dt>
+    <dd>{% if c.products %}<ul class="cve-products">{% for name, ps in c.products|groupby("product") %}<li>{{ name }}
+      {%- set vs = ps|selectattr("affected")|list %}{% if vs %}<ul class="cve-versions">{% for p in vs %}<li><span class="mut">{{ p.affected }}</span>{% if p.fixed %} → {{ p.fixed }}{% endif %}</li>{% endfor %}</ul>{% endif %}</li>{% endfor %}</ul>{% else %}{{ c.affected or "정보 없음" }}{% endif %}</dd>
+    {% if c.cwe %}<dt>CWE</dt><dd>{{ c.cwe }}</dd>{% endif %}
+    {% if c.published_at %}<dt>공개</dt><dd>{{ c.published_at }}</dd>{% endif %}
+  </dl>
+  <h3>설명</h3>
+  {% if c.description_ko %}<p class="cve-text">{{ c.description_ko }}</p>{% endif %}
+  {% if c.description %}<p class="cve-text"{% if c.description_ko %} lang="en"{% endif %}>{{ c.description }}</p>{% endif %}
+  {% if not c.description and not c.description_ko %}<p class="mut">정보 없음</p>{% endif %}
+  {% if c.remediation %}<h3>조치 방법</h3><p class="cve-text">{{ c.remediation }}</p>{% endif %}
+  {% if c.workarounds %}<h3>임시 조치</h3><p class="cve-text">{{ c.workarounds }}</p>{% endif %}
+  {% if c.detection %}<h3>탐지 방법</h3><p class="cve-text">{{ c.detection }}</p>{% endif %}
+  <h3>참고 링크</h3>
+  <ul class="cve-links">
+    {% for s in c.sources %}{% if s.url %}<li><a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.name }}</a> <span class="mut">(출처)</span></li>{% endif %}{% endfor %}
+    {% for u in c.refs %}<li><a href="{{ u }}" target="_blank" rel="noopener">{{ u }}</a></li>{% endfor %}
+  </ul>
+  <h3>관련 글타래 <span class="count">{{ c.related|length }}</span></h3>
+  {% if c.related %}
+  <ul class="cve-related">
+    {% for r in c.related %}<li><span class="tag kind">{{ "보안 사고" if r.section == "incident" else "인텔·권고" }}</span>
+      <a href="{{ r.url }}"{% if r.section == "intel" %} target="_blank" rel="noopener"{% endif %}>{{ r.title }}</a>
+      <span class="mut">{{ r.date }}{% if not r.tagged %} · 제목·요약에 언급{% endif %}</span></li>{% endfor %}
+  </ul>
+  {% else %}<p class="mut">이 CVE가 붙은 보안 사고·인텔·권고 글타래가 아직 없습니다.</p>{% endif %}
+</section>

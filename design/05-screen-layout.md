@@ -8,7 +8,8 @@ Server-rendered pages (FastAPI + Jinja2 templates in `newscollect/templates/`), 
 | Template | Used for |
 |---|---|
 | `base.html` | Page shell: header, `.layout` (side pane + main), footer; theme and pane state set before first paint |
-| `_sections.html` | The header's section switch: 보안 사고 · 인텔·권고 · 태그간 관계 그래프 |
+| `_sections.html` | The header's section switch: 보안 사고 · 인텔·권고 · 태그간 관계 그래프, and the separate 주요 CVE pill |
+| `cve.html`, `_cve_detail.html` | 주요 CVE page and the side-pane detail of one CVE |
 | `index.html` | 보안 사고 and 인텔·권고 tabs: side pane, sub-tabs, cards grouped by day |
 | `_card.html`, `_intel_card.html` | One incident card / one intel card |
 | `detail.html`, `_detail_card.html` | Incident detail page (`/incidents/{id}`) |
@@ -18,18 +19,20 @@ Server-rendered pages (FastAPI + Jinja2 templates in `newscollect/templates/`), 
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────────────┐
-│ [▥] 사이버보안 동향정보 ( 보안 사고 68 | 인텔·권고 98 | 태그간 관계 그래프 )  [검색창 ][검색] [☀ 라이트][🌙 다크] │
+│ [▥] 사이버보안 동향정보 ( 보안 사고 68 | 인텔·권고 98 | 태그간 관계 그래프 ) ( 주요 CVE 35 ) [검색창 ][검색] [☀][🌙] │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 - `[▥]` toggles the side pane (list pages only).
 - The site title comes from `[server].site_title` and links to `/`.
 - The section switch is a pill group; the current section is filled blue. Counts are cards in each section
-  (for the current search). Links: `/`, `/?section=intel`, `/?section=graph`.
-- The search box searches the current section (`?q=`; on the intel tab it keeps `section=intel`). Placeholder text
+  (for the current search). Links: `/`, `/?section=intel`, `/?section=graph`. 「주요 CVE」 is a second, separate pill
+  group (`/?section=cve`, count = CVEs matching the current search); both groups sit in `.navs`.
+- The search box searches the current section (`?q=`; on the intel and CVE pages it keeps `section=intel|cve`). Placeholder text
   changes with the section. A × inside the box appears once it holds text: it clears the words, and on a results
   page it also returns to the unfiltered list of the same section and sub-tab.
-- Theme buttons set `data-theme` on `<html>` (saved in `localStorage`; default follows the OS).
+- Theme buttons set `data-theme` on `<html>` (saved in `localStorage`; default follows the OS). Between 700 and
+  1199 px they show only ☀ / 🌙 (named by `aria-label`) so the header stays on one row.
 - The header stays at the top while scrolling; its height is published as `--header-h` so the side pane can stick
   right below it.
 
@@ -93,6 +96,25 @@ No side pane; one wider column (≤ 960px).
 ```
 
 Cards are called 글타래 on this page. Drawing and interaction are described in [03-tag-graph.md](03-tag-graph.md).
+
+## 주요 CVE (`cve.html`)
+
+```
+┌─ side pane: CVE detail ─┐ ┌─ main ─────────────────────────────────────────────┐
+│ CVE-2026-76146           │ │ ▌주요 CVE                                           │
+│ 지니언스 Genian SSL PNS … │ │ CVE              │ 영향받는 시스템            │ 심각도 │
+│ CVSS (8.4) 높음 (HIGH)    │ │ CVE-2026-78114   │ Apache JSPWiki            │ (10.0) │
+│ 영향받는 시스템 · CWE · 공개 │ │ CVE-2026-76146 ◀ │ Genian SSL PNS (…)        │  (8.4) │
+│ 설명 / 조치 방법 / 탐지 방법 │ │ …                                                  │
+│ 참고 링크 / 관련 글타래      │ │ [더 보기 100 / 135]                                 │
+└──────────────────────────┘ └────────────────────────────────────────────────────┘
+```
+
+- Same grid as the list pages; the pane holds the selected CVE instead of the tag cloud and chart (a hint until
+  one is chosen). Clicking a CVE number fills it in place; details in [06-cves.md](06-cves.md).
+- Severity pills: score in a pill tinted by severity (`--sev-critical/high/medium/low`, light and dark values);
+  the severity name is in the tooltip and the pane.
+- Phones: the pane is the drawer and opens when a CVE is chosen (also on a `?cve=` link).
 
 ## Incident detail (`/incidents/{id}`)
 

@@ -3,7 +3,7 @@ import logging
 
 import httpx
 
-from . import db, dedupe, extractor, feeds, intel, llm as llmmod
+from . import cves, db, dedupe, extractor, feeds, intel, llm as llmmod
 from .config import load_config
 
 log = logging.getLogger("newscollect")
@@ -28,6 +28,10 @@ def collect_once(conn, cfg) -> dict:
                 if cur.rowcount:
                     stats["new"] += 1
             conn.commit()
+        try:  # 주요 CVE: stored as the feeds give them, no LLM
+            stats.update(cves.collect(conn, cfg, web))
+        except Exception:
+            log.exception("CVE collection failed")
         llm = None
         if cfg.llm_enabled:
             try:
