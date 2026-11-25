@@ -49,7 +49,7 @@ Server-rendered pages (FastAPI + Jinja2 templates in `newscollect/templates/`), 
 │  ▂▅▃▇▂▁▆  bar chart      │ │ │ 발생 / 공격자 / 피해 / 규모                     │ │
 │  평균 … (기간)            │ │ │ summary                                       │ │
 │  ▸ 표로 보기              │ │ │ #tag #tag #tag                                │ │
-└──────────────────────────┘ │ │ 보안뉴스 · The Hacker News  [요약 다시 생성]     │ │
+└──────────────────────────┘ │ │ 보안뉴스 · The Hacker News                     │ │
                              │ └───────────────────────────────────────────────┘ │
                              └───────────────────────────────────────────────────┘
 ```
@@ -61,8 +61,8 @@ Server-rendered pages (FastAPI + Jinja2 templates in `newscollect/templates/`), 
 - **Day groups**: incidents by the earliest article's publication date, intel by the article's publication date,
   newest first, with the weekday.
 - **Incident card**: title (to the detail page), category tag, 정부기관/공공기관 tags, a definition list (발생 only when
-  it differs from the display date, 공격자, 피해, 규모 when known), the summary, tag links, source links, and the
-  "요약 다시 생성" button with an inline status message.
+  it differs from the display date, 공격자, 피해, 규모 when known), the summary, tag links and source links. (The
+  "요약 다시 생성" button was removed; the endpoint `POST /incidents/{id}/regenerate` remains.)
 - **더 보기**: each tab shows the newest 100 cards; a "더 보기 (shown / total)" button under the list adds the next
   100 in place (`?n=200`, `?n=300`, ...; it keeps the search and sub-tab, and also works as a plain link without
   JavaScript). The fetched cards are merged into the existing day groups, and the address is updated so live
@@ -126,8 +126,7 @@ The same card in a detail layout (all fields and every source article), without 
   browser tab is hidden). When cards change:
   - reader at the top of the page: the list is replaced at once and new cards get a green "새 사고" / "새 글" badge;
   - reader scrolled down: nothing moves; a pill "↑ 새 사고 N건 보기" appears under the header and the tab title shows
-    `(N)`; clicking it or scrolling to the top applies the update. Updates wait while a summary is regenerating or
-    text is selected.
+    `(N)`; clicking it or scrolling to the top applies the update. Updates wait while text is selected.
   - new articles also redraw the tag cloud and the chart.
 - The graph page re-fetches the graph when the card version changes.
 
@@ -147,4 +146,4 @@ Page width never scrolls horizontally; the pair table scrolls inside its own box
 - Colours are CSS variables (`--bg`, `--fg`, `--mut`, `--card`, `--acc`, `--line`, `--series-1`) defined for dark and
   light; dark by default unless the OS prefers light.
 - Tabs and the section switch use `aria-current="page"`; toggle buttons use `aria-pressed` / `aria-expanded`; the
-  chart has keyboard-focusable bars and a table alternative; regenerate status messages use `role="alert"`.
+  chart has keyboard-focusable bars and a table alternative.

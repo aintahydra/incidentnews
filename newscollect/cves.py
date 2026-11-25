@@ -17,6 +17,9 @@ After the feeds, the official CVE Record of new CVEs is fetched in batches from 
 version ranges, CVSS vector, CWE, the CNA's solutions and workarounds, references, and CISA's enrichment
 (SSVC exploitation, KEV). Recent records are refreshed once a day, since CISA adds its data later. The cvefeed.io
 detail page is then read only for CVEs whose record left products or remediation empty.
+
+CVEs mentioned on 보안 사고 / 인텔·권고 cards (tags, title, summary; intel also the action and the original
+article title) are added too (`from_cards`, origin 'card'); their record fills in the details.
 """
 import html
 import json
@@ -74,6 +77,7 @@ CREATE TABLE IF NOT EXISTS cves (
   record_status TEXT NOT NULL DEFAULT '',   -- '' to fetch | done | missing (CVE Search API)
   record_attempts INTEGER NOT NULL DEFAULT 0,
   record_fetched_at TEXT NOT NULL DEFAULT '',
+  origin TEXT NOT NULL DEFAULT 'feed',      -- feed ([[cve_sources]]) | card (only mentioned on 보안 사고 / 인텔·권고 cards)
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -85,7 +89,8 @@ COLUMNS_ADDED = {  # columns newer than the first version of the table (migrate(
     "products_from": "TEXT NOT NULL DEFAULT ''", "cvss_vector": "TEXT NOT NULL DEFAULT ''",
     "workarounds": "TEXT NOT NULL DEFAULT ''", "exploitation": "TEXT NOT NULL DEFAULT ''",
     "kev_added": "TEXT NOT NULL DEFAULT ''", "record_status": "TEXT NOT NULL DEFAULT ''",
-    "record_attempts": "INTEGER NOT NULL DEFAULT 0", "record_fetched_at": "TEXT NOT NULL DEFAULT ''"}
+    "record_attempts": "INTEGER NOT NULL DEFAULT 0", "record_fetched_at": "TEXT NOT NULL DEFAULT ''",
+    "origin": "TEXT NOT NULL DEFAULT 'feed'"}
 
 
 def migrate(conn) -> None:
@@ -357,6 +362,8 @@ def upsert(conn, item: dict, source_name: str) -> bool:
     sources = _loads(cur["sources"], [])
     if src["url"] and all(s.get("url") != src["url"] for s in sources):
         upd["sources"] = json.dumps(sources + [src], ensure_ascii=False)
+    if cur["origin"] == "card":   # first seen on a card, now also in a CVE feed
+        upd["origin"] = "feed"
     if item.get("detail_url") and not cur["detail_url"] and cur["detail_attempts"] == 0 and not products:
         upd["detail_url"] = item["detail_url"]
     if upd:
@@ -544,10 +551,35 @@ def fetch_records(conn, cfg, client: httpx.Client) -> int:
     return done
 
 
+CARD_TEXT = (  # (date, text) of every 보안 사고 / 인텔·권고 card: where a mentioned CVE id is looked for
+    "SELECT COALESCE((SELECT MIN(NULLIF(a.published_at,'')) FROM incident_articles ia JOIN articles a "
+    "ON a.id=ia.article_id WHERE ia.incident_id=incidents.id), occurred_at) AS d, "
+    "hashtags || ' ' || title || ' ' || summary AS t FROM incidents "
+    "UNION ALL SELECT i.published_at, i.hashtags || ' ' || i.title || ' ' || i.summary || ' ' || "
+    "COALESCE(i.action,'') || ' ' || a.title FROM intel i JOIN articles a ON a.id=i.article_id")
+
+
+def from_cards(conn) -> int:
+    """Add CVE ids mentioned on cards but not yet in the list (origin 'card'), dated by the earliest such card.
+    Their CVE record (fetch_records) supplies everything else. Returns how many were added."""
+    have = {r[0] for r in conn.execute("SELECT cve_id FROM cves")}
+    found: dict[str, str] = {}
+    for row in conn.execute(CARD_TEXT):
+        for cid in CVE_RE.findall(row["t"] or ""):
+            cid = cid.upper()
+            if cid not in have and (cid not in found or (row["d"] or "9") < found[cid]):
+                found[cid] = row["d"] or ""
+    for cid, d in found.items():
+        conn.execute("INSERT OR IGNORE INTO cves(cve_id, published_at, origin) VALUES(?,?, 'card')",
+                     (cid, d or datetime.now(timezone.utc).strftime("%Y-%m-%d")))
+    conn.commit()
+    return len(found)
+
+
 def collect(conn, cfg, client: httpx.Client) -> dict:
     """Read every enabled [[cve_sources]] feed, then CVE records (CVE Search API), then the cvefeed.io detail pages
     still needed. Returns counts."""
-    stats = {"cves": 0, "cve_records": 0, "cve_details": 0}
+    stats = {"cves": 0, "cve_mentions": 0, "cve_records": 0, "cve_details": 0}
     for src in getattr(cfg, "cve_sources", []):
         if not src.enabled:
             continue
@@ -561,6 +593,7 @@ def collect(conn, cfg, client: httpx.Client) -> dict:
         for it in items:
             stats["cves"] += upsert(conn, it, src.name)
         conn.commit()
+    stats["cve_mentions"] = from_cards(conn)
     stats["cve_records"] = fetch_records(conn, cfg, client)
     # cvefeed.io pages: only where the record (if any yet) left products or remediation empty; a CVE whose record
     # is still being looked for waits, unless the API is off
@@ -585,8 +618,9 @@ def collect(conn, cfg, client: httpx.Client) -> dict:
             if not title["affected"]:  # until (or unless) the page is read: a guess from the title
                 conn.execute("UPDATE cves SET affected=? WHERE cve_id=?", (affected_from_title(title["title"]), row["cve_id"]))
         conn.commit()
-    if stats["cves"] or stats["cve_records"]:
-        log.info("CVE: %d new, %d records, %d detail pages read", stats["cves"], stats["cve_records"], stats["cve_details"])
+    if stats["cves"] or stats["cve_mentions"] or stats["cve_records"]:
+        log.info("CVE: %d new from feeds, %d from cards, %d records, %d detail pages read", stats["cves"],
+                 stats["cve_mentions"], stats["cve_records"], stats["cve_details"])
     return stats
 
 

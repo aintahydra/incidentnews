@@ -90,7 +90,7 @@ On a match: link the article, fill empty fields, keep the longer summary.
 - Theme: `data-theme` on `<html>` (set by an inline script before first paint from
   `localStorage`, else `prefers-color-scheme`); CSS variables per theme; two header buttons.
 - Search: `LIKE` (wildcards escaped) over incident fields and linked article titles, terms ANDed.
-- Regenerate: `POST /incidents/{id}/regenerate` re-fetches article bodies (≤3), calls the LLM
+- Regenerate: `POST /incidents/{id}/regenerate` (the card button was removed; the endpoint stays) re-fetches article bodies (≤3), calls the LLM
   at temperature 0.4 (0 would repeat the same answer), never falls back to the heuristic, keeps
   `occurred_at` (dedupe depends on it). One at a time; 20 s per-incident cooldown.
 - LLM validation (`extractor.extract_llm`): Korean summary + victim/attacker names must occur in the
@@ -219,3 +219,6 @@ On a match: link the article, fill empty fields, keep the longer summary.
   until the next cycle. `parse_record` / `apply_record` add vendor/product version ranges, CVSS vector, CWE, the CNA's
   solutions and workarounds, references, CISA SSVC exploitation and KEV date. cvefeed.io pages are then read only
   where the record left products or remediation empty.
+- CVEs mentioned on cards: `cves.from_cards` scans every incident (tags, title, summary) and intel card (also action
+  and article title) each cycle and adds unknown ids with `origin='card'`, dated by the earliest mentioning card;
+  `fetch_records` then fills them in. Card-only ids that cve.org never returns are hidden from the list.

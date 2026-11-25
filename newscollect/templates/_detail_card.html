@@ -8,8 +8,6 @@
   </dl>
   <p>{{ inc.summary }}</p>
   {% if inc.hashtags %}<p class="hashtags">{% for h in inc.hashtags %}<a href="/?q={{ h|urlencode }}">#{{ h }}</a>{% endfor %}</p>{% endif %}
-  <p><button type="button" class="regen" data-id="{{ inc.id }}" title="원문을 다시 읽고 AI 요약을 새로 생성합니다">요약 다시 생성</button>
-    <span class="regen-msg" role="alert"></span></p>
   <h2>관련 기사</h2>
   <ul>{% for s in inc.sources %}<li><a href="{{ s.url }}" target="_blank" rel="noopener">[{{ s.source }}] {{ s.title }}</a></li>{% endfor %}</ul>
   <p><a href="/">← 목록으로</a></p>

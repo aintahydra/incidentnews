@@ -129,9 +129,11 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
         for term in query.split()[:5]:
             clauses.append("(" + " OR ".join(f"{f} LIKE ? ESCAPE '\\'" for f in CVE_SEARCH_FIELDS) + ")")
             args += [_like(term)] * len(CVE_SEARCH_FIELDS)
-        where = "WHERE " + " AND ".join(clauses) if clauses else ""
+        # a CVE only mentioned on a card that cve.org never returned (e.g. a mistyped tag) is left out
+        clauses.append("NOT (origin='card' AND record_status='missing')")
+        where = "WHERE " + " AND ".join(clauses)
         total = q(f"SELECT COUNT(*) n FROM cves {where}", args)[0]["n"]
-        rows = q(f"SELECT cve_id, title, affected, cvss, severity, exploitation, kev_added, published_at FROM cves {where} "
+        rows = q(f"SELECT cve_id, title, affected, cvss, severity, exploitation, kev_added, origin, published_at FROM cves {where} "
                  "ORDER BY published_at DESC, cvss DESC, cve_id DESC LIMIT ?", args + [limit])
         for r in rows:
             r["severity_ko"] = cves.SEVERITY_KO.get(r["severity"], "")

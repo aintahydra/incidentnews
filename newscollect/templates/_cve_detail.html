@@ -1,6 +1,7 @@
 <section class="cloud cve-card" data-cve-detail="{{ c.cve_id }}">
   <h2 class="cve-id">{{ c.cve_id }}</h2>
   {% if c.title %}<p class="cve-title">{{ c.title }}</p>{% endif %}
+  {% if c.origin == "card" %}<p class="mut cve-origin">CVE 피드에는 없고 보안 사고·인텔·권고 글타래에 언급된 CVE입니다.{% if c.record_status != "done" %} CVE.org 레코드를 아직 받지 못해 정보가 비어 있을 수 있습니다.{% endif %}</p>{% endif %}
   <dl class="cve-facts">
     <dt>CVSS</dt>
     <dd>{% if c.cvss is not none %}<span class="sev sev-{{ (c.severity or 'none')|lower }}">{{ "%.1f"|format(c.cvss) }}</span>{% endif %}

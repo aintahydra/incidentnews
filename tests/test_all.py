@@ -232,7 +232,7 @@ def test_theme_buttons_and_search_box_rendered(tmp_path):
     css = c.get("/static/style.css").text
     assert "[data-theme=light]" in css and "[data-theme=dark]" in css
     assert "data-theme-choice" in c.get("/static/app.js").text or "themeChoice" in c.get("/static/app.js").text
-    assert 'class="regen"' in html
+    assert 'class="regen"' not in html and "요약 다시 생성" not in html   # the button was removed
 
 
 GOOD_SUMMARY = ("2026년 10월 10일 A사가 B그룹의 공격을 받아 서버가 마비됐다. "
@@ -406,7 +406,7 @@ def test_card_fragment_views(tmp_path):
     lst = c.get(f"/incidents/{i}/card").text
     det = c.get(f"/incidents/{i}/card?view=detail").text
     for frag in (lst, det):
-        assert f'id="inc-{i}"' in frag and 'class="regen"' in frag and "<html" not in frag
+        assert f'id="inc-{i}"' in frag and 'class="regen"' not in frag and "<html" not in frag
     assert "<h1>" in det and "관련 기사" in det and "<h1>" not in lst
     assert f'id="inc-{i}"' in c.get(f"/incidents/{i}").text and "<h1>" in c.get(f"/incidents/{i}").text
 
@@ -1799,3 +1799,39 @@ def test_cve_records_from_the_search_api(tmp_path):
         assert cves.fetch_records(conn, cfg, client) == 0                    # rate-limited: stop until the next cycle
     assert conn.execute("SELECT record_attempts FROM cves WHERE cve_id='CVE-2026-125812'").fetchone()[0] == 2
     assert cves.fetch_records(conn, NS(cve_api_enabled=False, cve_api_url="x", cve_api_contact=""), None) == 0
+
+
+def test_cves_mentioned_on_cards_join_the_list(tmp_path):
+    from newscollect import cves
+    p = write_cfg(tmp_path)
+    conn = db.connect(load_config(p).database)
+    for x in cves.parse_feed("https://cvefeed.io/rssfeed/severity/high.xml", CVEFEED_RSS.encode()):
+        cves.upsert(conn, x, "cvefeed.io")                                   # CVE-2026-125812 from a feed
+    a = conn.execute("INSERT INTO articles(source,url,title,published_at) VALUES('S','https://n/1','Log4Shell 재유행',"
+                     "'2026-11-20')").lastrowid
+    conn.execute("INSERT INTO intel(article_id,title,kind,summary,hashtags,published_at) VALUES(?,?,?,?,?,?)",
+                 (a, "Log4j 공격", "위협 분석", "cve-2021-44228 악용", '["CVE-2026-125812"]', "2026-11-20"))
+    i = conn.execute("INSERT INTO incidents(title,occurred_at,summary,hashtags) VALUES('침해','2026-11-18',"
+                     "'CVE-2021-44228와 CVE-2026-99999 악용','[]')").lastrowid
+    b = conn.execute("INSERT INTO articles(source,url,title,published_at) VALUES('S','https://n/2','t','2026-11-17')").lastrowid
+    conn.execute("INSERT INTO incident_articles VALUES(?,?)", (i, b))
+    conn.commit()
+    assert cves.from_cards(conn) == 2 and cves.from_cards(conn) == 0       # 125812 is already listed
+    rows = {r["cve_id"]: dict(r) for r in conn.execute("SELECT * FROM cves")}
+    assert rows["CVE-2021-44228"]["origin"] == "card" and rows["CVE-2021-44228"]["published_at"] == "2026-11-17"
+    assert rows["CVE-2026-125812"]["origin"] == "feed"
+    # a feed later carrying a card-only CVE makes it a feed CVE
+    cves.upsert(conn, {"cve_id": "CVE-2021-44228", "title": "Log4Shell", "source_url": "https://f/x"}, "feed")
+    assert conn.execute("SELECT origin, title FROM cves WHERE cve_id='CVE-2021-44228'").fetchone()[:] == ("feed", "Log4Shell")
+    # an id cve.org never returns (mistyped tag) is hidden once given up on; a pending one is shown
+    conn.execute("UPDATE cves SET record_status='missing' WHERE cve_id='CVE-2026-99999'")
+    conn.commit()
+    c = TestClient(create_app(p, run_collector=False))
+    page = c.get("/", params={"section": "cve"}).text
+    assert 'data-cve="CVE-2021-44228"' in page and "CVE-2026-99999" not in page
+    conn.execute("UPDATE cves SET record_status='', origin='card' WHERE cve_id='CVE-2026-99999'")
+    conn.commit()
+    page = c.get("/", params={"section": "cve"}).text
+    assert 'data-cve="CVE-2026-99999"' in page and ">뉴스<" in page
+    pane = c.get("/cves/CVE-2026-99999").text
+    assert "글타래에 언급된 CVE" in pane and "레코드를 아직 받지 못해" in pane

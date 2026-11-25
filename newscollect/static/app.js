@@ -108,35 +108,6 @@
       '<section class="cloud cve-card cve-hint"><p>목록에서 CVE 번호를 누르면 상세 정보가 여기에 표시됩니다.</p></section>' : hint;
   }
 
-  // --- regenerate summary ---
-  document.addEventListener("click", async function (e) {
-    var b = e.target.closest(".regen");
-    if (!b) return;
-    var id = b.dataset.id, label = b.textContent;
-    var msg = b.parentNode.querySelector(".regen-msg");
-    b.disabled = true; b.textContent = "생성 중…";
-    msg.className = "regen-msg"; msg.textContent = "원문을 다시 읽고 요약을 쓰는 중입니다 (최대 1~2분)";
-    try {
-      var r = await fetch("/incidents/" + id + "/regenerate", { method: "POST" });
-      var result = await r.json().catch(function () { return {}; });
-      if (!r.ok) throw new Error(result.detail || "오류 " + r.status);
-      // swap in the freshly rendered card (list or detail layout) right where the old one was
-      var view = document.body.dataset.page === "detail" ? "detail" : "list";
-      var res = await fetch("/incidents/" + id + "/card?view=" + view, { cache: "no-store" });
-      if (!res.ok) throw new Error("갱신된 내용을 불러오지 못했습니다 (" + res.status + ")");
-      document.getElementById("inc-" + id).outerHTML = await res.text();
-      var card = document.getElementById("inc-" + id);
-      var done = card.querySelector(".regen-msg");
-      done.className = "regen-msg ok";
-      done.textContent = result.method === "extract"
-        ? "AI 요약이 실패해 기사 본문 첫 부분으로 대체했습니다" : "✓ 요약을 새로 생성했습니다";
-      card.classList.add("flash");
-      card.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    } catch (err) {
-      b.disabled = false; b.textContent = label;
-      msg.className = "regen-msg err"; msg.textContent = err.message;
-    }
-  });
   // --- tag cloud (list page only) ---
   var box = document.querySelector(".cloud-box");
   if (box) {
@@ -403,8 +374,8 @@
     var ids = function (rootEl) {
       return Array.prototype.map.call(rootEl.querySelectorAll("article.incident"), function (a) { return a.id; });
     };
-    var busy = function () { // never replace cards while a summary is regenerating or the reader is selecting text
-      return document.querySelector(".regen:disabled") || String(getSelection()).length > 0;
+    var busy = function () { // never replace cards while the reader is selecting text
+      return String(getSelection()).length > 0;
     };
     var apply = function () {
       if (!pending) return;

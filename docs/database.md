@@ -155,6 +155,7 @@ feeds: later data only fills empty fields. Schema in `cves.SCHEMA`.
 | `workarounds` | TEXT | The CNA's workarounds from the CVE record. |
 | `exploitation` | TEXT | CISA SSVC Exploitation: `none`, `poc` or `active` ('' when not assessed). |
 | `kev_added` | TEXT | Date the CVE entered CISA's KEV catalog ('' if not listed). |
+| `origin` | TEXT | `feed` (from `[[cve_sources]]`) or `card` (only mentioned on 보안 사고 / 인텔·권고 cards; hidden when its record is `missing`). |
 | `record_status`, `record_attempts`, `record_fetched_at` | TEXT, INTEGER, TEXT | CVE Search API: '' (to fetch), `done` or `missing` (not returned 5 times); when the record was last read. |
 | `created_at`, `updated_at` | TEXT | UTC timestamps. |
 

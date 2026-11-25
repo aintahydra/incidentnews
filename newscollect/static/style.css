@@ -33,10 +33,6 @@ button:disabled{opacity:.6;cursor:wait}
 button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .themes{display:flex;gap:6px}
 .themes button[aria-pressed=true]{border-color:var(--acc);color:var(--acc);font-weight:700}
-.regen{margin-left:8px;padding:2px 8px;font-size:12px;color:var(--mut)}
-.regen-msg{margin-left:8px;color:var(--mut);font-size:12px}
-.regen-msg.err{color:var(--acc);font-weight:700}
-.regen-msg.ok{color:#2e9e5b;font-weight:700}
 .flash{animation:flash 2.5s ease-out}
 @keyframes flash{from{box-shadow:0 0 0 3px #2e9e5b}to{box-shadow:0 0 0 0 transparent}}
 .found{color:var(--mut);font-size:14px}
@@ -257,3 +253,5 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .tag.exploit{color:#fff;background:var(--sev-critical);border-color:var(--sev-critical);font-size:11px;font-weight:600;padding:0 6px}
 .cve-vector{font-size:12px;color:var(--mut);overflow-wrap:anywhere}
 .cve-versions{margin:0;padding-left:14px;list-style:"– ";font-size:13px}
+.tag.news{font-size:11px;padding:0 6px;color:var(--mut);border-color:var(--line)}
+.cve-origin{font-size:13px;margin:0 0 8px}

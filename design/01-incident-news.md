@@ -119,7 +119,7 @@ Full column list: [../docs/database.md](../docs/database.md).
 
 ## Maintenance commands
 
-- `POST /incidents/{id}/regenerate` (the card's "요약 다시 생성" button): re-reads up to 3 source pages and asks the LLM
+- `POST /incidents/{id}/regenerate` (no button on the page any more; call it directly): re-reads up to 3 source pages and asks the LLM
   again at temperature 0.4; one at a time, 20 s cooldown per incident; keeps `occurred_at`.
 - `python -m newscollect retag [id ...]`: re-tags stored incidents with a tags-only prompt.
 - `python -m newscollect add URL ...` (or `./addnews URL ...`, `addurl.py`): adds articles by hand. Skips URLs

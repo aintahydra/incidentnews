@@ -21,8 +21,24 @@ url = "https://knvd.krcert.or.kr/rss/security/info"
 Read on every collection cycle (`collector.collect_once` calls `cves.collect` right after the news feeds, before
 the LLM step), so adding or disabling a feed applies without a restart. The parser is chosen by the feed's host.
 
-Order within a cycle: (1) the feeds, (2) CVE records from the CVE Search API for new CVEs, (3) cvefeed.io detail
-pages, only for CVEs whose record left products or remediation empty.
+Order within a cycle: (1) the feeds, (2) CVEs mentioned on 보안 사고 / 인텔·권고 cards, (3) CVE records from the
+CVE Search API for new CVEs, (4) cvefeed.io detail pages, only for CVEs whose record left products or remediation
+empty.
+
+### CVEs mentioned on cards (`from_cards`)
+
+Every cycle, all cards are scanned for CVE ids that aren't in the list yet: an incident's tags, title and summary;
+an intel card's tags, title, summary, recommended action and original article title. Full article bodies are not
+scanned (round-ups such as Patch Tuesday articles list dozens of CVEs the card isn't about). Each new id becomes a
+row with `origin = 'card'`, dated by the earliest card that mentions it (an incident's earliest article date, an
+intel card's publication date), and nothing else: its CVE record fills in title, description, products, CVSS,
+CWE, remediation, exploitation and KEV. Cards made during a cycle (by the collector, `addnews` or the KakaoTalk
+importer) are picked up on the next cycle.
+
+- In the list such CVEs carry a "뉴스" mark; the pane says the CVE was found on 글타래, not in a CVE feed.
+- If a CVE feed later carries the id, `origin` becomes `feed`.
+- An id cve.org never returns (5 attempts, `record_status = 'missing'`), e.g. a mistyped tag, is left out of the
+  list and the counts. Until then it is listed with whatever is known.
 
 | Source | What an item gives | Parsed into |
 |---|---|---|
