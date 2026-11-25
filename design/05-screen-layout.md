@@ -101,7 +101,7 @@ Cards are called 글타래 on this page. Drawing and interaction are described i
 
 ```
 ┌─ side pane: CVE detail ─┐ ┌─ main ─────────────────────────────────────────────┐
-│ CVE-2026-76146           │ │ ▌주요 CVE                                           │
+│ CVE-2026-76146           │ │ ▌주요 CVE    [최신순 | 심각도순]                     │
 │ 지니언스 Genian SSL PNS … │ │ CVE              │ 영향받는 시스템            │ 심각도 │
 │ CVSS (8.4) 높음 (HIGH)    │ │ CVE-2026-78114   │ Apache JSPWiki            │ (10.0) │
 │ 영향받는 시스템 · CWE · 공개 │ │ CVE-2026-76146 ◀ │ Genian SSL PNS (…)        │  (8.4) │

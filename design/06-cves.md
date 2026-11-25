@@ -135,8 +135,10 @@ later show up without any update to the CVE.
 
 - Header: 「주요 CVE N」 is a separate pill group next to 보안 사고 · 인텔·권고 · 태그간 관계 그래프. The count follows
   the current search, like the other two.
-- `/?section=cve`: table CVE · 영향받는 시스템 · 심각도, newest first (then by score), 100 rows plus "더 보기"
-  (`?n=`). The search box searches CVE id, title, affected system, both descriptions, products and CWE.
+- `/?section=cve`: table CVE (with its date underneath) · 영향받는 시스템 · 심각도, 100 rows plus "더 보기" (`?n=`).
+  Sort switch above it (`?sort=`): 최신순 (`date`, default: newest date first, then score) or 심각도순 (`severity`:
+  CVSS score, else the severity label CRITICAL 9 / HIGH 7 / MEDIUM 4 / LOW 0.1, unknown last; then newest). Search,
+  CVE links, 더 보기 and 검색 해제 keep the sort. The search box searches CVE id, title, affected system, both descriptions, products and CWE.
 - Severity is a pill with the CVSS score; its border/tint follows the severity (critical, high, medium, low) and the
   severity name is in the tooltip and in the pane, so colour is never the only cue.
 - Clicking a CVE number loads `/cves/{id}` (an HTML fragment) into the side pane, highlights the row and pushes
@@ -150,7 +152,7 @@ later show up without any update to the CVE.
 
 ## API
 
-- `GET /api/cves?q=&limit=` -> `{total, cves[{cve_id, title, affected, cvss, severity, severity_ko, published_at}]}`
+- `GET /api/cves?q=&limit=&sort=date|severity` -> `{total, cves[{cve_id, title, affected, cvss, severity, severity_ko, published_at}]}`
 - `GET /api/cves/{id}` -> every column, decoded `products`, `refs`, `sources`, plus `related`
 - `GET /cves/{id}` -> the pane fragment (404 if unknown)
 

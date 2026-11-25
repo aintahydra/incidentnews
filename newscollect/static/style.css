@@ -255,3 +255,5 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .cve-versions{margin:0;padding-left:14px;list-style:"– ";font-size:13px}
 .tag.news{font-size:11px;padding:0 6px;color:var(--mut);border-color:var(--line)}
 .cve-origin{font-size:13px;margin:0 0 8px}
+.cve-sort{margin-top:0}
+.cve-table .cve-date{font-size:12px;color:var(--mut);font-variant-numeric:tabular-nums}

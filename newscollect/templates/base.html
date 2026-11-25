@@ -21,6 +21,7 @@ try{var p=localStorage.getItem("pane");document.documentElement.dataset.pane=(in
     </span>
     {% if section in ("intel", "cve") %}<input type="hidden" name="section" value="{{ section }}">{% endif %}
     {% if tab and tab != "all" %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
+    {% if section == "cve" and sort and sort != "date" %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
     <button type="submit">검색</button>
   </form>
   <div class="themes" role="group" aria-label="테마 선택">

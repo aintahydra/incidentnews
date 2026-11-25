@@ -1835,3 +1835,25 @@ def test_cves_mentioned_on_cards_join_the_list(tmp_path):
     assert 'data-cve="CVE-2026-99999"' in page and ">뉴스<" in page
     pane = c.get("/cves/CVE-2026-99999").text
     assert "글타래에 언급된 CVE" in pane and "레코드를 아직 받지 못해" in pane
+
+
+def test_cve_list_sorts_by_date_or_severity(tmp_path):
+    from newscollect import cves
+    p = write_cfg(tmp_path)
+    conn = db.connect(load_config(p).database)
+    for cid, score, sev, d in (("CVE-2026-1001", 5.0, "MEDIUM", "2026-11-25"), ("CVE-2026-1002", 9.8, "CRITICAL", "2026-11-20"),
+                               ("CVE-2026-1003", None, "HIGH", "2026-11-24"), ("CVE-2026-1004", None, "", "2026-11-23")):
+        cves.upsert(conn, {"cve_id": cid, "cvss": score, "severity": sev, "published_at": d, "title": "Dell 취약점"}, "f")
+    conn.commit()
+    c = TestClient(create_app(p, run_collector=False))
+    order = lambda html: re.findall(r'data-cve="(CVE-[\d-]+)"', html)
+    page = c.get("/", params={"section": "cve"}).text
+    assert order(page) == ["CVE-2026-1001", "CVE-2026-1003", "CVE-2026-1004", "CVE-2026-1002"]   # default: date
+    assert '<a href="/?section=cve" aria-current="page">최신순</a>' in page and ">2026-11-25<" in page
+    sev = c.get("/", params={"section": "cve", "sort": "severity", "q": "Dell"}).text
+    assert order(sev) == ["CVE-2026-1002", "CVE-2026-1003", "CVE-2026-1001", "CVE-2026-1004"]  # no score: by label
+    assert 'href="/?section=cve&amp;q=Dell&amp;sort=severity&amp;cve=CVE-2026-1002"' in sev     # a click keeps both
+    assert 'name="sort" value="severity"' in sev and 'href="/?section=cve&amp;sort=severity">검색 해제' in sev
+    assert order(c.get("/", params={"section": "cve", "sort": "bogus"}).text)[0] == "CVE-2026-1001"
+    assert [x["cve_id"] for x in c.get("/api/cves", params={"sort": "severity"}).json()["cves"]][0] == "CVE-2026-1002"
+    assert c.get("/api/cves", params={"sort": "x"}).status_code == 400

@@ -23,15 +23,20 @@
 {% endblock %}
 {% block content %}
 <h1 class="cve-h">주요 CVE</h1>
-{% if q %}<p class="found">‘{{ q }}’ 검색 결과 {{ total }}건 · <a href="/?section=cve">검색 해제</a></p>{% endif %}
+{% if q %}<p class="found">‘{{ q }}’ 검색 결과 {{ total }}건 · <a href="{{ clear }}">검색 해제</a></p>{% endif %}
+<nav class="tabs cve-sort" aria-label="정렬">
+  {% for key, label in [("date", "최신순"), ("severity", "심각도순")] %}
+  <a href="{{ sort_links[key] }}"{% if sort == key %} aria-current="page"{% endif %}>{{ label }}</a>
+  {% endfor %}
+</nav>
 {% if rows %}
 <div class="cve-wrap">
 <table class="cve-table">
-  <thead><tr><th scope="col">CVE</th><th scope="col">영향받는 시스템</th><th scope="col" class="num">심각도</th></tr></thead>
+  <thead><tr><th scope="col"{% if sort == "date" %} aria-sort="descending"{% endif %}>CVE <span class="mut">· 공개일</span></th><th scope="col">영향받는 시스템</th><th scope="col" class="num"{% if sort == "severity" %} aria-sort="descending"{% endif %}>심각도</th></tr></thead>
   <tbody>
   {% for r in rows %}
   <tr{% if r.cve_id == cve_param %} aria-current="true"{% endif %}>
-    <td class="id"><a href="/?section=cve{% if q %}&amp;q={{ q|urlencode }}{% endif %}&amp;cve={{ r.cve_id }}" data-cve="{{ r.cve_id }}">{{ r.cve_id }}</a>{% if r.kev_added %} <span class="tag exploit" title="CISA KEV(실제 악용된 취약점 목록) 등재 {{ r.kev_added }}">KEV</span>{% elif r.exploitation == "active" %} <span class="tag exploit" title="CISA 평가: 실제 악용 확인">악용</span>{% endif %}{% if r.origin == "card" %} <span class="tag news" title="보안 사고·인텔·권고 글타래에 언급된 CVE">뉴스</span>{% endif %}</td>
+    <td class="id"><a href="{{ base }}&amp;cve={{ r.cve_id }}" data-cve="{{ r.cve_id }}">{{ r.cve_id }}</a>{% if r.kev_added %} <span class="tag exploit" title="CISA KEV(실제 악용된 취약점 목록) 등재 {{ r.kev_added }}">KEV</span>{% elif r.exploitation == "active" %} <span class="tag exploit" title="CISA 평가: 실제 악용 확인">악용</span>{% endif %}{% if r.origin == "card" %} <span class="tag news" title="보안 사고·인텔·권고 글타래에 언급된 CVE">뉴스</span>{% endif %}<br><span class="cve-date">{{ r.published_at }}</span></td>
     <td class="sys" title="{{ r.title }}">{{ r.affected or "—" }}</td>
     <td class="num">{% if r.cvss is not none %}<span class="sev sev-{{ (r.severity or 'none')|lower }}" title="{{ r.severity_ko or '심각도 미상' }}">{{ "%.1f"|format(r.cvss) }}</span>{% elif r.severity %}<span class="sev sev-{{ r.severity|lower }}">{{ r.severity_ko }}</span>{% else %}<span class="sev sev-none">—</span>{% endif %}</td>
   </tr>
