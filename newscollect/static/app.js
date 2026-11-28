@@ -497,6 +497,7 @@
     var shownOut = graph.querySelector(".graph-shown"), ticks = graph.querySelector(".graph-ticks"), chosen = null;
     try { var saved = localStorage.getItem("graphStop"); chosen = saved === null ? null : Number(saved); } catch (err) {}
     if (!(chosen >= 0 && chosen < STOPS.length)) chosen = null;
+    var SMALL_NET = 15; // at most this many tags: 자동 shows them all
     var visible = function (D, min) { // tags at or above min, links whose two tags both remain, and no lone tags
       var keep = {};
       D.nodes.forEach(function (n) { if (n.n >= min) keep[n.id] = true; });
@@ -506,8 +507,8 @@
     };
     var stopsFor = function (D) { // [{label, min, tags}] with distinct thresholds and something left to show
       var total = D.nodes.length, maxN = Math.max.apply(null, D.nodes.map(function (n) { return n.n; })), out = [];
-      var counts = [];                                               // tags left at each threshold 2..maxN
-      for (var t = 2; t <= maxN; t++) counts.push({ min: t, tags: visible(D, t).nodes.length });
+      var counts = [];                                               // tags left at each threshold minsup..maxN
+      for (var t = Math.min(D.minsup, 2); t <= maxN; t++) counts.push({ min: t, tags: visible(D, t).nodes.length });
       counts = counts.filter(function (x) { return x.tags > 0; });  // never a stop that empties the graph
       STOPS.forEach(function (st) {                                  // the threshold whose tag count is closest
         var goal = st.share * total, best = counts[0];
@@ -518,7 +519,8 @@
     };
     var setupFilter = function (D, W) {
       var stops = stopsFor(D);
-      var auto = Math.min(W < 600 ? 3 : 2, stops.length - 1);        // phone ⅛, wider screens ¼
+      var auto = D.nodes.length <= SMALL_NET ? 0                      // a small network (e.g. a search): every tag
+        : Math.min(W < 600 ? 3 : 2, stops.length - 1);               // phone ⅛, wider screens ¼
       var idx = chosen === null ? auto : Math.min(chosen, stops.length - 1), st = stops[idx];
       filterBox.hidden = stops.length < 2;
       slider.max = stops.length - 1; slider.value = idx;
@@ -559,7 +561,9 @@
       if (!D.nodes.length) {
         filterBox.hidden = true;
         el("text", { x: W / 2, y: H / 2, "text-anchor": "middle", class: "empty-txt" }, svg).textContent =
-          D.minsup + "개 이상의 글타래에 함께 붙은 태그 쌍이 아직 없습니다";
+          D.q && !D.N ? "검색어가 들어간 글타래가 없습니다" :
+          D.q && D.minsup < 2 ? "검색된 글타래 " + D.N + "개에 함께 붙은 태그 쌍이 없습니다" :
+          D.minsup + "개 이상의 글타래에 함께 붙은 태그 쌍이 " + (D.q ? "검색 결과에 없습니다" : "아직 없습니다");
         return;
       }
       var maxN = Math.max.apply(null, D.nodes.map(function (n) { return n.n; }));
@@ -642,7 +646,9 @@
           '</td><td class="num">' + e.g + "/" + e.k + "</td></tr>";
       }).join("") || '<tr><td colspan="9" class="empty-row">검정할 태그 쌍이 아직 없습니다</td></tr>';
       var notes = [
-        "<b>" + D.npairs + "쌍 중 " + D.single + "쌍은 글타래 하나에만 함께 나온다.</b> 한 번 겹친 것은 연결의 근거가 되지 않아 검정하지 않았다. 태그 " + D.ntags + "개 중 " +
+        "<b>" + D.npairs + "쌍 중 " + D.single + "쌍은 글타래 하나에만 함께 나온다.</b> " +
+          (D.minsup < 2 ? "검색된 글타래가 " + D.N + "개뿐이라 한 번 겹친 쌍도 연결로 그렸다. 한 번 겹친 것은 통계적 근거가 되지 않으니 참고만 할 것. "
+                        : "한 번 겹친 것은 연결의 근거가 되지 않아 검정하지 않았다. ") + "태그 " + D.ntags + "개 중 " +
           (D.ntags - D.reused) + "개는 한 번만 쓰였으며, 대부분 피해 기관·공격 그룹·CVE 이름이다.",
         "<b>같은 사건의 중복 보도가 연결을 부풀릴 수 있다.</b> 여러 매체가 같은 사건을 다루면 글타래가 따로 생길 수 있어, 강한 연결이 일반적인 관계보다 한 사건의 보도량을 반영할 수 있다. 표에서 글타래 목록을 열어 확인할 것.",
         "<b>점선 연결은 원문 근거가 부족하다.</b> 어떤 원문에서 태그를 찾지 못했다는 뜻이다. 본문이 잘려 수집됐을 수도 있지만 모델의 추론일 수도 있다.",
@@ -654,11 +660,12 @@
     };
 
     var gscope = "all"; // one graph over every 글타래 (incident and intel); /api/tag-graph also takes scope=incident|intel
+    var gq = graph.dataset.q || ""; // a search: only the 글타래 it finds (보안 사고 and 인텔·권고)
     var load = async function (force) {
       var my = ++gseq;
       try {
         if (force || !gcache[gscope]) {
-          var r = await fetch("/api/tag-graph?scope=" + gscope, { cache: "no-store" });
+          var r = await fetch("/api/tag-graph?scope=" + gscope + (gq ? "&q=" + encodeURIComponent(gq) : ""), { cache: "no-store" });
           if (!r.ok) throw new Error("태그간 관계를 불러오지 못했습니다 (" + r.status + ")");
           gcache[gscope] = await r.json();
         }

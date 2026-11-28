@@ -26,7 +26,8 @@ Server-rendered pages (FastAPI + Jinja2 templates in `newscollect/templates/`), 
 - `[▥]` toggles the side pane (list pages only).
 - The site title comes from `[server].site_title` and links to `/`.
 - The section switch is a pill group; the current section is filled blue. Counts are cards in each section
-  (for the current search). Links: `/`, `/?section=intel`, `/?section=graph`. 「주요 CVE」 is a second, separate pill
+  (for the current search). Links: `/`, `/?section=intel`, `/?section=graph`, each keeping the search words (on the
+  graph page the search picks the 글타래 the graph is drawn from). 「주요 CVE」 is a second, separate pill
   group (`/?section=cve`, count = CVEs matching the current search); both groups sit in `.navs`.
 - The search box searches the current section (`?q=`; on the intel and CVE pages it keeps `section=intel|cve`). Placeholder text
   changes with the section. A × inside the box appears once it holds text: it clears the words, and on a results

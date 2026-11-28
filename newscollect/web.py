@@ -48,13 +48,33 @@ def _like(term: str) -> str:
     return "%" + term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
 
 
+def _incident_where(query: str) -> tuple[str, list]:
+    """WHERE for incidents: every whitespace-separated term must match some field or a linked article title."""
+    clauses, args = [], []
+    for term in query.split()[:5]:
+        fields = " OR ".join(f"{f} LIKE ? ESCAPE '\\'" for f in SEARCH_FIELDS)
+        clauses.append(f"({fields} OR EXISTS (SELECT 1 FROM incident_articles ia JOIN articles a ON a.id=ia.article_id "
+                       "WHERE ia.incident_id=incidents.id AND a.title LIKE ? ESCAPE '\\'))")
+        args += [_like(term)] * (len(SEARCH_FIELDS) + 1)
+    return ("WHERE " + " AND ".join(clauses) if clauses else ""), args
+
+
+def _intel_where(query: str) -> tuple[str, list]:
+    """WHERE for intel i JOIN articles a: every term must match some field."""
+    clauses, args = [], []
+    for term in query.split()[:5]:
+        clauses.append("(" + " OR ".join(f"{f} LIKE ? ESCAPE '\\'" for f in INTEL_SEARCH_FIELDS) + ")")
+        args += [_like(term)] * len(INTEL_SEARCH_FIELDS)
+    return ("WHERE " + " AND ".join(clauses) if clauses else ""), args
+
+
 def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
     cfg = load_config(config_path)
     conn = db.connect(cfg.database)
     lock = threading.Lock()
     regen_busy = threading.Lock()  # one LLM regeneration at a time
     last_regen: dict[int, float] = {}
-    graph_cache: dict[str, tuple] = {}  # scope -> (version, result); recomputed when cards change
+    graph_cache: dict[tuple, tuple] = {}  # (scope, q) -> (version, result); recomputed when cards change
     classifier = orgs.Classifier(cfg.gov_list, cfg.public_list)
 
     @asynccontextmanager
@@ -94,15 +114,7 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
     def listing(limit=200, offset=0, query="", tab="all"):
         """(page of incidents for the tab, {tab: count}); tags come from the victim name (so they follow list edits)
         and from hand-given tags."""
-        # every whitespace-separated term must match some field or a linked article title
-        clauses, args = [], []
-        for term in query.split()[:5]:
-            like = _like(term)
-            fields = " OR ".join(f"{f} LIKE ? ESCAPE '\\'" for f in SEARCH_FIELDS)
-            clauses.append(f"({fields} OR EXISTS (SELECT 1 FROM incident_articles ia JOIN articles a ON a.id=ia.article_id "
-                           "WHERE ia.incident_id=incidents.id AND a.title LIKE ? ESCAPE '\\'))")
-            args += [like] * (len(SEARCH_FIELDS) + 1)
-        where = "WHERE " + " AND ".join(clauses) if clauses else ""
+        where, args = _incident_where(query)
         rows = [tagged(r) for r in q(f"SELECT *, {POSTED} AS posted_at FROM incidents {where} "
                                      "ORDER BY posted_at DESC, occurred_at DESC, id DESC", args)]
         by_tab = {"all": rows}
@@ -115,11 +127,7 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
 
     def intel_listing(query="", tab="all", limit=300, offset=0):
         """(page of intel entries for the kind tab, {tab: count}), newest publication first."""
-        clauses, args = [], []
-        for term in query.split()[:5]:
-            clauses.append("(" + " OR ".join(f"{f} LIKE ? ESCAPE '\\'" for f in INTEL_SEARCH_FIELDS) + ")")
-            args += [_like(term)] * len(INTEL_SEARCH_FIELDS)
-        where = "WHERE " + " AND ".join(clauses) if clauses else ""
+        where, args = _intel_where(query)
         rows = q("SELECT i.*, a.source, a.url, a.title AS article_title FROM intel i JOIN articles a ON a.id=i.article_id "
                  f"{where} ORDER BY i.published_at DESC, i.id DESC", args)
         for r in rows:
@@ -196,7 +204,7 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
                 "clear": "/?" + urlencode({k: v for k, v in keep if v and k != "q"}),  # 검색 해제: same sort
                 "sort_links": {s: "/?" + urlencode({k: v for k, v in keep[:2] + [("sort", s if s != "date" else "")] if v})
                                for s in CVE_SORTS}})
-        if section == "graph":  # one graph over all 글타래 for now (the API also takes scope=incident|intel)
+        if section == "graph":  # one graph over all 글타래 (or those the search finds); the API also takes scope=
             tab = "all"
             rows, counts, date_key = [], {k: 0 for k in taggraph.SCOPES}, "posted_at"
         elif section == "intel":
@@ -220,7 +228,8 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
                                            "tab": tab, "counts": counts, "version": version(), "refresh": refresh,
                                            "section": section, "intel_tabs": INTEL_TABS,
                                            "shown": len(rows), "more": more, "step": PAGE,
-                                           "section_counts": section_counts})
+                                           "section_counts": section_counts,
+                                           "clear": "/?section=graph" if section == "graph" else ""})
 
     @app.get("/cves/{cve_id}", response_class=HTMLResponse)
     def cve_pane(request: Request, cve_id: str):
@@ -319,18 +328,31 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
                 "average": stats.average(series)}
 
     @app.get("/api/tag-graph")
-    def api_tag_graph(scope: str = "all"):
-        """Tag co-occurrence network with its significance tests (the 태그간 관계 그래프 page)."""
+    def api_tag_graph(scope: str = "all", q: str = ""):
+        """Tag co-occurrence network with its significance tests (the 태그간 관계 그래프 page). With q, only the
+        보안 사고 / 인텔·권고 cards that the same search finds on the list pages."""
         if scope not in taggraph.SCOPES:
             raise HTTPException(400, "scope는 all, incident, intel 중 하나여야 합니다")
-        ver = version()["incidents"]
-        hit = graph_cache.get(scope)
+        q = " ".join(q.split()[:5])[:100]
+        ver, key = version()["incidents"], (scope, q)
+        hit = graph_cache.get(key)
         if hit and hit[0] == ver:
             return hit[1]
         with lock:
             cards = taggraph.load_cards(conn, scope)
-        result = taggraph.analyze(cards)
-        graph_cache[scope] = (ver, result)
+            if q:
+                iw, ia = _incident_where(q)
+                nw, na = _intel_where(q)
+                keep = {("incident", r[0]) for r in conn.execute(f"SELECT id FROM incidents {iw}", ia)}
+                keep |= {("intel", r[0]) for r in conn.execute(
+                    f"SELECT i.id FROM intel i JOIN articles a ON a.id=i.article_id {nw}", na)}
+                cards = [c for c in cards if (c["sec"], c["id"]) in keep]
+        # a search leaves few cards: below SMALL_SEARCH cards, a tag pair on one card is already a link
+        result = taggraph.analyze(cards, min_support=1 if q and len(cards) < taggraph.SMALL_SEARCH else 2)
+        result["q"] = q
+        if len(graph_cache) > 64:  # searches pile up: keep the cache small
+            graph_cache.clear()
+        graph_cache[key] = (ver, result)
         return result
 
     @app.get("/api/version")

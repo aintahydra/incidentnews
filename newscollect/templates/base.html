@@ -16,10 +16,10 @@ try{var p=localStorage.getItem("pane");document.documentElement.dataset.pane=(in
   {% block header_nav %}{% endblock %}
   <form class="search" action="/" method="get" role="search">
     <span class="search-field">
-    <input type="search" name="q" value="{{ q or '' }}" placeholder="{% if section == 'intel' %}인텔·권고 검색 (제품, CVE, 공격 그룹, 키워드){% elif section == 'cve' %}CVE 검색 (CVE 번호, 제품, 키워드){% else %}사고 검색 (기업, 공격자, 키워드){% endif %}" maxlength="100" aria-label="{% if section == 'intel' %}인텔·권고 검색{% elif section == 'cve' %}CVE 검색{% else %}사고 검색{% endif %}">
+    <input type="search" name="q" value="{{ q or '' }}" placeholder="{% if section == 'graph' %}태그 그래프 검색 (보안 사고·인텔·권고 글타래에서){% elif section == 'intel' %}인텔·권고 검색 (제품, CVE, 공격 그룹, 키워드){% elif section == 'cve' %}CVE 검색 (CVE 번호, 제품, 키워드){% else %}사고 검색 (기업, 공격자, 키워드){% endif %}" maxlength="100" aria-label="{% if section == 'graph' %}태그 그래프를 그릴 글타래 검색{% elif section == 'intel' %}인텔·권고 검색{% elif section == 'cve' %}CVE 검색{% else %}사고 검색{% endif %}">
     <button type="button" class="search-clear" aria-label="검색어 지우기" title="검색어 지우기"{% if not q %} hidden{% endif %}>×</button>
     </span>
-    {% if section in ("intel", "cve") %}<input type="hidden" name="section" value="{{ section }}">{% endif %}
+    {% if section in ("intel", "cve", "graph") %}<input type="hidden" name="section" value="{{ section }}">{% endif %}
     {% if tab and tab != "all" %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
     {% if section == "cve" and sort and sort != "date" %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
     <button type="submit">검색</button>

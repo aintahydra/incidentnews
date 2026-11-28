@@ -19,6 +19,7 @@ import random
 import re
 
 SCOPES = ("all", "incident", "intel")
+SMALL_SEARCH = 20  # a search with fewer cards draws pairs seen on one card too (min_support 1)
 
 # Words that count as evidence for a tag in the source text, beyond the tag itself.
 ALIAS = {

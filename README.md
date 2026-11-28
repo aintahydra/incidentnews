@@ -54,7 +54,8 @@ python3 -m pytest                   # 테스트
   - 가장 많이 쓰인 태그 5개는 각자 다른 색(주황·청록·노랑·분홍·보라)으로 그리고, 그 태그의 연결선도 같은 색으로 그린다(유의하지 않은 연결은 흐리게). 범례 아래에 다섯 태그와 색이 나온다. 색은 전체 태그 기준 순위로 정해 슬라이더 단계를 바꿔도 같은 태그는 같은 색이다.
   - 그래프 위 4단계 슬라이더 `글타래 N개 이상인 태그만`으로 표시할 태그 수를 줄일 수 있다. 단계는 연결된 태그의 **전체 / ½ / ¼ / ⅛**을 남기도록 데이터에서 계산한 글타래 기준값이며(예: 2+ / 3+ / 9+ / 16+), 슬라이더 아래 단계 이름을 눌러도 된다. 기본값(`자동`)은 휴대폰에서 ⅛, 큰 화면에서 ¼. 고른 단계는 브라우저에 저장되고 `자동`을 누르면 되돌아간다. 아래 표는 항상 모든 쌍을 보여 준다.
   - 선에 마우스를 올리면 그 쌍의 글타래가, 선을 누르면 아래 표의 해당 행이 나온다. 태그를 누르면 그 태그로 검색한다. 표에서 쌍마다 글타래 목록을 펼쳐 사고 상세나 원문으로 갈 수 있다.
-  - 서버에서 계산하며(`newscollect/taggraph.py`, scipy 불필요) 글타래가 바뀔 때만 다시 계산한다. 자동 갱신 주기에 맞춰 새 글타래가 생기면 다시 그린다. `/api/tag-graph?scope=all|incident|intel`도 동일(페이지는 `all`만 쓴다). 같은 분석의 독립 실행판은 `scripts/tag_link_test.py`.
+  - **검색**: 이 탭에서 검색하면(`/?section=graph&q=…`) 검색어가 들어간 보안 사고·인텔·권고 글타래만 모아(목록 페이지 검색과 같은 기준) 그 태그로 그래프를 그린다. 그래프 위에 사고·인텔 각각 몇 건인지와 `검색 해제`가 나온다. 검색된 글타래가 20개 미만이면 한 글타래에만 함께 붙은 쌍도 선으로 그린다(통계적 근거는 아님). 태그가 15개 이하이면 `자동`은 모든 태그를 보여 준다.
+  - 서버에서 계산하며(`newscollect/taggraph.py`, scipy 불필요) 글타래가 바뀔 때만 다시 계산한다. 자동 갱신 주기에 맞춰 새 글타래가 생기면 다시 그린다. `/api/tag-graph?scope=all|incident|intel&q=`도 동일(페이지는 `all`만 쓴다). 같은 분석의 독립 실행판은 `scripts/tag_link_test.py`.
   - CISA(`cybersecurity-advisories/all.xml`)는 자동 수집 클라이언트를 거부(HTTP 403)해 `enabled = false`로 넣어 두었다.
 - **날짜**: 목록은 뉴스가 **나온 날**(사고에 연결된 기사 중 가장 이른 발행일) 기준으로 날짜별로 묶는다. 그래서 새 기사는 항상 맨 위에 온다. LLM이 기사에서 뽑은 사고 발생일이 이와 다르면 카드에 `발생 2026-08-10`처럼 따로 표시한다(중복 판단은 계속 발생일을 쓴다).
 - **헤더 고정**: 기사 목록을 스크롤해도 헤더(검색·테마·패널 버튼)는 화면 위에 남는다.
@@ -77,4 +78,4 @@ python3 -m pytest                   # 테스트
 
 ## 엔드포인트
 
-`/` 사고 목록(날짜별, `?q=` 검색) · `/incidents/{id}` 상세 · `/incidents/{id}/card` 카드 조각 · `POST /incidents/{id}/regenerate` · `/api/incidents` JSON · `/api/intel?tab=advisory|threat|guide|policy&q=` · `/api/tagcloud?period=day|week|month|year&section=incident|intel` · `/api/article-stats?unit=day|month|year` · `/api/tag-graph?scope=all|incident|intel` 태그간 관계 · `/?section=graph` 태그간 관계 그래프 페이지 · `/?section=cve&cve=CVE-…` 주요 CVE · `/cves/{id}` CVE 상세(패널 조각) · `/api/cves?q=` · `/api/cves/{id}` · `/api/version` 변경 감지용 · `/healthz`
+`/` 사고 목록(날짜별, `?q=` 검색) · `/incidents/{id}` 상세 · `/incidents/{id}/card` 카드 조각 · `POST /incidents/{id}/regenerate` · `/api/incidents` JSON · `/api/intel?tab=advisory|threat|guide|policy&q=` · `/api/tagcloud?period=day|week|month|year&section=incident|intel` · `/api/article-stats?unit=day|month|year` · `/api/tag-graph?scope=all|incident|intel&q=` 태그간 관계 · `/?section=graph` 태그간 관계 그래프 페이지 · `/?section=cve&cve=CVE-…` 주요 CVE · `/cves/{id}` CVE 상세(패널 조각) · `/api/cves?q=` · `/api/cves/{id}` · `/api/version` 변경 감지용 · `/healthz`

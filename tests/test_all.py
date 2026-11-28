@@ -1884,3 +1884,32 @@ def test_gov_command_tags_cards_by_number_or_url(tmp_path, capsys):
     assert out.count("✗") == 3
     with pytest.raises(SystemExit):
         govtag.main([], cfg)
+
+
+def test_tag_graph_search_uses_only_matching_cards(tmp_path):
+    from datetime import date
+    today = date.today().isoformat()
+    rows = [("롯데카드 서버 마비", today, today, ["LockBit", "랜섬웨어"]),
+            ("삼성전자 협력사 감염", today, today, ["LockBit", "랜섬웨어"]),
+            ("넥슨 게임 중단", today, today, ["기관A", "개인정보유출"]),
+            ("카카오 고객정보 노출", today, today, ["기관B", "개인정보유출"])]
+    c, _ = posted_client(tmp_path, *rows)
+    conn = db.connect(load_config(tmp_path / "config.toml").database)
+    a = conn.execute("INSERT INTO articles(source,url,title,section) VALUES('S','http://i/1','LockBit 분석','intel')").lastrowid
+    conn.execute("INSERT INTO intel(article_id,title,kind,summary,hashtags,published_at) VALUES(?,?,?,?,?,?)",
+                 (a, "LockBit 변종 분석", "위협 분석", "요약", json.dumps(["LockBit", "랜섬웨어", "윈도우"]), today))
+    conn.commit()
+    pairs = lambda g: sorted((e["a"], e["b"], e["k"]) for e in g["edges"])
+    g = c.get("/api/tag-graph", params={"q": "LockBit"}).json()   # tags on 2 incidents + the intel card
+    assert (g["N"], g["ninc"], g["nint"], g["q"]) == (3, 2, 1, "LockBit")
+    assert g["minsup"] == 1                                      # few cards: pairs on one card are drawn too
+    assert pairs(g) == [("LockBit", "랜섬웨어", 3), ("LockBit", "윈도우", 1), ("랜섬웨어", "윈도우", 1)]
+    g = c.get("/api/tag-graph", params={"q": "넥슨"}).json()
+    assert g["N"] == 1 and pairs(g) == [("개인정보유출", "기관A", 1)]
+    assert c.get("/api/tag-graph", params={"q": "없는말"}).json()["N"] == 0
+    assert c.get("/api/tag-graph").json()["minsup"] == 2        # no search: unchanged
+    page = c.get("/", params={"section": "graph", "q": "LockBit"}).text
+    assert 'data-q="LockBit"' in page and 'name="section" value="graph"' in page  # search stays on the graph
+    assert "보안 사고 2건 · 인텔·권고 1건의 태그로 그린 그래프" in page and 'href="/?section=graph">검색 해제' in page
+    assert 'href="/?q=LockBit&amp;section=graph"' in page    # the header keeps the search, like the other sections
+    assert 'href="/?q=LockBit&amp;section=graph"' in c.get("/", params={"q": "LockBit"}).text

@@ -30,7 +30,20 @@ Question it answers: which tags appear together on the same 글타래 (card) mor
 links backed by the source articles?
 
 It is the analysis of `scripts/tag_link_test.py`, moved into the app as `newscollect/taggraph.py` and served by
-`GET /api/tag-graph?scope=all|incident|intel` (the page uses `all`).
+`GET /api/tag-graph?scope=all|incident|intel&q=` (the page uses `all`).
+
+### Search
+
+The header search box works on this page too (`/?section=graph&q=…`; the form keeps `section=graph`, and the
+보안 사고 / 인텔·권고 / 그래프 links keep the words). With `q`, the graph is drawn from only the cards the same search
+finds on the two list pages: incidents by `web._incident_where` (title, summary, attacker, victim, damage, category,
+tags, linked article titles) and intel cards by `web._intel_where` (title, summary, action, kind, tags, article
+title, source); every term must match. The statistics are then computed within those cards (N = matching cards).
+A line above the graph says how many of each matched, with 검색 해제 back to the full graph.
+
+A search usually leaves few cards, where hardly any pair repeats. Below `taggraph.SMALL_SEARCH` (20) matching cards
+`min_support` is 1, so every pair that shares a card is drawn (`minsup` = 1 in the result; the page's text and the
+notes say that pairs seen once are not evidence). From 20 cards on, the usual threshold of 2 applies.
 
 ### Documents
 
@@ -67,7 +80,8 @@ With N documents, `n(A)` documents tagged A, and `k` documents tagged with both 
 N, ninc, nint          documents (total, incident, intel)
 ntags, npairs, single  distinct tags, distinct pairs, pairs on one document only
 tt, tg, reused         tag uses, tag uses found in the text, tags used ≥ 2 times
-minsup                 2
+minsup                 2 (1 for a search with fewer than 20 cards)
+q                      the search words used ("" for the full graph)
 nodes[]  {id, n, ni}   tags that are in a tested pair; n documents, ni of them incidents
 edges[]  {a, b, k, fa, fb, lift, p, q, g, cards[{sec, id, title, link}]}  sorted by p
 obs, nullmean, nullmax, permp, nperm, hist   permutation test
@@ -75,8 +89,9 @@ obs, nullmean, nullmax, permp, nperm, hist   permutation test
 
 ### Caching
 
-The result is cached per scope together with the card version from `/api/version`; it is recomputed only when a
-card is added, merged or rewritten (about 0.2 s for ~170 documents).
+The result is cached per (scope, search words) together with the card version from `/api/version`; it is recomputed only when a
+card is added, merged or rewritten (about 0.2 s for ~170 documents). Searches add entries; the cache is emptied
+when it passes 64.
 
 ### Drawing (`static/app.js`, 태그간 관계 그래프 section)
 
@@ -92,7 +107,8 @@ card is added, merged or rewritten (about 0.2 s for ~170 documents).
   without a link), skips thresholds that would leave nothing, and drops a stop that repeats the previous threshold.
   Shares rather than evenly spaced thresholds, because tag counts are lopsided: with counts from 2 to 83, even spacing
   gave 79 → 5 → 3 → 2 tags, while the shares give 2+ (79), 3+ (42), 9+ (19), 16+ (10). The stop labels under the
-  slider show each threshold and can be tapped. Default ("자동"): ⅛ on a phone (< 600 px), ¼ on wider screens. A
+  slider show each threshold and can be tapped. Default ("자동"): ⅛ on a phone (< 600 px), ¼ on wider screens, and every tag when the network has 15 tags or
+  fewer (typical of a search). The lowest stop is the result's `minsup` (1+ for a small search). A
   chosen stop is saved in the browser (`localStorage.graphStop`) as a stop, not a number, so it keeps its meaning as
   data grows; 자동 clears it. A counter shows "태그 shown/total · 연결 shown/total". The table below still lists every
   tested pair.

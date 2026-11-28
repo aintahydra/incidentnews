@@ -2,7 +2,8 @@
 {% block page %}graph{% endblock %}
 {% block header_nav %}{% include "_sections.html" %}{% endblock %}
 {% block content %}
-<div id="tag-graph" data-refresh="{{ refresh }}">
+<div id="tag-graph" data-refresh="{{ refresh }}" data-q="{{ q }}">
+{% if q %}<p class="found">‘{{ q }}’ 검색 결과 보안 사고 {{ section_counts.incident }}건 · 인텔·권고 {{ section_counts.intel }}건의 태그로 그린 그래프 · <a href="{{ clear }}">검색 해제</a></p>{% endif %}
 
 <section class="graph-block">
   <h2>태그 연결망</h2>
@@ -40,7 +41,7 @@
 <section class="graph-block">
   <h2>해석할 때 주의할 점</h2>
   <ol class="graph-notes"></ol>
-  <p class="graph-note">방법: 보안 사고 글타래(연결된 기사 전체)와 인텔·권고 글타래를 각각 한 문서로 보고, 두 태그가 같은 글타래에 붙으면 연결된 것으로 본다. 쌍마다 전체 글타래에 대한 단측 피셔 정확 검정을 하고 벤야미니–호흐베르크 보정(q)을 적용한다.</p>
+  <p class="graph-note">방법: 보안 사고 글타래(연결된 기사 전체)와 인텔·권고 글타래를 각각 한 문서로 보고, 두 태그가 같은 글타래에 붙으면 연결된 것으로 본다. 쌍마다 {% if q %}검색된{% else %}전체{% endif %} 글타래에 대한 단측 피셔 정확 검정을 하고 벤야미니–호흐베르크 보정(q)을 적용한다.</p>
 </section>
 </div>
 {% endblock %}

@@ -199,7 +199,8 @@ On a match: link the article, fill empty fields, keep the longer summary.
   `math.comb` (no scipy), then Benjamini-Hochberg q-values. A permutation test (1,000 shuffles, seed 7, card tag
   counts kept) compares the number of repeated pairs with chance. A literal text check (with the `ALIAS` table) marks
   links whose tags don't appear in every source article.
-- `/api/tag-graph?scope=` caches each scope's result keyed on `/api/version`'s card version, so it is recomputed
+- `/api/tag-graph?scope=&q=`: with q, only the cards the list-page search finds (`_incident_where`, `_intel_where`;
+  `min_support` 1 below 20 cards). Caches each (scope, q) result keyed on `/api/version`'s card version, so it is recomputed
   only when cards are added, merged or rewritten (about 0.2 s for ~170 cards).
 - `/?section=graph` renders `graph.html` (no side pane; the header switch lives in `_sections.html`, shared with
   `index.html`). app.js draws the network with a small deterministic force layout (no d3), sized to the panel width
