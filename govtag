@@ -1,0 +1,6 @@
+#!/bin/sh
+# ./govtag CARD [CARD ...]  - give 보안 사고 cards the 정부기관 tag by hand (python -m newscollect gov; --public, --remove, --list)
+cd "$(dirname "$0")" || exit 1
+PY=venv/bin/python
+[ -x "$PY" ] || PY=python3
+exec "$PY" -m newscollect gov "$@"

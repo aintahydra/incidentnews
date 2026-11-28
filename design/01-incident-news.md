@@ -122,6 +122,11 @@ Full column list: [../docs/database.md](../docs/database.md).
 - `POST /incidents/{id}/regenerate` (no button on the page any more; call it directly): re-reads up to 3 source pages and asks the LLM
   again at temperature 0.4; one at a time, 20 s cooldown per incident; keeps `occurred_at`.
 - `python -m newscollect retag [id ...]`: re-tags stored incidents with a tags-only prompt.
+- `python -m newscollect gov CARD ...` (or `./govtag ...`, `govtag.py`): gives cards the 정부기관 tag by hand
+  (`--public`: 공공기관), for victims the org lists and name rules miss (e.g. a foreign agency such as FinCEN). A card
+  is named by its id or by the URL of an article in it. Stored in `incidents.manual_org_tags`, shown together with
+  the victim-name tags (so the card joins the 정부공공 tab); `--remove` clears the hand-given tags only, `--list`
+  lists them. Bumps `updated_at` so open pages refresh.
 - `python -m newscollect add URL ...` (or `./addnews URL ...`, `addurl.py`): adds articles by hand. Skips URLs
   already stored (`pages.norm_url`, checked again after redirects) and reports their card; otherwise reads the page
   (`pages.fetch`: text, og:title without a trailing site name, publication date or today, og:site_name, and

@@ -20,5 +20,8 @@ if sys.argv[1:2] == ["retag"]:  # python -m newscollect retag [id ...]: re-tag s
 elif sys.argv[1:2] == ["add"]:  # python -m newscollect add URL ...: read articles into the DB now, then exit
     from . import addurl
     sys.exit(addurl.main(sys.argv[2:], cfg))
+elif sys.argv[1:2] == ["gov"]:  # python -m newscollect gov CARD ...: give cards the 정부기관/공공기관 tag by hand
+    from . import govtag
+    sys.exit(govtag.main(sys.argv[2:], cfg))
 else:
     uvicorn.run("newscollect.web:app_factory", factory=True, host=cfg.host, port=cfg.port)

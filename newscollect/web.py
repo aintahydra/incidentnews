@@ -13,7 +13,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import collector, cves, db, intel, orgs, regen, stats, tagcloud, taggraph
+from . import collector, cves, db, govtag, intel, orgs, regen, stats, tagcloud, taggraph
 from .config import load_config
 
 BASE = Path(__file__).parent
@@ -82,7 +82,9 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
                  "WHERE ia.incident_id=? ORDER BY a.published_at", (inc_id,))
 
     def tagged(r):
-        r["org_tags"] = classifier.tags(r["victim"])
+        manual = govtag.manual_tags(r.get("manual_org_tags"))  # given by hand: python -m newscollect gov
+        auto = classifier.tags(r["victim"])
+        r["org_tags"] = [t for t in (orgs.GOV, orgs.PUBLIC) if t in auto or t in manual]
         try:
             r["hashtags"] = [t for t in json.loads(r.get("hashtags") or "[]") if isinstance(t, str)]
         except ValueError:
@@ -90,7 +92,8 @@ def create_app(config_path=None, run_collector: bool = True) -> FastAPI:
         return r
 
     def listing(limit=200, offset=0, query="", tab="all"):
-        """(page of incidents for the tab, {tab: count}); tags come from the victim name, so they follow list edits."""
+        """(page of incidents for the tab, {tab: count}); tags come from the victim name (so they follow list edits)
+        and from hand-given tags."""
         # every whitespace-separated term must match some field or a linked article title
         clauses, args = [], []
         for term in query.split()[:5]:

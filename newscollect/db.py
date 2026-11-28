@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS incidents (
   category TEXT DEFAULT '',
   summary TEXT DEFAULT '',
   hashtags TEXT NOT NULL DEFAULT '[]',  -- JSON array of up to 5 tags: attacker, victim, system, technique, type
+  manual_org_tags TEXT NOT NULL DEFAULT '[]',  -- 정부기관/공공기관 given by hand (python -m newscollect gov)
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -71,6 +72,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(incidents)")}
     if "hashtags" not in cols:
         conn.execute("ALTER TABLE incidents ADD COLUMN hashtags TEXT NOT NULL DEFAULT '[]'")
+        conn.commit()
+    if "manual_org_tags" not in cols:
+        conn.execute("ALTER TABLE incidents ADD COLUMN manual_org_tags TEXT NOT NULL DEFAULT '[]'")
         conn.commit()
     if "section" not in {r["name"] for r in conn.execute("PRAGMA table_info(articles)")}:
         conn.execute("ALTER TABLE articles ADD COLUMN section TEXT NOT NULL DEFAULT 'incident'")

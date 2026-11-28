@@ -141,6 +141,9 @@ On a match: link the article, fill empty fields, keep the longer summary.
   `python -m newscollect add URL ...` (`addurl.py`, wrapper `./addnews`) reads a page into `articles` (status
   `manual`) and runs the LLM on it at once via `pages.process_queued`, the same incident-then-intel pass the KakaoTalk
   importer uses; `pages.py` holds the shared page reading, URL normalisation and outlet naming.
+  `python -m newscollect gov CARD ...` (`govtag.py`, wrapper `./govtag`) gives cards (by id or article URL) the
+  정부기관 tag (`--public`: 공공기관) by hand, stored in `incidents.manual_org_tags` and merged with the victim-name
+  tags in `web.tagged`; `--remove` clears hand-given tags, `--list` lists them.
   `python -m newscollect retag [id ...]` (`retag.py`) re-tags stored incidents with a tags-only prompt
   (`extractor.extract_tags`, `TAGS_SYSTEM`), from the stored article text plus the incident's fields.
 - Timeline dates: the list groups by `posted_at` = earliest linked article's `published_at` (collection date if

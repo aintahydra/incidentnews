@@ -1857,3 +1857,30 @@ def test_cve_list_sorts_by_date_or_severity(tmp_path):
     assert order(c.get("/", params={"section": "cve", "sort": "bogus"}).text)[0] == "CVE-2026-1001"
     assert [x["cve_id"] for x in c.get("/api/cves", params={"sort": "severity"}).json()["cves"]][0] == "CVE-2026-1002"
     assert c.get("/api/cves", params={"sort": "x"}).status_code == 400
+
+
+def test_gov_command_tags_cards_by_number_or_url(tmp_path, capsys):
+    from newscollect import govtag
+    c, ids = make_client(tmp_path, ("랜섬웨어 공격", "어느 협회", "", "2026-10-10", "협회 기사"),
+                         ("유출", "삼성전자", "", "2026-10-20", "삼성 기사"),
+                         ("해킹", "롯데카드", "", "2026-10-25", "롯데 기사"))
+    cfg = load_config(tmp_path / "config.toml")
+    gov = lambda: sorted((r["victim"], tuple(r["org_tags"])) for r in c.get("/api/incidents", params={"tab": "gov"}).json())
+    assert gov() == []
+    assert govtag.main([str(ids[0]), "http://u/1/"], cfg) == 0           # card number; article URL (normalised)
+    out = capsys.readouterr().out
+    assert "정부기관(수동)" in out and "삼성전자" in out
+    assert gov() == [("삼성전자", ("정부기관",)), ("어느 협회", ("정부기관",))]
+    assert govtag.main(["--public", str(ids[0])], cfg) == 0              # adds 공공기관 next to 정부기관
+    assert ("어느 협회", ("정부기관", "공공기관")) in gov()
+    page = c.get("/", params={"tab": "gov"}).text
+    assert '정부공공 <span class="count">2</span>' in page and "롯데카드" not in page
+    assert govtag.main(["--remove", str(ids[1])], cfg) == 0
+    assert gov() == [("어느 협회", ("정부기관", "공공기관"))]
+    capsys.readouterr()
+    assert govtag.main(["--list"], cfg) == 0 and "어느 협회" in capsys.readouterr().out
+    assert govtag.main(["999", "http://nowhere/x", "협회"], cfg) == 1      # unknown card, unknown URL, not a target
+    out = capsys.readouterr().out
+    assert out.count("✗") == 3
+    with pytest.raises(SystemExit):
+        govtag.main([], cfg)

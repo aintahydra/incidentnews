@@ -89,6 +89,7 @@ Each row is one incident card in the 보안사고 tab.
 | `category` | TEXT | One of `랜섬웨어`, `데이터 유출`, `해킹`, `악성코드`, `DDoS`, `피싱`, `기타`. |
 | `summary` | TEXT | Korean summary in plain 다체 (no 존댓말). |
 | `hashtags` | TEXT NOT NULL | A JSON array of up to 5 tags (without `#`), one per role in the order attacker, victim, vulnerable system, technique, incident type. Roles the article doesn't support are left out. Default `'[]'`. |
+| `manual_org_tags` | TEXT NOT NULL | A JSON array of `정부기관` / `공공기관` given by hand (`python -m newscollect gov`), shown in addition to the tags computed from `victim`. Default `'[]'`. |
 | `created_at`, `updated_at` | TEXT NOT NULL | UTC timestamps. `updated_at` changes when a later article fills in empty fields. |
 
 **Merging.** `dedupe.upsert_incident()` looks for an existing incident within ±7 days of `occurred_at`. It
@@ -181,6 +182,7 @@ columns that older databases lack:
 
 - `incidents.hashtags`, for databases created before tags existed.
 - `articles.section`. Existing rows become `incident`.
+- `incidents.manual_org_tags`. Existing rows get `'[]'`.
 - `cves` columns added after the table's first version (`cves.migrate`, `COLUMNS_ADDED`).
 
 `ALTER TABLE ... ADD COLUMN` appends the new column at the end, which is why `section` is the last column of
